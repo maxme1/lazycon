@@ -1,0 +1,17 @@
+config = definition*
+
+definition = IDENTIFIER '=' type
+type = jsonType | module | IDENTIFIER
+
+module = IDENTIFIER '.' IDENTIFIER param*
+param = IDENTIFIER ':' type
+
+jsonType = object | array | STRING | NUMBER | 'true' | 'false' | 'null'
+object = '{' (pair (',' pair)* ','?)? '}'
+pair = STRING ':' type
+array = '[' (type (',' type)* ','?)? ']'
+
+STRING = r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'
+CHARS = r'(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*'
+NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
+IDENTIFIER = r'[^\d\W]\w*'
