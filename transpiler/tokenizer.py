@@ -1,24 +1,65 @@
 from .token import *
 
 
-def tokenize(source: str):
+def tokenize(source: str, indentation: int):
     tokens = []
+    current_indent = 0
+    stack = []
+
     for line_number, line in enumerate(source.splitlines()):
         line = line.rstrip()
         text = line.lstrip()
+        if not text.strip() or text.startswith('//'):
+            continue
+
+        # if not inside json
+        if not stack:
+            indent = len(line) - len(text)
+            if indent % indentation:
+                raise SyntaxError(f'Bad indentation at line {line_number}')
+            indent = indent // indentation
+            delta = indent - current_indent
+            current_indent = indent
+            if delta > 0:
+                tokens.extend([Token('>>>', TokenType.BLOCK_OPEN, line_number)] * delta)
+            elif delta < 0:
+                tokens.extend([Token('<<<', TokenType.BLOCK_CLOSE, line_number)] * -delta)
+
         while text:
+            # comment
+            if text.startswith('//'):
+                break
+
             position = len(line) - len(text)
             token = next_token(text)
+
+            if token is None:
+                raise ValueError(f'Unexpected character: {repr(text[0])} at {line_number}:{position}')
+
             token.add_info(line_number, position)
+
+            if token.type in JSON_OPEN:
+                stack.append(token)
+            if token.type in JSON_CLOSE:
+                if not stack or JSON_CLOSE[token.type] != stack[-1].type:
+                    raise SyntaxError(f'Invalid brackets balance at {token.line}:{token.column}')
+                stack.pop()
+
             tokens.append(token)
 
             text = text[len(token.body):]
             text = text.strip()
 
+    # close remaining blocks
+    tokens.extend([Token('<<<', TokenType.BLOCK_CLOSE)] * current_indent)
     return tokens
 
 
 def next_token(text: str):
+    for literal in LITERALS:
+        if text.startswith(literal):
+            return Token(literal, TokenType.LITERAL)
+
     for tokenType, regex in REGEXPS.items():
         match = regex.match(text)
         if match:
@@ -28,9 +69,3 @@ def next_token(text: str):
     for char, tokeType in SINGLE.items():
         if text.startswith(char):
             return Token(char, tokeType)
-
-    for literal in LITERALS:
-        if text.startswith(literal):
-            return Token(literal, TokenType.LITERAL)
-
-    raise ValueError(f'Unexpected character: {repr(text[0])}')

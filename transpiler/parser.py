@@ -9,70 +9,93 @@ class Parser:
         self.tokens = tokens
         self.position = 0
         self.indent_step = 4
+        self.json_stack = []
 
-    def module(self, indentation):
+    def params(self):
+        params = []
+        init = None
+        if self.matches(TokenType.INIT):
+            init = self.module_init()
+
+        while self.matches(TokenType.IDENTIFIER):
+            params.append(self.definition())
+            if self.matches(TokenType.COMA):
+                self.advance()
+        return params, init
+
+    def module_init(self):
+        self.require(TokenType.INIT)
+        self.require(TokenType.EQUALS)
+        init = self.require(TokenType.LITERAL)
+        if init.body not in ['true', 'false']:
+            raise ValueError('The `init` parameter can be either `true` or `false`')
+
+        init = Value(init)
+        if self.matches(TokenType.COMA):
+            self.advance()
+        return init
+
+    def module(self, json_safe=False):
         module_type = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.DOT)
         name = self.require(TokenType.IDENTIFIER)
 
-        if indentation is None:
-            indentation = module_type.column
-        indentation = indentation + self.indent_step
+        init = None
         params = []
-        while self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.COLON, shift=1) \
-                and self.indent(indentation):
-            left = self.advance()
-            self.require(TokenType.COLON)
-            right = self.allowed_type(indentation)
-            params.append((left, right))
+        if self.matches(TokenType.BLOCK_OPEN) and not json_safe:
+            self.advance()
+            params, init = self.params()
+            self.require(TokenType.BLOCK_CLOSE)
+        if self.matches(TokenType.LAMBDA_OPEN):
+            self.advance()
+            params, init = self.params()
+            self.require(TokenType.LAMBDA_CLOSE)
 
-        return Module(module_type, name, params)
+        return Module(module_type, name, params, init)
 
-    def allowed_type(self, indentation=None):
+    def allowed_type(self, json_safe=False):
         if self.matches(TokenType.IDENTIFIER):
             # module
             if self.matches(TokenType.DOT, shift=1):
-                return self.module(indentation)
+                return self.module(json_safe)
             else:
                 # identifier
                 return self.advance()
-        return self.json_type()
+        # json
+        if self.matches(TokenType.BRACKET_OPEN):
+            return self.array()
+        if self.matches(TokenType.DICT_OPEN):
+            return self.object()
+        return Value(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
     def definition(self):
         left = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.EQUALS)
-        right = self.allowed_type(left.column)
+        right = self.allowed_type()
 
         return Definition(left, right)
 
-    def json_type(self):
-        if self.matches(TokenType.BRACKET_OPEN):
-            return self.array()
-        if self.matches(TokenType.CBRACKET_OPEN):
-            return self.object()
-        return Value(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
-
     def object(self):
-        self.require(TokenType.CBRACKET_OPEN)
+        self.require(TokenType.DICT_OPEN)
         pairs = {}
-        while not self.matches(TokenType.CBRACKET_CLOSE):
+        while not self.matches(TokenType.DICT_CLOSE):
             key = self.require(TokenType.STRING)
             self.require(TokenType.COLON)
-            value = self.allowed_type()
+            value = self.allowed_type(json_safe=True)
             pairs[key] = value
-            # ignore trailing coma
+            # ignore coma
             if self.matches(TokenType.COMA):
                 self.advance()
 
-        self.require(TokenType.CBRACKET_CLOSE)
+        self.require(TokenType.DICT_CLOSE)
         return Dictionary(pairs)
 
     def array(self):
         self.require(TokenType.BRACKET_OPEN)
         values = []
         while not self.matches(TokenType.BRACKET_CLOSE):
-            values.append(self.allowed_type())
-            # ignore trailing coma
+            values.append(self.allowed_type(json_safe=True))
+            # ignore coma
             if self.matches(TokenType.COMA):
                 self.advance()
 
@@ -89,7 +112,7 @@ class Parser:
         return json.dumps(final, indent=2)
 
     def advance(self):
-        result = self.tokens[self.position]
+        result = self.current
         self.position += 1
         return result
 
@@ -105,26 +128,23 @@ class Parser:
         except IndexError:
             return False
 
-        for type in types:
-            if temp.type == type:
+        for tokenType in types:
+            if temp.type == tokenType:
                 return True
 
         return False
 
-    def indent(self, indent, strict=False):
-        if self.current.column == indent:
-            return True
-        if strict:
-            raise SyntaxError('Indentation error')
-        return False
-
     def require(self, *types):
         if not self.matches(*types):
-            raise ValueError(f'Unexpected token: {repr(self.current)} at {self.current.line}:{self.current.column}')
+            if self.current.type == TokenType.BLOCK_OPEN:
+                message = f'Unexpected indent at line {self.current.line}'
+            else:
+                message = f'Unexpected token: {repr(self.current.body)} at {self.current.line}:{self.current.column}'
+            raise ValueError(message)
 
         return self.advance()
 
 
-def transpile(source):
-    tokens = tokenize(source)
+def transpile(source: str, indentation: int = 4):
+    tokens = tokenize(source, indentation)
     return Parser(tokens).compile()
