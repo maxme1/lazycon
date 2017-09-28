@@ -1,0 +1,3 @@
+@extends "../idempotency/comments" "../idempotency/json" "folder/target"
+
+another_resource = "just testing"

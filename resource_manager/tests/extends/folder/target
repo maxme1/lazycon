@@ -1,0 +1,3 @@
+@extends "deeper"
+
+just_another_resource = null

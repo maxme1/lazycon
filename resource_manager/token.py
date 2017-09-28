@@ -18,6 +18,7 @@ class TokenType(Enum):
     DICT_CLOSE = auto()
 
     INIT = auto()
+    EXTENDS = auto()
 
     BLOCK_OPEN = auto()
     BLOCK_CLOSE = auto()
@@ -28,7 +29,9 @@ class TokenType(Enum):
 REGEXPS = {TokenType.NUMBER: re.compile(r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'),
            TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
            TokenType.STRING: re.compile(r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'),
-           TokenType.INIT: re.compile(r'@init')}
+           TokenType.INIT: re.compile(r'@init'),
+           TokenType.EXTENDS: re.compile(r'@extends'),
+           }
 
 LITERALS = ('null', 'true', 'false')
 SINGLE = {
@@ -60,9 +63,4 @@ class Token:
         self.line, self.column = line, column
 
     def __repr__(self):
-        return str(self.body)
-
-    def __str__(self):
-        if self.type == TokenType.IDENTIFIER:
-            return f'"{self.body}"'
-        return self.body
+        return f'{self.type}:{self.body}'
