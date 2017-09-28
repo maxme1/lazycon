@@ -1,0 +1,4 @@
+dataset = dataset.isles
+    @init = false
+    data_path = "my_path"
+    filename = "meta.csv"

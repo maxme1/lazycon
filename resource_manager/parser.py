@@ -1,6 +1,4 @@
-import json
-
-from .tokenizer import tokenize, TokenType
+from .tokenizer import TokenType
 from .structures import *
 
 
@@ -102,14 +100,12 @@ class Parser:
         self.require(TokenType.BRACKET_CLOSE)
         return Array(values)
 
-    def compile(self):
-        result = ''
+    def build_tree(self):
+        definitions = []
         while self.position < len(self.tokens):
-            result += repr(self.definition()) + ','
+            definitions.append(self.definition())
 
-        # final check
-        final = json.loads('{' + result[:-1] + '}')
-        return json.dumps(final, indent=2)
+        return definitions
 
     def advance(self):
         result = self.current
@@ -143,8 +139,3 @@ class Parser:
             raise ValueError(message)
 
         return self.advance()
-
-
-def transpile(source: str, indentation: int = 4):
-    tokens = tokenize(source, indentation)
-    return Parser(tokens).compile()

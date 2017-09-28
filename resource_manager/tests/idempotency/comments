@@ -6,17 +6,3 @@ dataset = dataset.isles // and here
     filename = "meta.csv" // here, of course
     // finally here
   //different indentation
-
-:becomes:
-
-{
-    "dataset": {
-          "type": "dataset",
-          "name": "isles",
-          "init": false,
-          "params": {
-            "data_path": "my_path",
-            "filename": "meta.csv"
-            }
-     }
-}

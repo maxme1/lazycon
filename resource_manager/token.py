@@ -59,10 +59,5 @@ class Token:
     def add_info(self, line, column):
         self.line, self.column = line, column
 
-    def __repr__(self):
-        return str(self.body)
-
-    def __str__(self):
-        if self.type == TokenType.IDENTIFIER:
-            return f'"{self.body}"'
+    def to_str(self, level=0):
         return self.body
