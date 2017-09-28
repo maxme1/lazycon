@@ -1,4 +1,4 @@
-from .tokenizer import TokenType
+from .tokenizer import TokenType, tokenize
 from .structures import *
 
 
@@ -17,8 +17,7 @@ class Parser:
 
         while self.matches(TokenType.IDENTIFIER):
             params.append(self.definition())
-            if self.matches(TokenType.COMA):
-                self.advance()
+            self.ignore(TokenType.COMA)
         return params, init
 
     def module_init(self):
@@ -29,8 +28,7 @@ class Parser:
             raise ValueError('The `init` parameter can be either `true` or `false`')
 
         init = Value(init)
-        if self.matches(TokenType.COMA):
-            self.advance()
+        self.ignore(TokenType.COMA)
         return init
 
     def module(self, json_safe=False):
@@ -58,7 +56,7 @@ class Parser:
                 return self.module(json_safe)
             else:
                 # identifier
-                return self.advance()
+                return Resource(self.advance())
         # json
         if self.matches(TokenType.BRACKET_OPEN):
             return self.array()
@@ -81,9 +79,8 @@ class Parser:
             self.require(TokenType.COLON)
             value = self.allowed_type(json_safe=True)
             pairs[key] = value
-            # ignore coma
-            if self.matches(TokenType.COMA):
-                self.advance()
+
+            self.ignore(TokenType.COMA)
 
         self.require(TokenType.DICT_CLOSE)
         return Dictionary(pairs)
@@ -93,19 +90,29 @@ class Parser:
         values = []
         while not self.matches(TokenType.BRACKET_CLOSE):
             values.append(self.allowed_type(json_safe=True))
-            # ignore coma
-            if self.matches(TokenType.COMA):
-                self.advance()
+            self.ignore(TokenType.COMA)
 
         self.require(TokenType.BRACKET_CLOSE)
         return Array(values)
 
-    def build_tree(self):
+    def extends(self):
+        self.require(TokenType.EXTENDS)
+        paths = []
+        while self.matches(TokenType.STRING):
+            paths.append(self.advance().body[1:-1])
+            self.ignore(TokenType.COMA)
+        return paths
+
+    def parse(self):
+        parents = []
+        if self.matches(TokenType.EXTENDS):
+            parents = self.extends()
+
         definitions = []
         while self.position < len(self.tokens):
             definitions.append(self.definition())
 
-        return definitions
+        return definitions, parents
 
     def advance(self):
         result = self.current
@@ -139,3 +146,15 @@ class Parser:
             raise ValueError(message)
 
         return self.advance()
+
+    def ignore(self, *types):
+        if self.matches(*types):
+            self.advance()
+
+
+def parse_file(source_path):
+    with open(source_path) as file:
+        source = file.read()
+
+    tokens = tokenize(source, 4)
+    return Parser(tokens).parse()

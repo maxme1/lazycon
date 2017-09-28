@@ -4,7 +4,15 @@ class Definition:
         self.value = value
 
     def to_str(self, level):
-        return f'{self.name.to_str(level)} = {self.value.to_str(level)}'
+        return f'{self.name.body} = {self.value.to_str(level)}'
+
+
+class Resource:
+    def __init__(self, name):
+        self.name = name
+
+    def to_str(self, level):
+        return self.name.body
 
 
 class Module:
@@ -15,7 +23,7 @@ class Module:
         self.init = init
 
     def to_str(self, level):
-        result = f'{self.module_type.to_str(level)}.{self.module_name.to_str(level)}(\n'
+        result = f'{self.module_type.body}.{self.module_name.body}(\n'
 
         if self.init is not None:
             result += '    ' * (level + 1) + f'@init = {self.init.to_str(level)}\n'
@@ -31,7 +39,7 @@ class Value:
         self.value = value
 
     def to_str(self, level):
-        return self.value.to_str(level)
+        return self.value.body
 
 
 class Array:
@@ -52,5 +60,5 @@ class Dictionary:
     def to_str(self, level):
         result = '{\n'
         for key, value in self.dictionary.items():
-            result += '    ' * (level + 1) + f'{key.to_str(0)}: {value.to_str(level+1)}\n'
+            result += '    ' * (level + 1) + f'{key.body}: {value.to_str(level+1)}\n'
         return result[:-1] + '    ' * level + '\n}'

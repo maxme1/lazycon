@@ -1,4 +1,7 @@
-config = definition*
+config = extends? definition*
+
+extends = '@extends' paths
+paths = (STRING ','?)+
 
 definition = IDENTIFIER '=' jsonAllowed | moduleAssign
 

@@ -8,14 +8,17 @@ from resource_manager.tokenizer import tokenize
 def standardize(source):
     tokens = tokenize(source, 4)
     result = ''
-    for definition in Parser(tokens).build_tree():
+    definitions, parents = Parser(tokens).parse()
+    if parents:
+        result += '@extends ' + ' '.join(f'"{x}"' for x in parents)
+    for definition in definitions:
         result += definition.to_str(0) + '\n'
     return result
 
 
 class TestParser(unittest.TestCase):
     def test_idempotency(self):
-        folder = os.path.join(os.path.dirname(__file__), 'idempotency')
+        folder = os.path.join(os.path.dirname(__file__), 'configs')
 
         for i, filename in enumerate(os.listdir(folder)):
             path = os.path.join(folder, filename)
