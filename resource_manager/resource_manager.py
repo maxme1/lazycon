@@ -9,7 +9,7 @@ from .structures import *
 
 class ResourceManager:
     def __init__(self, source_path: str, get_module: callable):
-        self._get_module = get_module
+        self.get_module = get_module
         source_path = os.path.realpath(source_path)
         self._imported = OrderedDict()
         self._defined_resources = {}
@@ -19,11 +19,19 @@ class ResourceManager:
     def __getattr__(self, name: str):
         return self._get_resource(name)
 
+    def __setattr__(self, name, value):
+        self.set(name, value)
+
     def get(self, name: str, default=None):
         try:
             return self._get_resource(name)
         except AttributeError:
             return default
+
+    def set(self, name, value, override=False):
+        if name in self._defined_resources and not override:
+            raise RuntimeError(f'Attempt to overwrite resource {name}')
+        self._defined_resources[name] = value
 
     def _get_resources_dict(self, absolute_path):
         definitions, parents = parse_file(absolute_path)
@@ -68,7 +76,7 @@ class ResourceManager:
         if type(node) is Resource:
             return self._get_resource(node.name.body)
         if type(node) is Module:
-            constructor = self._get_module(node.module_type.body, node.module_name.body)
+            constructor = self.get_module(node.module_type.body, node.module_name.body)
             kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
             # by default init is True
             if node.init is None or json.loads(node.init.value.body):
