@@ -1,36 +1,62 @@
-import json
 import functools
+import json
+import os
+from collections import OrderedDict
 
 from .parser import parse_file
 from .structures import *
 
 
 class ResourceManager:
-    def __init__(self, source_path, get_module):
+    def __init__(self, source_path: str, get_module: callable):
         self._get_module = get_module
-        definitions = parse_file(source_path)
-        self._undefined_resources = self._get_resources_dict(definitions)
+        source_path = os.path.realpath(source_path)
+        self._imported = OrderedDict()
         self._defined_resources = {}
 
-    def __getattr__(self, name):
+        self._undefined_resources = self._get_resources_dict(source_path)
+
+    def __getattr__(self, name: str):
         return self._get_resource(name)
 
-    def _get_resources_dict(self, definitions):
+    def get(self, name: str, default=None):
+        try:
+            return self._get_resource(name)
+        except AttributeError:
+            return default
+
+    def _get_resources_dict(self, absolute_path):
+        definitions, parents = parse_file(absolute_path)
         result = {}
         for definition in definitions:
             result[definition.name.body] = definition.value
+        for parent in parents:
+            parent = os.path.join(os.path.dirname(absolute_path), parent)
+            if parent not in self._imported:
+                # avoiding cycles
+                self._imported[parent] = None
+                self._imported[parent] = self._get_resources_dict(parent)
         return result
 
     def _get_resource(self, name: str):
         try:
             return self._defined_resources[name]
         except KeyError:
-            if name not in self._undefined_resources:
-                raise AttributeError(f'Resource {repr(name)} is not defined')
-            node = self._undefined_resources[name]
-            resource = self._define_resource(node)
+            resource = self._define_resource(self._get_node(name))
             self._defined_resources[name] = resource
             return resource
+
+    def _get_node(self, name):
+        try:
+            return self._undefined_resources[name]
+        except KeyError:
+            for config in self._imported.values():
+                if name in config:
+                    result = config[name]
+                    self._undefined_resources[name] = result
+                    return result
+
+        raise AttributeError(f'Resource {repr(name)} is not defined') from None
 
     def _define_resource(self, node):
         if type(node) is Value:

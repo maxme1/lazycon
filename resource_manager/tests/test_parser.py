@@ -18,7 +18,7 @@ def standardize(source):
 
 class TestParser(unittest.TestCase):
     def test_idempotency(self):
-        folder = os.path.join(os.path.dirname(__file__), 'configs')
+        folder = os.path.join(os.path.dirname(__file__), 'idempotency')
 
         for i, filename in enumerate(os.listdir(folder)):
             path = os.path.join(folder, filename)

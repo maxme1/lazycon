@@ -1,3 +1,0 @@
-@extends "comments" "json"
-
-another_resource = "just testing"
