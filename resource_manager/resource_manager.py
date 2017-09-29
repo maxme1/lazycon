@@ -19,9 +19,6 @@ class ResourceManager:
     def __getattr__(self, name: str):
         return self._get_resource(name)
 
-    def __setattr__(self, name, value):
-        self.set(name, value)
-
     def get(self, name: str, default=None):
         try:
             return self._get_resource(name)
