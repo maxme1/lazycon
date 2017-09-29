@@ -1,7 +1,7 @@
-This repository contains the description of a briefer grammar for the [dpipe](https://github.com/neuro-ml/deep_pipe) config files, 
-as well as a transpiller.
+This repository contains a grammar for config files, as well as a parser and a manager of resources, 
+and is mainly designed for the [deep_pipe](https://github.com/neuro-ml/deep_pipe) library.
 
-# Overview
+# Grammar overview
 ## Resources definition
 
 Think of resources as constants in a programming language.
@@ -77,12 +77,25 @@ dataset = dataset_wrapper.cached
 
 Some modules must be initialized when they are requested. 
 
-You can specify this behaviour with the `@init` parameter:
+You can specify this behaviour with the `@init` parameter 
+(by default it is `true`):
 
 ```json
 dataset = dataset.isles
-    @init = true
+    @init = false
     filename = "meta.csv"     
 ```
 
-The default values is `true`.
+## Mixins
+
+The grammar also supports multiple inheritance, realized as mixins.
+
+```json
+@extends "../relative/path/config_one" "/or/absolute/path/config_two"
+
+another_resource = "Important data"
+```
+
+The `@extends` command takes any number of string arguments, containing 
+paths. The paths can be absolute, or relative to the folder where lies
+the config that is being parsed.
