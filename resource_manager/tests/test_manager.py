@@ -40,3 +40,9 @@ class TestResourceManager(unittest.TestCase):
         rm = ResourceManager('extends/inheritance', mock_get_resource)
         with self.assertRaises(AttributeError):
             rm.undefined_value
+
+    def test_build_config(self):
+        rm = ResourceManager('extends/inheritance', mock_get_resource)
+        print(rm._get_whole_config())
+        with open('extends/built') as built:
+            self.assertEqual(rm._get_whole_config(), built.read())

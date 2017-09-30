@@ -30,6 +30,24 @@ class ResourceManager:
             raise RuntimeError(f'Attempt to overwrite resource {name}')
         self._defined_resources[name] = value
 
+    def save_whole_config(self, path):
+        with open(path, 'w') as file:
+            file.write(self._get_whole_config())
+
+    def _get_whole_config(self):
+        added = set()
+        result = ''
+        for name, value in self._undefined_resources.items():
+            added.add(name)
+            result += f'{name} = {value.to_str(0)}\n\n'
+
+        for config in self._imported.values():
+            for name, value in config.items():
+                if name not in added:
+                    added.add(name)
+                    result += f'{name} = {value.to_str(0)}\n\n'
+        return result[:-1]
+
     def _get_resources_dict(self, absolute_path):
         definitions, parents = parse_file(absolute_path)
         result = {}
@@ -75,10 +93,15 @@ class ResourceManager:
         if type(node) is Module:
             constructor = self.get_module(node.module_type.body, node.module_name.body)
             kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
-            # by default init is True
-            if node.init is None or json.loads(node.init.value.body):
-                return constructor(**kwargs)
-            else:
-                return functools.partial(constructor, **kwargs)
+            try:
+                # by default init is True
+                if node.init is None or json.loads(node.init.value.body):
+                    return constructor(**kwargs)
+                else:
+                    return functools.partial(constructor, **kwargs)
+            except BaseException as e:
+                raise RuntimeError(f'An exception occured while building resource '
+                                   f'{node.module_name.body} of type {node.module_type.body}:\n'
+                                   f'{e}') from None
 
         raise TypeError(f'Undefined resource description of type {type(node)}')
