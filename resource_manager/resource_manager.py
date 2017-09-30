@@ -13,6 +13,7 @@ class ResourceManager:
         source_path = os.path.realpath(source_path)
         self._imported = OrderedDict()
         self._defined_resources = {}
+        self._request_stack = []
 
         self._undefined_resources = self._get_resources_dict(source_path)
 
@@ -62,12 +63,20 @@ class ResourceManager:
         return result
 
     def _get_resource(self, name: str):
-        try:
+        if name in self._defined_resources:
             return self._defined_resources[name]
-        except KeyError:
-            resource = self._define_resource(self._get_node(name))
-            self._defined_resources[name] = resource
-            return resource
+        # avoiding cycles
+        if name in self._request_stack:
+            self._request_stack = []
+            raise RuntimeError('Cyclic dependency found in the following resource:\n  '
+                               f'{" -> ".join(self._request_stack)} -> {name}')
+        self._request_stack.append(name)
+
+        resource = self._define_resource(self._get_node(name))
+        self._defined_resources[name] = resource
+
+        self._request_stack.pop()
+        return resource
 
     def _get_node(self, name):
         try:

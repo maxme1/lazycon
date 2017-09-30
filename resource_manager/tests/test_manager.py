@@ -43,6 +43,12 @@ class TestResourceManager(unittest.TestCase):
 
     def test_build_config(self):
         rm = ResourceManager('extends/inheritance', mock_get_resource)
-        print(rm._get_whole_config())
         with open('extends/built') as built:
             self.assertEqual(rm._get_whole_config(), built.read())
+
+    def test_cycles(self):
+        rm = ResourceManager('misc/cycles', mock_get_resource)
+        for attr in ['a', 'x', 'y', 'z']:
+            with self.subTest(attribute=attr):
+                with self.assertRaises(RuntimeError):
+                    getattr(rm, attr)
