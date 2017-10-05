@@ -1,5 +1,5 @@
-This repository contains a grammar for config files, as well as a parser and a manager of resources, 
-and is mainly designed for the [deep_pipe](https://github.com/neuro-ml/deep_pipe) library.
+This repository contains a grammar for config files, as well as a parser, a registration system and a manager of 
+resources, and is mainly designed for the [deep_pipe](https://github.com/neuro-ml/deep_pipe) library.
 
 # Grammar overview
 ## Resources definition
@@ -99,3 +99,42 @@ another_resource = "Important data"
 The `@extends` command takes any number of string arguments, containing 
 paths. The paths can be absolute, or relative to the folder where lies
 the config that is being parsed.
+
+# Resource Manager
+
+The ResourceManager class interprets a config file and manages the resources defined in it:
+
+```python
+rm = ResourceManager(config_path, get_module)
+print(rm.another_resource)
+```
+
+All the requests are processed lazily.
+
+# Registration system
+
+The RegistrationSystem class provides a convenient way to keep track of all your modules in python code.
+
+To register a resource (and use it in your configs) you can either use a decorator, or a function:
+
+```python
+@register(module_name='dummy', module_type='dataset')
+class Dataset:
+    def __init__(self, data_path):
+        # init implementation
+        pass
+    # class implementation
+    pass
+    
+data = 'some important data defined inside Python'
+register_inline(data, module_name='data', module_type='constants')
+```
+
+Then you can use it inside your config file:
+
+```json
+dataset = dataset.dummy
+    data_path = "/some/path"
+    
+important = constants.data
+```
