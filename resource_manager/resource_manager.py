@@ -1,6 +1,7 @@
 import functools
 import json
 import os
+import traceback
 from collections import OrderedDict
 
 from .parser import parse_file
@@ -100,9 +101,9 @@ class ResourceManager:
         if type(node) is Resource:
             return self._get_resource(node.name.body)
         if type(node) is Module:
-            constructor = self.get_module(node.module_type.body, node.module_name.body)
-            kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
             try:
+                constructor = self.get_module(node.module_type.body, node.module_name.body)
+                kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
                 # by default init is True
                 if node.init is None or json.loads(node.init.value.body):
                     return constructor(**kwargs)
@@ -110,7 +111,6 @@ class ResourceManager:
                     return functools.partial(constructor, **kwargs)
             except BaseException as e:
                 raise RuntimeError(f'An exception occured while building resource '
-                                   f'{node.module_name.body} of type {node.module_type.body}:\n'
-                                   f'{e}') from None
+                                   f'"{node.module_name.body}" of type "{node.module_type.body}"') from e
 
         raise TypeError(f'Undefined resource description of type {type(node)}')

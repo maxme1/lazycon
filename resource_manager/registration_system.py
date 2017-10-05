@@ -5,7 +5,7 @@ import functools
 
 from .utils import *
 
-__all__ = ['RegistrationSystem', 'register', 'register_inline', 'generate_config', 'get_module']
+__all__ = ['RegistrationSystem', 'register', 'register_inline', 'generate_config', 'get_module', 'make_module_getter']
 
 
 class RegistrationSystem:

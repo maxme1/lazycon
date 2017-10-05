@@ -12,6 +12,19 @@ def mock_get_resource(module_type, module_name):
     return x
 
 
+# TODO: replace with mock
+def raises(module_type, module_name):
+    name = f'{module_type}.{module_name}'
+
+    if name == 'dataset_wrapper.merge_datasets':
+        raise KeyError
+
+    def x(**kwargs):
+        return name
+
+    return x
+
+
 class TestResourceManager(unittest.TestCase):
     def test_import(self):
         rm = ResourceManager('extends/inheritance', mock_get_resource)
@@ -52,3 +65,8 @@ class TestResourceManager(unittest.TestCase):
             with self.subTest(attribute=attr):
                 with self.assertRaises(RuntimeError):
                     getattr(rm, attr)
+
+    def test_exc_handling(self):
+        rm = ResourceManager('idempotency/nested_module', raises)
+        with self.assertRaises(RuntimeError):
+            rm.dataset
