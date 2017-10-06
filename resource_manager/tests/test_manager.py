@@ -60,7 +60,8 @@ class TestResourceManager(unittest.TestCase):
             self.assertEqual(rm._get_whole_config(), built.read())
 
     def test_cycles(self):
-        rm = ResourceManager('misc/cycles', mock_get_resource)
+        with self.assertWarns(RuntimeWarning):
+            rm = ResourceManager('misc/cycles', mock_get_resource)
         for attr in ['a', 'x', 'y', 'z']:
             with self.subTest(attribute=attr):
                 with self.assertRaises(RuntimeError):

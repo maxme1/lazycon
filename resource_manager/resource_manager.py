@@ -1,6 +1,7 @@
 import functools
 import json
 import os
+import warnings
 from collections import OrderedDict
 
 from .parser import parse_file
@@ -19,6 +20,11 @@ class ResourceManager:
 
         self._get_all_resources(source_path)
 
+        # statically detecting cycles
+        self._visited = {name: False for name in self._undefined_resources}
+        for name in self._undefined_resources:
+            self._detect_cycles(name)
+
     def __getattr__(self, name: str):
         return self._get_resource(name)
 
@@ -36,6 +42,35 @@ class ResourceManager:
     def save_config(self, path):
         with open(path, 'w') as file:
             file.write(self._get_whole_config())
+
+    def _analyze_node(self, node):
+        if type(node) is Resource:
+            self._detect_cycles(node.name.body)
+        if type(node) is Module:
+            for param in node.params:
+                self._analyze_node(param.value)
+        if type(node) is Array:
+            for x in node.values:
+                self._analyze_node(x)
+        if type(node) is Dictionary:
+            for key, value in node.dictionary.items():
+                self._analyze_node(value)
+
+    def _detect_cycles(self, name):
+        if name not in self._undefined_resources:
+            return
+        if self._visited[name]:
+            return
+        if name in self._request_stack:
+            warnings.warn('Cyclic dependency found in the following resource: '
+                          f'{" -> ".join(self._request_stack)} -> {name}', RuntimeWarning)
+            return
+
+        self._request_stack.append(name)
+        self._analyze_node(self._undefined_resources[name])
+        self._request_stack.pop()
+
+        self._visited[name] = True
 
     def _get_whole_config(self):
         added = set()
