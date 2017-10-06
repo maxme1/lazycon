@@ -1,7 +1,6 @@
 import functools
 import json
 import os
-import traceback
 from collections import OrderedDict
 
 from .parser import parse_file
@@ -12,11 +11,13 @@ class ResourceManager:
     def __init__(self, source_path: str, get_module: callable):
         self.get_module = get_module
         source_path = os.path.realpath(source_path)
+        # this information is redundant for now
         self._imported = OrderedDict()
         self._defined_resources = {}
         self._request_stack = []
+        self._undefined_resources = {}
 
-        self._undefined_resources = self._get_resources_dict(source_path)
+        self._get_all_resources(source_path)
 
     def __getattr__(self, name: str):
         return self._get_resource(name)
@@ -32,7 +33,7 @@ class ResourceManager:
             raise RuntimeError(f'Attempt to overwrite resource {name}')
         self._defined_resources[name] = value
 
-    def save_whole_config(self, path):
+    def save_config(self, path):
         with open(path, 'w') as file:
             file.write(self._get_whole_config())
 
@@ -43,24 +44,27 @@ class ResourceManager:
             added.add(name)
             result += f'{name} = {value.to_str(0)}\n\n'
 
-        for config in self._imported.values():
-            for name, value in config.items():
-                if name not in added:
-                    added.add(name)
-                    result += f'{name} = {value.to_str(0)}\n\n'
         return result[:-1]
 
-    def _get_resources_dict(self, absolute_path):
+    def _get_all_resources(self, absolute_path):
         definitions, parents = parse_file(absolute_path)
         result = {}
         for definition in definitions:
-            result[definition.name.body] = definition.value
+            def_name = definition.name.body
+            if def_name in result:
+                raise SyntaxError(f'Duplicate definition of resource "{def_name}" '
+                                  f'in config file {absolute_path}')
+            result[def_name] = definition.value
+
+            if def_name not in self._undefined_resources:
+                self._undefined_resources[def_name] = definition.value
+
         for parent in parents:
             parent = os.path.join(os.path.dirname(absolute_path), parent)
             if parent not in self._imported:
                 # avoiding cycles
                 self._imported[parent] = None
-                self._imported[parent] = self._get_resources_dict(parent)
+                self._imported[parent] = self._get_all_resources(parent)
         return result
 
     def _get_resource(self, name: str):
@@ -83,13 +87,7 @@ class ResourceManager:
         try:
             return self._undefined_resources[name]
         except KeyError:
-            for config in self._imported.values():
-                if name in config:
-                    result = config[name]
-                    self._undefined_resources[name] = result
-                    return result
-
-        raise AttributeError(f'Resource {repr(name)} is not defined') from None
+            raise AttributeError(f'Resource {repr(name)} is not defined') from None
 
     def _define_resource(self, node):
         if type(node) is Value:

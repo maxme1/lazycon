@@ -66,6 +66,10 @@ class TestResourceManager(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     getattr(rm, attr)
 
+    def test_duplicates(self):
+        with self.assertRaises(SyntaxError):
+            ResourceManager('misc/duplicate', mock_get_resource)
+
     def test_exc_handling(self):
         rm = ResourceManager('idempotency/nested_module', raises)
         with self.assertRaises(RuntimeError):
