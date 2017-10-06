@@ -1,0 +1,11 @@
+data = dataset.from_ids
+    ids = [1 5 3 8 9 3]
+
+load = utils.load_from_dataset
+    // we want this resource to be callable
+    // so it will not be initialized
+    @init = false
+    dataset = data
+
+ids = utils.unique_ids
+    dataset = data
