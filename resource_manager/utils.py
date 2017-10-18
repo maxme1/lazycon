@@ -19,24 +19,21 @@ def walk(path, source, exclude):
 
     for root, dirs, files in os.walk(path):
         for directory in dirs:
-            if not directory.startswith('__'):
-                dir_path = os.path.join(root, directory)
-                #                 TODO: inspect.getmodulename
-                modules.extend(walk(dir_path, f'{source}.{directory}', exclude))
+            dir_path = os.path.join(root, directory)
+            modules.extend(walk(dir_path, f'{source}.{directory}', exclude))
 
         for file in files:
-            name, ext = os.path.splitext(file)
-            # TODO: doesn't look good
-            if not file.startswith(('__', 'test')) and ext == '.py':
+            name, extension = os.path.splitext(file)
+            if extension == '.py':
                 file_path = os.path.join(root, file)
                 modules.append((file_path, f'{source}.{name}'))
         break
     return modules
 
 
-def handle_corruption():
-    # TODO: more details
-    raise RuntimeError('Resources base file corrupted')
+def handle_corruption(db_path):
+    db_path = os.path.realpath(db_path)
+    raise RuntimeError(f'Resources base file corrupted. You may want to delete it: {db_path}') from None
 
 
 def read_config(path):
@@ -47,7 +44,7 @@ def read_config(path):
             hashes = config['hashes']
             config = config['config']
         except KeyError:
-            handle_corruption()
+            handle_corruption(path)
 
     except FileNotFoundError:
         config = []

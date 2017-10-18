@@ -22,7 +22,7 @@ class TestParser(unittest.TestCase):
 
         for i, filename in enumerate(os.listdir(folder)):
             path = os.path.join(folder, filename)
-            with self.subTest(i=filename):
+            with self.subTest(filename=filename):
                 with open(path, 'r') as file:
                     source = file.read()
                 temp = standardize(source)

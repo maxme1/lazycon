@@ -97,10 +97,17 @@ class Parser:
 
     def extends(self):
         self.require(TokenType.EXTENDS)
+        block = self.matches(TokenType.LAMBDA_OPEN)
+        if block:
+            self.advance()
+
         paths = []
         while self.matches(TokenType.STRING):
             paths.append(self.advance().body[1:-1])
             self.ignore(TokenType.COMA)
+
+        if block:
+            self.require(TokenType.LAMBDA_CLOSE)
         return paths
 
     def parse(self):

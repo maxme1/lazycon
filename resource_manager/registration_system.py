@@ -17,19 +17,19 @@ class RegistrationSystem:
         assert (type(module_name) is str or module_name is None and
                 type(module_type) is str or module_type is None)
 
-        if module_name is None:
-            try:
-                module_name = snake_case(resource.__name__)
-            except AttributeError:
-                # TODO: maybe provide some additional info
-                raise TypeError('Could not infer the resource name. Please specify it explicitly.') from None
-
         stack = inspect.stack()
         source = inspect.getframeinfo(stack[2][0]).filename
         source = os.path.realpath(source)
 
         if module_type is None:
             module_type = os.path.basename(os.path.dirname(source))
+
+        if module_name is None:
+            try:
+                module_name = snake_case(resource.__name__)
+            except AttributeError:
+                raise TypeError('Could not infer the resource name. Please specify it explicitly.'
+                                f'\nCheck the source file {source}') from None
 
         modules = self._registry.setdefault(module_type, {})
         if module_name in modules and modules[module_name] != resource:
@@ -122,15 +122,13 @@ class RegistrationSystem:
 
         for entry in config:
             try:
-                if (entry['module_type'] == module_type and
-                            entry['module_name'] == module_name):
+                if entry['module_type'] == module_type and entry['module_name'] == module_name:
                     importlib.import_module(entry['source'])
                     return self._registry[entry['module_type']][entry['module_name']]
             except KeyError:
-                handle_corruption()
+                handle_corruption(db_path)
 
-        raise KeyError(f'The module "{module_name}" of type "{module_type}" '
-                       f'was not found')
+        raise KeyError(f'The module "{module_name}" of type "{module_type}" was not found')
 
 
 registration_system = RegistrationSystem()

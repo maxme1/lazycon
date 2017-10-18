@@ -1,0 +1,3 @@
+@extends ("some" "long" "line"
+    "of" "imports" "so" "ignoring indentation"
+    "is" "a good idea")
