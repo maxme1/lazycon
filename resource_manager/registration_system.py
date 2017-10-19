@@ -1,11 +1,9 @@
 import importlib
 import inspect
 
-import functools
-
 from .utils import *
 
-__all__ = ['RegistrationSystem', 'register', 'register_inline', 'generate_config', 'get_module', 'make_module_getter']
+__all__ = ['RegistrationSystem', 'register', 'register_inline', 'generate_config', 'get_module']
 
 
 class RegistrationSystem:
@@ -136,7 +134,3 @@ register = registration_system.register
 register_inline = registration_system.register_inline
 generate_config = registration_system.generate_config
 get_module = registration_system.get_module
-
-
-def make_module_getter(db_path):
-    return functools.partial(get_module, db_path=db_path)

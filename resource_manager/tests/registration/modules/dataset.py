@@ -8,3 +8,7 @@ class FromIds:
         self.ids = ids
 
         # some other important methods...
+
+
+ids = [1, 5, 3, 8, 9, 3]
+register_inline(ids, 'ids', 'constants')

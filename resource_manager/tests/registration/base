@@ -1,5 +1,8 @@
 data = dataset.from_ids
-    ids = [1 5 3 8 9 3]
+    // ids are just a python list
+    // so the don't need to be initialized
+    ids = constants.ids
+        @init = false
 
 load = utils.load_from_dataset
     // we want this resource to be callable

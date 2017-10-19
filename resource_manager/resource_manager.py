@@ -33,11 +33,13 @@ class ResourceManager:
                 return value
         except AttributeError:
             pass
+        # a whole new request, so clear the stack
+        self._request_stack = []
         return super().__getattribute__('_get_resource')(name)
 
     def get(self, name: str, default=None):
         try:
-            return self._get_resource(name)
+            return getattr(self, name)
         except AttributeError:
             return default
 
@@ -126,7 +128,9 @@ class ResourceManager:
                 if node.init is None or json.loads(node.init.value.body):
                     return constructor(**kwargs)
                 else:
-                    return functools.partial(constructor, **kwargs)
+                    if kwargs:
+                        constructor = functools.partial(constructor, **kwargs)
+                    return constructor
             except BaseException as e:
                 raise RuntimeError(f'An exception occurred while building resource '
                                    f'"{node.module_name.body}" of type "{node.module_type.body}"') from e
