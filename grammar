@@ -4,13 +4,16 @@ extends = '@extends' paths | lambdaBlock(paths)
 paths = (STRING ','?)+
 lambdaBlock(x) = LAMBDA_OPEN x LAMBDA_CLOSE
 
-definition = IDENTIFIER '=' jsonAllowed | moduleAssign
+definition = IDENTIFIER '=' expression | moduleAssign
 
 moduleAssign = moduleName (BLOCK_OPEN params BLOCK_CLOSE)?
 moduleLambda = moduleName ( lambdaBlock(params) )?
-moduleName = IDENTIFIER '.' IDENTIFIER
+moduleName = IDENTIFIER ':' IDENTIFIER
 params = init? (definition ','?)*
 init = '@init' '=' bool ','?
+
+expression = jsonAllowed getAttribute*
+getAttribute = '.' IDENTIFIER
 
 jsonAllowed = moduleLambda | IDENTIFIER | object | array | STRING | NUMBER | 'null' | bool
 object = '{' (STRING ':' jsonAllowed ','?)* '}'

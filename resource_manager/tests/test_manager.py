@@ -67,6 +67,10 @@ class TestResourceManager(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     getattr(rm, attr)
 
+    def test_undefined(self):
+        with self.assertRaises(AttributeError):
+            ResourceManager('misc/static_undefined', mock_get_resource)
+
     def test_duplicates(self):
         with self.assertRaises(SyntaxError):
             ResourceManager('misc/duplicate', mock_get_resource)

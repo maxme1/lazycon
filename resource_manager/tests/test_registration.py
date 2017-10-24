@@ -21,6 +21,7 @@ class TestRegistration(unittest.TestCase):
                 # and `load` too
                 x = rm.load(id_)
                 # do some stuff with x...
+            self.assertEqual(1, rm.loader(rm.ids[0]))
 
         except Exception:
             self.fail()

@@ -7,7 +7,12 @@ class FromIds:
     def __init__(self, ids):
         self.ids = ids
 
-        # some other important methods...
+    def load_by_id(self, id):
+        x = 1
+        # x = load...
+        return x
+
+    # some other important methods...
 
 
 ids = [1, 5, 3, 8, 9, 3]

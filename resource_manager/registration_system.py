@@ -27,12 +27,12 @@ class RegistrationSystem:
                 module_name = snake_case(resource.__name__)
             except AttributeError:
                 raise TypeError('Could not infer the resource name. Please specify it explicitly.'
-                                f'\nCheck the source file {source}') from None
+                                '\nCheck the source file {}'.format(source)) from None
 
         modules = self._registry.setdefault(module_type, {})
         if module_name in modules and modules[module_name] != resource:
-            raise ValueError(f'Trying to register another resource with the same name and type: '
-                             f'{module_type}.{module_name}')
+            raise ValueError('Trying to register another resource with the same name and type: '
+                             '{}:{}'.format(module_type, module_name))
         modules[module_name] = resource
         self._paths.setdefault(source, set()).add((module_type, module_name))
 
@@ -126,7 +126,7 @@ class RegistrationSystem:
             except KeyError:
                 handle_corruption(db_path)
 
-        raise KeyError(f'The module "{module_name}" of type "{module_type}" was not found')
+        raise KeyError('The module "{}:{}" was not found'.format(module_type, module_name))
 
 
 registration_system = RegistrationSystem()

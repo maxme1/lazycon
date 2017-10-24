@@ -16,7 +16,7 @@ def tokenize(source: str, indentation: int):
         if not stack:
             indent = len(line) - len(text)
             if indent % indentation:
-                raise SyntaxError(f'Bad indentation at line {line_number}')
+                raise SyntaxError('Bad indentation at line {}'.format(line_number))
             indent = indent // indentation
             delta = indent - current_indent
             current_indent = indent
@@ -34,7 +34,7 @@ def tokenize(source: str, indentation: int):
             token = next_token(text)
 
             if token is None:
-                raise ValueError(f'Unexpected character: {repr(text[0])} at {line_number}:{position}')
+                raise ValueError('Unexpected character: {} at {}:{}'.format(repr(text[0]), line_number, position))
 
             token.add_info(line_number, position)
 
@@ -42,7 +42,7 @@ def tokenize(source: str, indentation: int):
                 stack.append(token)
             if token.type in JSON_CLOSE:
                 if not stack or JSON_CLOSE[token.type] != stack[-1].type:
-                    raise SyntaxError(f'Invalid brackets balance at {token.line}:{token.column}')
+                    raise SyntaxError('Invalid brackets balance at {}:{}'.format(token.line, token.column))
                 stack.pop()
 
             tokens.append(token)
@@ -59,6 +59,10 @@ def next_token(text: str):
     for literal in LITERALS:
         if text.startswith(literal):
             return Token(literal, TokenType.LITERAL)
+
+    for tokenType, reserved in RESERVED.items():
+        if text.startswith(reserved):
+            return Token(reserved, tokenType)
 
     for tokenType, regex in REGEXPS.items():
         match = regex.match(text)

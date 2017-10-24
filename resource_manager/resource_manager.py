@@ -35,7 +35,7 @@ class ResourceManager:
             pass
         # a whole new request, so clear the stack
         self._request_stack = []
-        return super().__getattribute__('_get_resource')(name)
+        return self._get_resource(name)
 
     def get(self, name: str, default=None):
         try:
@@ -44,8 +44,9 @@ class ResourceManager:
             return default
 
     def set(self, name, value, override=False):
+        warnings.warn("Manually modifying the ResourceManager's state is highly not recommended", RuntimeWarning)
         if name in self._defined_resources and not override:
-            raise RuntimeError(f'Attempt to overwrite resource {name}')
+            raise RuntimeError('Attempt to overwrite resource {}'.format(name))
         self._defined_resources[name] = value
         self._add_to_dict(name, value)
 
@@ -56,7 +57,7 @@ class ResourceManager:
     def _get_whole_config(self):
         result = ''
         for name, value in self._undefined_resources.items():
-            result += f'{name} = {value.to_str(0)}\n\n'
+            result += '{} = {}\n\n'.format(name, value.to_str(0))
 
         return result[:-1]
 
@@ -76,8 +77,8 @@ class ResourceManager:
         for definition in definitions:
             def_name = definition.name.body
             if def_name in result:
-                raise SyntaxError(f'Duplicate definition of resource "{def_name}" '
-                                  f'in config file {absolute_path}')
+                raise SyntaxError('Duplicate definition of resource "{}" '
+                                  'in config file {}'.format(def_name, absolute_path))
             result[def_name] = definition.value
 
             if def_name not in self._undefined_resources:
@@ -96,14 +97,15 @@ class ResourceManager:
         # avoiding cycles
         if name in self._request_stack:
             self._request_stack = []
+            prefix = " -> ".join(self._request_stack)
             raise RuntimeError('Cyclic dependency found in the following resource:\n  '
-                               f'{" -> ".join(self._request_stack)} -> {name}')
+                               '{} -> {}'.format(prefix, name))
         self._request_stack.append(name)
 
         try:
             node = self._undefined_resources[name]
         except KeyError:
-            raise AttributeError(f'Resource {repr(name)} is not defined') from None
+            raise AttributeError('Resource "{}" is not defined'.format(name)) from None
 
         resource = self._define_resource(node)
         self._defined_resources[name] = resource
@@ -120,6 +122,9 @@ class ResourceManager:
             return {json.loads(name.body): self._define_resource(value) for name, value in node.dictionary.items()}
         if type(node) is Resource:
             return self._get_resource(node.name.body)
+        if type(node) is GetAttribute:
+            data = self._define_resource(node.data)
+            return getattr(data, node.name.body)
         if type(node) is Module:
             try:
                 constructor = self.get_module(node.module_type.body, node.module_name.body)
@@ -132,14 +137,16 @@ class ResourceManager:
                         constructor = functools.partial(constructor, **kwargs)
                     return constructor
             except BaseException as e:
-                raise RuntimeError(f'An exception occurred while building resource '
-                                   f'"{node.module_name.body}" of type "{node.module_type.body}"') from e
+                raise RuntimeError('An exception occurred while building resource '
+                                   '"{}" of type "{}"'.format(node.module_name.body, node.module_type.body)) from e
 
-        raise TypeError(f'Undefined resource description of type {type(node)}')
+        raise TypeError('Undefined resource description of type {}'.format(type(node)))
 
     def _analyze_node(self, node):
         if type(node) is Resource:
             self._detect_cycles(node.name.body)
+        if type(node) is GetAttribute:
+            self._analyze_node(node.data)
         if type(node) is Module:
             for param in node.params:
                 self._analyze_node(param.value)
@@ -151,13 +158,15 @@ class ResourceManager:
                 self._analyze_node(value)
 
     def _detect_cycles(self, name):
+        # detecting undefined variables:
         if name not in self._undefined_resources:
-            return
+            raise AttributeError('Resource "{}" not defined'.format(name))
         if self._visited[name]:
             return
         if name in self._request_stack:
+            prefix = " -> ".join(self._request_stack)
             warnings.warn('Cyclic dependency found in the following resource: '
-                          f'{" -> ".join(self._request_stack)} -> {name}', RuntimeWarning)
+                          '{} -> {}'.format(prefix, name), RuntimeWarning)
             return
 
         self._request_stack.append(name)

@@ -4,7 +4,7 @@ class Definition:
         self.value = value
 
     def to_str(self, level):
-        return f'{self.name.body} = {self.value.to_str(level)}'
+        return '{} = {}'.format(self.name.body, self.value.to_str(level))
 
 
 class Resource:
@@ -15,6 +15,15 @@ class Resource:
         return self.name.body
 
 
+class GetAttribute:
+    def __init__(self, data, name):
+        self.data = data
+        self.name = name
+
+    def to_str(self, level):
+        return '{}.{}\n'.format(self.data.to_str(level), self.name.body)
+
+
 class Module:
     def __init__(self, module_type, module_name, params, init):
         self.module_type = module_type
@@ -23,10 +32,10 @@ class Module:
         self.init = init
 
     def to_str(self, level):
-        result = f'{self.module_type.body}.{self.module_name.body}(\n'
+        result = '{}:{}(\n'.format(self.module_type.body, self.module_name.body)
 
         if self.init is not None:
-            result += '    ' * (level + 1) + f'@init = {self.init.to_str(level)}\n'
+            result += '    ' * (level + 1) + '@init = {}\n'.format(self.init.to_str(level))
 
         for param in self.params:
             result += '    ' * (level + 1) + param.to_str(level + 1) + '\n'
@@ -60,5 +69,5 @@ class Dictionary:
     def to_str(self, level):
         result = '{\n'
         for key, value in self.dictionary.items():
-            result += '    ' * (level + 1) + f'{key.body}: {value.to_str(level+1)}\n'
+            result += '    ' * (level + 1) + '{}: {}\n'.format(key.body, value.to_str(level + 1))
         return result[:-1] + '    ' * level + '\n}'

@@ -1,14 +1,16 @@
-data = dataset.from_ids
+data = dataset:from_ids
     // ids are just a python list
     // so the don't need to be initialized
-    ids = constants.ids
+    ids = constants:ids
         @init = false
 
-load = utils.load_from_dataset
+load = utils:load_from_dataset
     // we want this resource to be callable
     // so it will not be initialized
     @init = false
     dataset = data
 
-ids = utils.unique_ids
+ids = utils:unique_ids
     dataset = data
+
+loader = data.load_by_id

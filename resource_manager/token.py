@@ -12,6 +12,7 @@ class TokenType(Enum):
     COMA = auto()
     EQUALS = auto()
     DOT = auto()
+    GETATTR = auto()
     BRACKET_OPEN = auto()
     BRACKET_CLOSE = auto()
     DICT_OPEN = auto()
@@ -26,18 +27,22 @@ class TokenType(Enum):
     LAMBDA_CLOSE = auto()
 
 
-REGEXPS = {TokenType.NUMBER: re.compile(r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'),
-           TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
-           TokenType.STRING: re.compile(r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'),
-           TokenType.INIT: re.compile(r'@init'),
-           TokenType.EXTENDS: re.compile(r'@extends'),
-           }
+REGEXPS = {
+    TokenType.NUMBER: re.compile(r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'),
+    TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
+    TokenType.STRING: re.compile(r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'),
+}
+
+RESERVED = {
+    TokenType.INIT: '@init',
+    TokenType.EXTENDS: '@extends',
+}
 
 LITERALS = ('null', 'true', 'false')
 SINGLE = {
     ',': TokenType.COMA,
     ':': TokenType.COLON,
-    '.': TokenType.DOT,
+    '.': TokenType.GETATTR,
     '=': TokenType.EQUALS,
     '[': TokenType.BRACKET_OPEN,
     ']': TokenType.BRACKET_CLOSE,
@@ -63,4 +68,4 @@ class Token:
         self.line, self.column = line, column
 
     def __repr__(self):
-        return f'{self.type}:{self.body}'
+        return '{}:{}'.format(self.type, self.body)

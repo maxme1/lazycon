@@ -4,12 +4,12 @@ x = {
     "y": y
 }
 
-y = module.name
+y = module:name
     good = t
     list = [1 2 z]
 
-z = another.module
-    nested = and.another
+z = another:module
+    nested = and:another
         bug = x
 
 t = 1

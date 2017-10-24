@@ -33,7 +33,7 @@ class Parser:
 
     def module(self, json_safe=False):
         module_type = self.require(TokenType.IDENTIFIER)
-        self.require(TokenType.DOT)
+        self.require(TokenType.COLON)
         name = self.require(TokenType.IDENTIFIER)
 
         init = None
@@ -52,7 +52,7 @@ class Parser:
     def allowed_type(self, json_safe=False):
         if self.matches(TokenType.IDENTIFIER):
             # module
-            if self.matches(TokenType.DOT, shift=1):
+            if self.matches(TokenType.COLON, shift=1):
                 return self.module(json_safe)
             else:
                 # identifier
@@ -64,10 +64,18 @@ class Parser:
             return self.object()
         return Value(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
+    def get_attribute(self):
+        data = self.allowed_type()
+        while self.matches(TokenType.GETATTR):
+            self.advance()
+            name = self.require(TokenType.IDENTIFIER)
+            data = GetAttribute(data, name)
+        return data
+
     def definition(self):
         left = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.EQUALS)
-        right = self.allowed_type()
+        right = self.get_attribute()
 
         return Definition(left, right)
 
@@ -129,7 +137,7 @@ class Parser:
     @property
     def current(self):
         if self.position >= len(self.tokens):
-            raise SyntaxError(f'Unexpected end of file')
+            raise SyntaxError('Unexpected end of file')
         return self.tokens[self.position]
 
     def matches(self, *types, shift=0):
@@ -147,9 +155,10 @@ class Parser:
     def require(self, *types):
         if not self.matches(*types):
             if self.current.type == TokenType.BLOCK_OPEN:
-                message = f'Unexpected indent at line {self.current.line}'
+                message = 'Unexpected indent at line %d' % self.current.line
             else:
-                message = f'Unexpected token: {repr(self.current.body)} at {self.current.line}:{self.current.column}'
+                message = 'Unexpected token: ' \
+                          '"{}" at {}:{}'.format(self.current.body, self.current.line, self.current.column)
             raise ValueError(message)
 
         return self.advance()
