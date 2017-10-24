@@ -43,7 +43,7 @@ by using indentation
 
 .. code:: python
 
-    my_dataset = dataset.isles
+    my_dataset = dataset:isles
         data_path = "my_path"
         filename = "meta.csv"
 
@@ -51,7 +51,7 @@ or round brackets
 
 .. code:: python
 
-    my_dataset = dataset.isles(
+    my_dataset = dataset:isles(
         data_path = "my_path"
         filename = "meta.csv"
     )
@@ -63,7 +63,7 @@ So, the following declaration is equivalent to the previous one.
 
 .. code:: python
 
-    my_dataset = dataset.isles(data_path = "my_path" filename = "meta.csv")
+    my_dataset = dataset:isles(data_path = "my_path" filename = "meta.csv")
 
 As a consequence, if you need to define a module inside an array or
 object, you must use round brackets:
@@ -71,8 +71,8 @@ object, you must use round brackets:
 .. code:: python
 
     datasets = [
-      dataset.isles(filename = "meta.csv") 
-      dataset.brats(filename = "meta.csv")
+      dataset:isles(filename = "meta.csv")
+      dataset:brats(filename = "meta.csv")
     ]
 
 Nesting modules
