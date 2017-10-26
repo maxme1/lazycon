@@ -21,7 +21,7 @@ class GetAttribute:
         self.name = name
 
     def to_str(self, level):
-        return '{}.{}\n'.format(self.data.to_str(level), self.name.body)
+        return '{}.{}'.format(self.data.to_str(level), self.name.body)
 
 
 class Module:

@@ -60,15 +60,11 @@ class TestResourceManager(unittest.TestCase):
             self.assertEqual(rm._get_whole_config(), built.read())
 
     def test_cycles(self):
-        with self.assertWarns(RuntimeWarning):
-            rm = ResourceManager('misc/cycles', mock_get_resource)
-        for attr in ['a', 'x', 'y', 'z']:
-            with self.subTest(attribute=attr):
-                with self.assertRaises(RuntimeError):
-                    getattr(rm, attr)
+        with self.assertRaises(RuntimeError):
+            ResourceManager('misc/cycles', mock_get_resource)
 
     def test_undefined(self):
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(RuntimeError):
             ResourceManager('misc/static_undefined', mock_get_resource)
 
     def test_duplicates(self):

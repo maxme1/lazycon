@@ -4,6 +4,7 @@ import os
 import warnings
 from collections import OrderedDict
 
+from .tree_analysis import SyntaxTree
 from .parser import parse_file
 from .structures import *
 
@@ -20,10 +21,15 @@ class ResourceManager:
         source_path = os.path.realpath(source_path)
         self._import(source_path)
 
-        # statically detecting cycles
-        self._visited = {name: False for name in self._undefined_resources}
-        for name in self._undefined_resources:
-            self._detect_cycles(name)
+        tree = SyntaxTree(self._undefined_resources)
+        message = ''
+        if tree.cycles:
+            message += 'Cyclic dependency found in the following resources:\n    ' \
+                       '{}'.format('\n    '.join(tree.cycles))
+        if tree.undefined:
+            message += '\nUndefined resources found:\n    {}'.format(', '.join(tree.undefined))
+        if message:
+            raise RuntimeError(message)
 
     def __getattribute__(self, name: str):
         # TODO: looks kinda ugly. not sure if it's worth it
@@ -141,39 +147,6 @@ class ResourceManager:
                                    '"{}" of type "{}"'.format(node.module_name.body, node.module_type.body)) from e
 
         raise TypeError('Undefined resource description of type {}'.format(type(node)))
-
-    def _analyze_node(self, node):
-        if type(node) is Resource:
-            self._detect_cycles(node.name.body)
-        if type(node) is GetAttribute:
-            self._analyze_node(node.data)
-        if type(node) is Module:
-            for param in node.params:
-                self._analyze_node(param.value)
-        if type(node) is Array:
-            for x in node.values:
-                self._analyze_node(x)
-        if type(node) is Dictionary:
-            for key, value in node.dictionary.items():
-                self._analyze_node(value)
-
-    def _detect_cycles(self, name):
-        # detecting undefined variables:
-        if name not in self._undefined_resources:
-            raise AttributeError('Resource "{}" not defined'.format(name))
-        if self._visited[name]:
-            return
-        if name in self._request_stack:
-            prefix = " -> ".join(self._request_stack)
-            warnings.warn('Cyclic dependency found in the following resource: '
-                          '{} -> {}'.format(prefix, name), RuntimeWarning)
-            return
-
-        self._request_stack.append(name)
-        self._analyze_node(self._undefined_resources[name])
-        self._request_stack.pop()
-
-        self._visited[name] = True
 
 
 class TempPlaceholder:
