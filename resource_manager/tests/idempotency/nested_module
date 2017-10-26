@@ -10,8 +10,8 @@ dataset = dataset_wrapper:groups_from_ids
             dataset = dataset_wrapper:bbox_extraction
                 dataset = dataset_wrapper:merge_datasets
                     datasets = [
-                    dataset:brats2017(data_path = "/some/path")
-                    dataset:brats2017(
-                        data_path = "/some/other/path"
-                        metadata_rpath = "meta_approved.csv"
+                        dataset:brats2017(data_path = "/some/path")
+                        dataset:brats2017(
+                            data_path = "/some/other/path"
+                            metadata_rpath = "meta_approved.csv"
                     )]

@@ -87,18 +87,17 @@ their definitions:
         dataset = dataset:isles
             filename = "meta.csv"     
 
-The ``init`` parameter
+The ``lazy`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Some modules must be initialized when they are requested.
+Some resources must not be called when you specify their params.
 
-You can specify this behaviour with the ``@init`` parameter (by default
-it is ``true``):
+To avoid the resource from being called you ca use the ``@lazy`` parameter:
 
 .. code:: json
 
     dataset = dataset:isles
-        @init = false
+        @lazy
         filename = "meta.csv"     
 
 Mixins

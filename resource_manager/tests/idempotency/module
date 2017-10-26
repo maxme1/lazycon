@@ -1,4 +1,4 @@
 dataset = dataset:isles
-    @init = false
+    @lazy
     data_path = "my_path"
     filename = "meta.csv"
