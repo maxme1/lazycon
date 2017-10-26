@@ -1,6 +1,5 @@
 import importlib
 import inspect
-import sys
 
 from .utils import *
 
@@ -42,8 +41,7 @@ class RegistrationSystem:
     def _analyze_file(self, path, source, config):
         config = [x for x in config if x['source'] != source]
         path = os.path.realpath(path)
-        if source not in sys.modules:
-            importlib.import_module(source)
+        importlib.import_module(source)
         modules = self._paths.get(path, [])
 
         for module_type, module_name in modules:

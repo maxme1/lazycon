@@ -36,7 +36,7 @@ class SyntaxTree:
             self._analyze_tree(node.name.body)
         if type(node) is GetAttribute:
             self._analyze_node(node.data)
-        if type(node) is Module:
+        if type(node) is Partial:
             for param in node.params:
                 self._analyze_node(param.value)
         if type(node) is Array:

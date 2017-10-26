@@ -44,6 +44,12 @@ class ResourceManager:
         # a whole new request, so clear the stack
         self._request_stack = []
         return self._get_resource(name)
+        # self._modules_stack = []
+        # try:
+        # except BaseException as e:
+        # module_type, module_name = self._modules_stack[-1]
+        # raise RuntimeError('An exception occurred while building the resource ' +
+        # '%s:%s (Line %d)' % (module_type.body, module_name.body, module_type.line)) from e
 
     def get(self, name: str, default=None):
         try:
@@ -115,13 +121,7 @@ class ResourceManager:
         except KeyError:
             raise AttributeError('Resource "{}" is not defined'.format(name)) from None
 
-        self._modules_stack = []
-        try:
-            resource = self._define_resource(node)
-        except BaseException as e:
-            module_type, module_name = self._modules_stack[-1]
-            raise RuntimeError('An exception occurred while building the resource ' +
-                               '%s:%s (Line %d)' % (module_type.body, module_name.body, module_type.line)) from e
+        resource = self._define_resource(node)
         self._defined_resources[name] = resource
 
         self._request_stack.pop()
@@ -140,9 +140,9 @@ class ResourceManager:
             data = self._define_resource(node.data)
             return getattr(data, node.name.body)
         if type(node) is Module:
-            self._modules_stack.append((node.module_type, node.module_name))
+            # self._modules_stack.append((node.module_type, node.module_name))
             result = self.get_module(node.module_type.body, node.module_name.body)
-            self._modules_stack.pop()
+            # self._modules_stack.pop()
             return result
         if type(node) is Partial:
             target = self._define_resource(node.target)
