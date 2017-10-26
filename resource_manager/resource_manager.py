@@ -16,6 +16,8 @@ class ResourceManager:
         self._imported = OrderedDict()
         self._defined_resources = {}
         self._request_stack = []
+        # TODO: no need for stack
+        self._modules_stack = []
         self._undefined_resources = {}
 
         source_path = os.path.realpath(source_path)
@@ -113,7 +115,13 @@ class ResourceManager:
         except KeyError:
             raise AttributeError('Resource "{}" is not defined'.format(name)) from None
 
-        resource = self._define_resource(node)
+        self._modules_stack = []
+        try:
+            resource = self._define_resource(node)
+        except BaseException as e:
+            module_type, module_name = self._modules_stack[-1]
+            raise RuntimeError('An exception occurred while building the resource ' +
+                               '%s:%s (Line %d)' % (module_type.body, module_name.body, module_type.line)) from e
         self._defined_resources[name] = resource
 
         self._request_stack.pop()
@@ -132,19 +140,17 @@ class ResourceManager:
             data = self._define_resource(node.data)
             return getattr(data, node.name.body)
         if type(node) is Module:
-            try:
-                constructor = self.get_module(node.module_type.body, node.module_name.body)
-                kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
-                # by default init is True
-                if node.init is None or json.loads(node.init.value.body):
-                    return constructor(**kwargs)
-                else:
-                    if kwargs:
-                        constructor = functools.partial(constructor, **kwargs)
-                    return constructor
-            except BaseException as e:
-                raise RuntimeError('An exception occurred while building resource '
-                                   '"{}" of type "{}"'.format(node.module_name.body, node.module_type.body)) from e
+            self._modules_stack.append((node.module_type, node.module_name))
+            result = self.get_module(node.module_type.body, node.module_name.body)
+            self._modules_stack.pop()
+            return result
+        if type(node) is Partial:
+            target = self._define_resource(node.target)
+            kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
+            if node.lazy:
+                return functools.partial(target, **kwargs)
+            else:
+                return target(**kwargs)
 
         raise TypeError('Undefined resource description of type {}'.format(type(node)))
 

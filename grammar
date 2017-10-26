@@ -1,24 +1,22 @@
 config = extends? definition*
 
-extends = '@extends' paths | lambdaBlock(paths)
+extends = '@extends' paths | (LAMBDA_OPEN paths LAMBDA_CLOSE)
 paths = (STRING ','?)+
-lambdaBlock(x) = LAMBDA_OPEN x LAMBDA_CLOSE
 
-definition = IDENTIFIER '=' expression | moduleAssign
+definition = IDENTIFIER '=' expression
 
-moduleAssign = moduleName (BLOCK_OPEN params BLOCK_CLOSE)?
-moduleLambda = moduleName ( lambdaBlock(params) )?
-moduleName = IDENTIFIER ':' IDENTIFIER
-params = init? (definition ','?)*
-init = '@init' '=' bool ','?
-
-expression = jsonAllowed getAttribute*
+expression = simpleBlock | (simpleBlock getAttribute tail) | (module tail)
+simpleBLock = data (getAttribute | partial)*
 getAttribute = '.' IDENTIFIER
+partial = LAMBDA_OPEN params LAMBDA_CLOSE
+tail = BLOCK_OPEN params BLOCK_CLOSE
 
-jsonAllowed = moduleLambda | IDENTIFIER | object | array | STRING | NUMBER | 'null' | bool
-object = '{' (STRING ':' jsonAllowed ','?)* '}'
-array = '[' (jsonAllowed ','?)* ']'
-bool = 'false' | 'true'
+params = @lazy? (definition ','?)*
+
+data = module | IDENTIFIER | object | array | STRING | NUMBER | 'null' | 'false' | 'true'
+module = IDENTIFIER ':' IDENTIFIER partial?
+object = '{' (STRING ':' expression ','?)* '}'
+array = '[' (expression ','?)* ']'
 
 STRING = r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
@@ -30,4 +28,4 @@ BLOCK_OPEN = <indent up>
 BLOCK_CLOSE = <indent down>
 COMMENT = r'//.*\n'
 
-// inside `array`, `object` and `lambdaBlock` the indentation has no effect
+// inside `array`, `object` and `partial` the indentation has no effect

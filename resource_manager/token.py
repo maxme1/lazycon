@@ -18,7 +18,7 @@ class TokenType(Enum):
     DICT_OPEN = auto()
     DICT_CLOSE = auto()
 
-    INIT = auto()
+    LAZY = auto()
     EXTENDS = auto()
 
     BLOCK_OPEN = auto()
@@ -34,7 +34,7 @@ REGEXPS = {
 }
 
 RESERVED = {
-    TokenType.INIT: '@init',
+    TokenType.LAZY: '@lazy',
     TokenType.EXTENDS: '@extends',
 }
 

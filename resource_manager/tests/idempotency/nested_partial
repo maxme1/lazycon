@@ -1,0 +1,12 @@
+module = a:b
+    a = 1
+    b = a:b()
+    c = a:b.c.d(
+        @lazy
+        e = 1
+    ).e.f.g(
+        z = 2
+    )
+
+
+a = module.load_x(@lazy x = 1)

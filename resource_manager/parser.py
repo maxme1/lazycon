@@ -7,53 +7,20 @@ class Parser:
         self.tokens = tokens
         self.position = 0
         self.indent_step = 4
-        self.json_stack = []
+        self.inside_json = False
 
-    def params(self):
-        params = []
-        init = None
-        if self.matches(TokenType.INIT):
-            init = self.module_init()
-
-        while self.matches(TokenType.IDENTIFIER):
-            params.append(self.definition())
-            self.ignore(TokenType.COMA)
-        return params, init
-
-    def module_init(self):
-        self.require(TokenType.INIT)
-        self.require(TokenType.EQUALS)
-        init = self.require(TokenType.LITERAL)
-        if init.body not in ['true', 'false']:
-            raise SyntaxError('The `init` parameter can be either `true` or `false`')
-
-        init = Value(init)
-        self.ignore(TokenType.COMA)
-        return init
-
-    def module(self, json_safe=False):
+    def module(self):
         module_type = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.COLON)
         name = self.require(TokenType.IDENTIFIER)
 
-        init = None
-        params = []
-        if self.matches(TokenType.BLOCK_OPEN) and not json_safe:
-            self.advance()
-            params, init = self.params()
-            self.require(TokenType.BLOCK_CLOSE)
-        if self.matches(TokenType.LAMBDA_OPEN):
-            self.advance()
-            params, init = self.params()
-            self.require(TokenType.LAMBDA_CLOSE)
+        return Module(module_type, name)
 
-        return Module(module_type, name, params, init)
-
-    def allowed_type(self, json_safe=False):
+    def data(self):
         if self.matches(TokenType.IDENTIFIER):
             # module
             if self.matches(TokenType.COLON, shift=1):
-                return self.module(json_safe)
+                return self.module()
             else:
                 # identifier
                 return Resource(self.advance())
@@ -64,43 +31,80 @@ class Parser:
             return self.object()
         return Value(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
-    def get_attribute(self):
-        data = self.allowed_type()
-        while self.matches(TokenType.GETATTR):
+    def params(self):
+        lazy = self.matches(TokenType.LAZY)
+        if lazy:
             self.advance()
-            name = self.require(TokenType.IDENTIFIER)
-            data = GetAttribute(data, name)
+            self.ignore(TokenType.COMA)
+
+        params = []
+        while self.matches(TokenType.IDENTIFIER):
+            params.append(self.definition())
+            self.ignore(TokenType.COMA)
+        return params, lazy
+
+    def expression(self):
+        data = self.data()
+        if type(data) is Module and self.matches(TokenType.BLOCK_OPEN) and not self.inside_json:
+            self.advance()
+            data = Partial(data, *self.params())
+            self.require(TokenType.BLOCK_CLOSE)
+            return data
+
+        while self.matches(TokenType.GETATTR, TokenType.LAMBDA_OPEN):
+            if self.matches(TokenType.GETATTR):
+                self.advance()
+                name = self.require(TokenType.IDENTIFIER)
+                data = GetAttribute(data, name)
+                if self.matches(TokenType.BLOCK_OPEN) and not self.inside_json:
+                    self.advance()
+                    data = Partial(data, *self.params())
+                    self.require(TokenType.BLOCK_CLOSE)
+                    return data
+            else:
+                inside_json = self.inside_json
+                self.inside_json = True
+                self.advance()
+                data = Partial(data, *self.params())
+                self.require(TokenType.LAMBDA_CLOSE)
+                self.inside_json = inside_json
+
         return data
 
     def definition(self):
         left = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.EQUALS)
-        right = self.get_attribute()
+        right = self.expression()
 
         return Definition(left, right)
 
     def object(self):
+        inside_json = self.inside_json
+        self.inside_json = True
         self.require(TokenType.DICT_OPEN)
         pairs = {}
         while not self.matches(TokenType.DICT_CLOSE):
             key = self.require(TokenType.STRING)
             self.require(TokenType.COLON)
-            value = self.allowed_type(json_safe=True)
-            pairs[key] = value
+            pairs[key] = self.expression()
 
             self.ignore(TokenType.COMA)
 
         self.require(TokenType.DICT_CLOSE)
+        self.inside_json = inside_json
         return Dictionary(pairs)
 
     def array(self):
+        inside_json = self.inside_json
+        self.inside_json = True
         self.require(TokenType.BRACKET_OPEN)
         values = []
         while not self.matches(TokenType.BRACKET_CLOSE):
-            values.append(self.allowed_type(json_safe=True))
+            values.append(self.expression())
             self.ignore(TokenType.COMA)
 
         self.require(TokenType.BRACKET_CLOSE)
+        self.inside_json = inside_json
         return Array(values)
 
     def extends(self):
@@ -176,4 +180,4 @@ def parse_file(source_path):
     try:
         return Parser(tokens).parse()
     except SyntaxError as e:
-        raise SyntaxError('Error while parsing file '.format(source_path)) from e
+        raise SyntaxError('Error while parsing file: {}'.format(source_path)) from e

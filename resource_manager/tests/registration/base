@@ -1,13 +1,10 @@
 data = dataset:from_ids
-    // ids are just a python list
-    // so the don't need to be initialized
     ids = constants:ids
-        @init = false
 
 load = utils:load_from_dataset
     // we want this resource to be callable
     // so it will not be initialized
-    @init = false
+    @lazy
     dataset = data
 
 ids = utils:unique_ids

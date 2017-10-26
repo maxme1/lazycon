@@ -24,23 +24,30 @@ class GetAttribute:
         return '{}.{}'.format(self.data.to_str(level), self.name.body)
 
 
-class Module:
-    def __init__(self, module_type, module_name, params, init):
-        self.module_type = module_type
-        self.module_name = module_name
+class Partial:
+    def __init__(self, target, params, lazy):
+        self.target = target
         self.params = params
-        self.init = init
+        self.lazy = lazy
 
     def to_str(self, level):
-        result = '{}:{}(\n'.format(self.module_type.body, self.module_name.body)
-
-        if self.init is not None:
-            result += '    ' * (level + 1) + '@init = {}\n'.format(self.init.to_str(level))
+        result = '{}(\n'.format(self.target.to_str(level))
+        if self.lazy:
+            result += '    ' * (level + 1) + '@lazy\n'
 
         for param in self.params:
             result += '    ' * (level + 1) + param.to_str(level + 1) + '\n'
 
         return result + '    ' * level + ')'
+
+
+class Module:
+    def __init__(self, module_type, module_name):
+        self.module_type = module_type
+        self.module_name = module_name
+
+    def to_str(self, level):
+        return '{}:{}'.format(self.module_type.body, self.module_name.body)
 
 
 class Value:
