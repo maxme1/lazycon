@@ -25,7 +25,7 @@ class Parser:
         self.require(TokenType.EQUALS)
         init = self.require(TokenType.LITERAL)
         if init.body not in ['true', 'false']:
-            raise ValueError('The `init` parameter can be either `true` or `false`')
+            raise SyntaxError('The `init` parameter can be either `true` or `false`')
 
         init = Value(init)
         self.ignore(TokenType.COMA)
@@ -159,7 +159,7 @@ class Parser:
             else:
                 message = 'Unexpected token: ' \
                           '"{}" at {}:{}'.format(self.current.body, self.current.line, self.current.column)
-            raise ValueError(message)
+            raise SyntaxError(message)
 
         return self.advance()
 
@@ -173,4 +173,7 @@ def parse_file(source_path):
         source = file.read()
 
     tokens = tokenize(source, 4)
-    return Parser(tokens).parse()
+    try:
+        return Parser(tokens).parse()
+    except SyntaxError as e:
+        raise SyntaxError('Error while parsing file '.format(source_path)) from e

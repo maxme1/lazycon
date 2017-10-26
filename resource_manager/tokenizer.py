@@ -6,7 +6,7 @@ def tokenize(source: str, indentation: int):
     current_indent = 0
     stack = []
 
-    for line_number, line in enumerate(source.splitlines()):
+    for line_number, line in enumerate(source.splitlines(), 1):
         line = line.rstrip()
         text = line.lstrip()
         if not text.strip() or text.startswith('//'):
@@ -30,11 +30,11 @@ def tokenize(source: str, indentation: int):
             if text.startswith('//'):
                 break
 
-            position = len(line) - len(text)
+            position = len(line) - len(text) + 1
             token = next_token(text)
 
             if token is None:
-                raise ValueError('Unexpected character: {} at {}:{}'.format(repr(text[0]), line_number, position))
+                raise SyntaxError('Unexpected character: {} at {}:{}'.format(repr(text[0]), line_number, position))
 
             token.add_info(line_number, position)
 
