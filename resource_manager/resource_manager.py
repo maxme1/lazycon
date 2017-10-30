@@ -15,9 +15,6 @@ class ResourceManager:
         # this information is redundant for now
         self._imported = OrderedDict()
         self._defined_resources = {}
-        self._request_stack = []
-        # TODO: no need for stack
-        self._modules_stack = []
         self._undefined_resources = {}
 
         source_path = os.path.realpath(source_path)
@@ -43,12 +40,11 @@ class ResourceManager:
             pass
         # a whole new request, so clear the stack
         self._request_stack = []
-        return self._get_resource(name)
-        # self._modules_stack = []
         # try:
+        return self._get_resource(name)
         # except BaseException as e:
-        # module_type, module_name = self._modules_stack[-1]
-        # raise RuntimeError('An exception occurred while building the resource ' +
+        #     print(self._resources_stack)
+        #     raise RuntimeError('An exception occurred while building the resource ')
         # '%s:%s (Line %d)' % (module_type.body, module_name.body, module_type.line)) from e
 
     def get(self, name: str, default=None):
@@ -140,10 +136,7 @@ class ResourceManager:
             data = self._define_resource(node.data)
             return getattr(data, node.name.body)
         if type(node) is Module:
-            # self._modules_stack.append((node.module_type, node.module_name))
-            result = self.get_module(node.module_type.body, node.module_name.body)
-            # self._modules_stack.pop()
-            return result
+            return self.get_module(node.module_type.body, node.module_name.body)
         if type(node) is Partial:
             target = self._define_resource(node.target)
             kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}

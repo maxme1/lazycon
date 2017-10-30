@@ -34,7 +34,8 @@ def tokenize(source: str, indentation: int):
             token = next_token(text)
 
             if token is None:
-                raise SyntaxError('Unexpected character: {} at {}:{}'.format(repr(text[0]), line_number, position))
+                err = text.split()[0]
+                raise SyntaxError('Unrecognized token: "{}" at {}:{}'.format(err, line_number, position))
 
             token.add_info(line_number, position)
 

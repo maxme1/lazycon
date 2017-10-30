@@ -176,8 +176,8 @@ def parse_file(source_path):
     with open(source_path) as file:
         source = file.read()
 
-    tokens = tokenize(source, 4)
     try:
+        tokens = tokenize(source, 4)
         return Parser(tokens).parse()
     except SyntaxError as e:
-        raise SyntaxError('Error while parsing file: {}'.format(source_path)) from e
+        raise SyntaxError('{} in file {}'.format(e.msg, source_path)) from None
