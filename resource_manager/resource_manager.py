@@ -23,10 +23,15 @@ class ResourceManager:
         tree = SyntaxTree(self._undefined_resources)
         message = ''
         if tree.cycles:
-            message += 'Cyclic dependency found in the following resources:\n    ' \
-                       '{}'.format('\n    '.join(tree.cycles))
+            message += 'Cyclic dependencies found in the following resources:\n'
+            for source, cycles in tree.cycles.items():
+                message += '  in file %s\n    ' % source
+                message += '\n    '.join(cycles)
         if tree.undefined:
-            message += '\nUndefined resources found:\n    {}'.format(', '.join(tree.undefined))
+            message += '\nUndefined resources found:\n'
+            for source, undefined in tree.undefined.items():
+                message += '  in file %s\n    ' % source
+                message += ', '.join(undefined)
         if message:
             raise RuntimeError(message)
 
@@ -40,12 +45,15 @@ class ResourceManager:
             pass
         # a whole new request, so clear the stack
         self._request_stack = []
-        # try:
-        return self._get_resource(name)
-        # except BaseException as e:
-        #     print(self._resources_stack)
-        #     raise RuntimeError('An exception occurred while building the resource ')
-        # '%s:%s (Line %d)' % (module_type.body, module_name.body, module_type.line)) from e
+        self._node_to_define = None
+        try:
+            return self._get_resource(name)
+        except BaseException as e:
+            if self._node_to_define is None:
+                raise
+            name = self._node_to_define.to_str(0)
+            raise RuntimeError('An exception occurred while building the resource %s' % repr(name) +
+                               '\n    at %d:%d in file %s' % self._node_to_define.position()) from e
 
     def get(self, name: str, default=None):
         try:
@@ -104,13 +112,6 @@ class ResourceManager:
     def _get_resource(self, name: str):
         if name in self._defined_resources:
             return self._defined_resources[name]
-        # avoiding cycles
-        if name in self._request_stack:
-            self._request_stack = []
-            prefix = " -> ".join(self._request_stack)
-            raise RuntimeError('Cyclic dependency found in the following resource:\n  '
-                               '{} -> {}'.format(prefix, name))
-        self._request_stack.append(name)
 
         try:
             node = self._undefined_resources[name]
@@ -119,11 +120,10 @@ class ResourceManager:
 
         resource = self._define_resource(node)
         self._defined_resources[name] = resource
-
-        self._request_stack.pop()
         return resource
 
     def _define_resource(self, node):
+        self._node_to_define = node
         if type(node) is Value:
             return json.loads(node.value.body)
         if type(node) is Array:

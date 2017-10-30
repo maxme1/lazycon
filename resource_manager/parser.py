@@ -178,6 +178,8 @@ def parse_file(source_path):
 
     try:
         tokens = tokenize(source, 4)
+        for token in tokens:
+            token.set_source(source_path)
         return Parser(tokens).parse()
     except SyntaxError as e:
         raise SyntaxError('{} in file {}'.format(e.msg, source_path)) from None
