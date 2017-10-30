@@ -63,9 +63,13 @@ class Token:
         self.type = type
         self.line = line
         self.column = None
+        self.source = None
 
     def add_info(self, line, column):
         self.line, self.column = line, column
+
+    def set_source(self, source):
+        self.source = source
 
     def __repr__(self):
         return '{}:{}'.format(self.type, self.body)

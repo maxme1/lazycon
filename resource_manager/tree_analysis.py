@@ -1,28 +1,30 @@
+from collections import defaultdict
+
 from .structures import *
 
 
 class SyntaxTree:
-    def __init__(self, resources_dict):
-        self.resources = resources_dict
+    def __init__(self, resources: dict):
+        self.resources = resources
         self._request_stack = []
-        self.cycles = []
-        self.undefined = []
+        self.cycles = defaultdict(list)
+        self.undefined = defaultdict(list)
 
-        self._visited = {name: False for name in resources_dict}
-        for name in resources_dict:
-            self._analyze_tree(name)
+        self._visited = {name: False for name in resources}
+        for name, node in resources.items():
+            self._analyze_tree(name, node.position()[-1])
 
-    def _analyze_tree(self, name):
+    def _analyze_tree(self, name, source):
         # undefined variable:
         if name not in self.resources:
-            self.undefined.append(name)
+            self.undefined[source].append(name)
             return
         if self._visited[name]:
             return
         # cycle
         if name in self._request_stack:
             prefix = " -> ".join(self._request_stack)
-            self.cycles.append('{} -> {}'.format(prefix, name))
+            self.cycles[source].append('{} -> {}'.format(prefix, name))
             return
 
         self._request_stack.append(name)
@@ -31,9 +33,9 @@ class SyntaxTree:
 
         self._visited[name] = True
 
-    def _analyze_node(self, node):
+    def _analyze_node(self, node: Structure):
         if type(node) is Resource:
-            self._analyze_tree(node.name.body)
+            self._analyze_tree(node.name.body, node.position()[-1])
         if type(node) is GetAttribute:
             self._analyze_node(node.data)
         if type(node) is Partial:
