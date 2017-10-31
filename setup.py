@@ -12,14 +12,14 @@ setup(
     name='resource-manager',
     packages=['resource_manager'],
     include_package_data=True,
-    version='0.2.3',
+    version='0.2.4',
     description='A small resource manager for config files',
     long_description=long_description,
     author='maxme1',
     author_email='maxs987@gmail.com',
     license='MIT',
     url='https://github.com/maxme1/resource-manager',
-    download_url='https://github.com/maxme1/resource-manager/archive/0.2.3.tar.gz',
+    download_url='https://github.com/maxme1/resource-manager/archive/0.2.4.tar.gz',
     keywords=[
         'config', 'manager', 'resource'
     ],
