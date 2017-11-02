@@ -63,3 +63,13 @@ def get_hash(path, buffer_size=65536):
             data = file.read(buffer_size)
 
     return f'{current_hash.hexdigest()}_{os.path.getsize(path)}'
+
+
+def put_in_stack(method):
+    def wrapper(self, node):
+        self._definitions_stack.append(node)
+        value = method(self, node)
+        self._definitions_stack.pop()
+        return value
+
+    return wrapper

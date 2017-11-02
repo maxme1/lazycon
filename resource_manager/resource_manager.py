@@ -4,6 +4,7 @@ import os
 import warnings
 from collections import OrderedDict
 
+from resource_manager.utils import put_in_stack
 from .tree_analysis import SyntaxTree
 from .parser import parse_file
 from .structures import *
@@ -45,15 +46,23 @@ class ResourceManager:
             pass
         # a whole new request, so clear the stack
         self._request_stack = []
-        self._node_to_define = None
+        self._definitions_stack = []
         try:
             return self._get_resource(name)
         except BaseException as e:
-            if self._node_to_define is None:
+            if not self._definitions_stack:
                 raise
-            name = self._node_to_define.to_str(0)
-            raise RuntimeError('An exception occurred while building the resource %s' % repr(name) +
-                               '\n    at %d:%d in file %s' % self._node_to_define.position()) from e
+
+            # TODO: is there a better way?
+            definition = self._definitions_stack[-1]
+            if type(definition) is Partial:
+                name = definition.target.to_str(0)
+                message = 'An exception occurred while calling the resource %s'
+            else:
+                name = definition.to_str(0)
+                message = 'An exception occurred while building the resource %s'
+            raise RuntimeError(message % name +
+                               '\n    at %d:%d in file %s' % definition.position()) from e
 
     def get(self, name: str, default=None):
         try:
@@ -122,8 +131,8 @@ class ResourceManager:
         self._defined_resources[name] = resource
         return resource
 
+    @put_in_stack
     def _define_resource(self, node):
-        self._node_to_define = node
         if type(node) is Value:
             return json.loads(node.value.body)
         if type(node) is Array:
