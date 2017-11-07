@@ -18,8 +18,10 @@ class TokenType(Enum):
     DICT_OPEN = auto()
     DICT_CLOSE = auto()
 
+    DIRECTIVE = auto()
     LAZY = auto()
     EXTENDS = auto()
+    FROM = auto()
 
     BLOCK_OPEN = auto()
     BLOCK_CLOSE = auto()
@@ -34,8 +36,9 @@ REGEXPS = {
 }
 
 RESERVED = {
-    TokenType.LAZY: '@lazy',
-    TokenType.EXTENDS: '@extends',
+    'lazy': TokenType.LAZY,
+    'extends': TokenType.EXTENDS,
+    'from': TokenType.FROM,
 }
 
 LITERALS = ('null', 'true', 'false')
@@ -50,6 +53,7 @@ SINGLE = {
     '}': TokenType.DICT_CLOSE,
     '(': TokenType.LAMBDA_OPEN,
     ')': TokenType.LAMBDA_CLOSE,
+    '@': TokenType.DIRECTIVE,
 }
 
 JSON_OPEN = [TokenType.BRACKET_OPEN, TokenType.DICT_OPEN, TokenType.LAMBDA_OPEN]

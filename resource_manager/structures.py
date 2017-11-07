@@ -2,6 +2,9 @@ from resource_manager.token import Token
 
 
 class Structure:
+    def __init__(self, main_token):
+        self.main_token = main_token
+
     def position(self):
         return self.main_token.line, self.main_token.column, self.main_token.source
 
@@ -11,9 +14,9 @@ class Structure:
 
 class Definition(Structure):
     def __init__(self, name: Token, value: Structure):
+        super().__init__(name)
         self.name = name
         self.value = value
-        self.main_token = name
 
     def to_str(self, level):
         return '{} = {}'.format(self.name.body, self.value.to_str(level))
@@ -21,8 +24,8 @@ class Definition(Structure):
 
 class Resource(Structure):
     def __init__(self, name: Token):
+        super().__init__(name)
         self.name = name
-        self.main_token = name
 
     def to_str(self, level):
         return self.name.body
@@ -30,9 +33,9 @@ class Resource(Structure):
 
 class GetAttribute(Structure):
     def __init__(self, data: Structure, name: Token):
+        super().__init__(name)
         self.data = data
         self.name = name
-        self.main_token = name
 
     def to_str(self, level):
         return '{}.{}'.format(self.data.to_str(level), self.name.body)
@@ -40,12 +43,10 @@ class GetAttribute(Structure):
 
 class Partial(Structure):
     def __init__(self, target: Structure, params: list, lazy: bool):
+        super().__init__(target.main_token)
         self.target = target
         self.params = params
         self.lazy = lazy
-
-    def position(self):
-        return self.target.position()
 
     def to_str(self, level):
         result = '{}(\n'.format(self.target.to_str(level))
@@ -60,9 +61,9 @@ class Partial(Structure):
 
 class Module(Structure):
     def __init__(self, module_type, module_name):
+        super().__init__(module_type)
         self.module_type = module_type
         self.module_name = module_name
-        self.main_token = module_type
 
     def to_str(self, level):
         return '{}:{}'.format(self.module_type.body, self.module_name.body)
@@ -70,19 +71,17 @@ class Module(Structure):
 
 class Value(Structure):
     def __init__(self, value):
-        self.main_token = self.value = value
+        super().__init__(value)
+        self.value = value
 
     def to_str(self, level):
         return self.value.body
 
 
 class Array(Structure):
-    def __init__(self, values: list):
+    def __init__(self, values: list, main_token):
+        super().__init__(main_token)
         self.values = values
-
-    def position(self):
-        if self.values:
-            return self.values[0].position()
 
     def to_str(self, level):
         result = '[\n'
@@ -92,14 +91,9 @@ class Array(Structure):
 
 
 class Dictionary(Structure):
-    def __init__(self, dictionary: dict):
+    def __init__(self, dictionary: dict, main_token):
+        super().__init__(main_token)
         self.dictionary = dictionary
-
-    def position(self):
-        if self.dictionary:
-            return next(iter(self.dictionary.values())).position()
-        # else:
-        #     return
 
     def to_str(self, level):
         result = '{\n'

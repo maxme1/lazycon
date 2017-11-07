@@ -35,6 +35,15 @@ class TestResourceManager(unittest.TestCase):
                 except AttributeError:
                     self.fail()
 
+    def test_from(self):
+        rm = ResourceManager('extends/from', mock_get_resource)
+        for resource in ['just_another_resource', 'one', 'dataset', 'one', 'two', 'three', 'four', 'deeper']:
+            with self.subTest(i=resource):
+                try:
+                    getattr(rm, resource)
+                except AttributeError:
+                    self.fail()
+
     def test_cycle_import(self):
         try:
             ResourceManager('extends/cycle_import', mock_get_resource)

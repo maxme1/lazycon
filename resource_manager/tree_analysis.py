@@ -12,10 +12,7 @@ class SyntaxTree:
 
         self._visited = {name: False for name in resources}
         for name, node in resources.items():
-            position = node.position()
-            if position:
-                position = position[-1]
-            self._analyze_tree(name, position)
+            self._analyze_tree(name, node.position()[-1])
 
     def _analyze_tree(self, name, source):
         # undefined variable:

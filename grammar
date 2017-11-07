@@ -1,6 +1,6 @@
-config = extends? definition*
+config = extends* definition*
 
-extends = '@extends' paths | (LAMBDA_OPEN paths LAMBDA_CLOSE)
+extends = DIRECTIVE ('from' STRING)? 'extends' paths | (LAMBDA_OPEN paths LAMBDA_CLOSE)
 paths = (STRING ','?)+
 
 definition = IDENTIFIER '=' expression
@@ -11,7 +11,7 @@ getAttribute = '.' IDENTIFIER
 partial = LAMBDA_OPEN params LAMBDA_CLOSE
 tail = BLOCK_OPEN params BLOCK_CLOSE
 
-params = @lazy? (definition ','?)*
+params = DIRECTIVE 'lazy'? (definition ','?)*
 
 data = module | IDENTIFIER | object | array | STRING | NUMBER | 'null' | 'false' | 'true'
 module = IDENTIFIER ':' IDENTIFIER partial?
@@ -22,6 +22,7 @@ STRING = r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
 IDENTIFIER = r'[^\d\W]\w*'
 
+DIRECTIVE = '@'
 LAMBDA_OPEN = '('
 LAMBDA_CLOSE = ')'
 BLOCK_OPEN = <indent up>

@@ -61,14 +61,12 @@ def next_token(text: str):
         if text.startswith(literal):
             return Token(literal, TokenType.LITERAL)
 
-    for tokenType, reserved in RESERVED.items():
-        if text.startswith(reserved):
-            return Token(reserved, tokenType)
-
     for tokenType, regex in REGEXPS.items():
         match = regex.match(text)
         if match:
             match = match.group()
+            if match in RESERVED:
+                return Token(match, RESERVED[match])
             return Token(match, tokenType)
 
     for char, tokeType in SINGLE.items():

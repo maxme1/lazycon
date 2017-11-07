@@ -26,12 +26,12 @@ class ResourceManager:
         if tree.cycles:
             message += 'Cyclic dependencies found in the following resources:\n'
             for source, cycles in tree.cycles.items():
-                message += '  in file %s\n    ' % source
+                message += '  in %s\n    ' % source
                 message += '\n    '.join(cycles)
         if tree.undefined:
             message += '\nUndefined resources found:\n'
             for source, undefined in tree.undefined.items():
-                message += '  in file %s\n    ' % source
+                message += '  in %s\n    ' % source
                 message += ', '.join(undefined)
         if message:
             raise RuntimeError(message)
@@ -62,7 +62,7 @@ class ResourceManager:
                 name = definition.to_str(0)
                 message = 'An exception occurred while building the resource %s'
             raise RuntimeError(message % name +
-                               '\n    at %d:%d in file %s' % definition.position()) from e
+                               '\n    at %d:%d in %s' % definition.position()) from e
 
     def get(self, name: str, default=None):
         try:
@@ -114,6 +114,7 @@ class ResourceManager:
 
         for parent in parents:
             parent = os.path.join(os.path.dirname(absolute_path), parent)
+            parent = os.path.realpath(parent)
             self._import(parent)
 
         self._imported[absolute_path] = result

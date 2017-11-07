@@ -1,3 +1,5 @@
+import os
+
 from .tokenizer import TokenType, tokenize
 from .structures import *
 
@@ -32,9 +34,10 @@ class Parser:
         return Value(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
     def params(self):
-        lazy = self.matches(TokenType.LAZY)
+        lazy = self.matches(TokenType.DIRECTIVE)
         if lazy:
             self.advance()
+            self.require(TokenType.LAZY)
             self.ignore(TokenType.COMA)
 
         params = []
@@ -81,7 +84,7 @@ class Parser:
     def object(self):
         inside_json = self.inside_json
         self.inside_json = True
-        self.require(TokenType.DICT_OPEN)
+        dict_begin = self.require(TokenType.DICT_OPEN)
         pairs = {}
         while not self.matches(TokenType.DICT_CLOSE):
             key = self.require(TokenType.STRING)
@@ -92,12 +95,12 @@ class Parser:
 
         self.require(TokenType.DICT_CLOSE)
         self.inside_json = inside_json
-        return Dictionary(pairs)
+        return Dictionary(pairs, dict_begin)
 
     def array(self):
         inside_json = self.inside_json
         self.inside_json = True
-        self.require(TokenType.BRACKET_OPEN)
+        array_begin = self.require(TokenType.BRACKET_OPEN)
         values = []
         while not self.matches(TokenType.BRACKET_CLOSE):
             values.append(self.expression())
@@ -105,9 +108,14 @@ class Parser:
 
         self.require(TokenType.BRACKET_CLOSE)
         self.inside_json = inside_json
-        return Array(values)
+        return Array(values, array_begin)
 
     def extends(self):
+        prefix = ''
+        if self.matches(TokenType.FROM):
+            self.advance()
+            prefix = self.require(TokenType.STRING).body[1:-1]
+
         self.require(TokenType.EXTENDS)
         block = self.matches(TokenType.LAMBDA_OPEN)
         if block:
@@ -120,12 +128,15 @@ class Parser:
 
         if block:
             self.require(TokenType.LAMBDA_CLOSE)
+        if prefix:
+            return [os.path.join(prefix, x) for x in paths]
         return paths
 
     def parse(self):
         parents = []
-        if self.matches(TokenType.EXTENDS):
-            parents = self.extends()
+        while self.matches(TokenType.DIRECTIVE):
+            self.advance()
+            parents.extend(self.extends())
 
         definitions = []
         while self.position < len(self.tokens):

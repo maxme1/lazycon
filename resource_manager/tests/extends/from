@@ -1,0 +1,7 @@
+@from "../idempotency" extends (
+    "comments" "json"
+)
+
+@extends "folder/target"
+
+another_resource = "just testing"
