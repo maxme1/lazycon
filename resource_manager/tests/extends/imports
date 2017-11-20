@@ -1,0 +1,3 @@
+import numpy as np
+
+x = np.sum(a = [1, 2])

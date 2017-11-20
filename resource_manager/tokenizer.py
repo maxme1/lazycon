@@ -27,7 +27,7 @@ def tokenize(source: str, indentation: int):
 
         while text:
             # comment
-            if text.startswith('//'):
+            if text.startswith(('//', '#')):
                 break
 
             position = len(line) - len(text) + 1

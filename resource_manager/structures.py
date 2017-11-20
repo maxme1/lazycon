@@ -1,8 +1,10 @@
+from typing import List
+
 from resource_manager.token import Token
 
 
 class Structure:
-    def __init__(self, main_token):
+    def __init__(self, main_token: Token):
         self.main_token = main_token
 
     def position(self):
@@ -10,6 +12,37 @@ class Structure:
 
     def to_str(self, level):
         pass
+
+
+class ImportPython(Structure):
+    def __init__(self, root: List[Token], values: dict, main_token):
+        super().__init__(main_token)
+        self._root = root
+        self.root = '.'.join(x.body for x in root)
+        self._values = values
+        self.values = {'.'.join(x.body for x in value): name for value, name in values.items()}
+
+    def to_str(self, level):
+        result = ''
+        if self.root:
+            result += 'from %s ' % self.root
+        result += 'import '
+        for value, name in self.values.items():
+            result += value + ' '
+            if name is not None:
+                result += 'as ' + name.body
+            result += ', '
+        return result[:-2] + '\n'
+
+
+class LazyImport(Structure):
+    def __init__(self, root, name, main_token: Token):
+        super().__init__(main_token)
+        self.root, self.name = root, name
+
+    def to_str(self, level):
+        # TODO: better message
+        return '<import statement>'
 
 
 class Definition(Structure):
@@ -69,7 +102,7 @@ class Module(Structure):
         return '{}:{}'.format(self.module_type.body, self.module_name.body)
 
 
-class Value(Structure):
+class Literal(Structure):
     def __init__(self, value):
         super().__init__(value)
         self.value = value

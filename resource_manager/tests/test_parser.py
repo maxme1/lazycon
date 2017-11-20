@@ -8,9 +8,10 @@ from resource_manager.tokenizer import tokenize
 def standardize(source):
     tokens = tokenize(source, 4)
     result = ''
-    definitions, parents = Parser(tokens).parse()
+    definitions, parents, imports = Parser(tokens).parse()
     if parents:
-        result += '@extends ' + ' '.join(f'"{x}"' for x in parents)
+        result += '@extends ' + ' '.join(f'"{x}"' for x in parents) + '\n'
+    result += ''.join(imp.to_str(0) for imp in imports)
     for definition in definitions:
         result += definition.to_str(0) + '\n'
     return result

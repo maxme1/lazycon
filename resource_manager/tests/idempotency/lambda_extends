@@ -1,3 +1,7 @@
 @extends ("some" "long" "line"
     "of" "imports" "so" "ignoring indentation"
     "is" "a good idea")
+
+import a.b.c.d as b
+from g.h.t import y
+from g.h.t import y as z

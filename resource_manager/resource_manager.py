@@ -1,4 +1,5 @@
 import functools
+import importlib
 import json
 import os
 import warnings
@@ -13,13 +14,12 @@ from .structures import *
 class ResourceManager:
     def __init__(self, source_path: str, get_module: callable):
         self.get_module = get_module
-        # this information is redundant for now
-        self._imported = OrderedDict()
+        self._imported_configs = OrderedDict()
         self._defined_resources = {}
         self._undefined_resources = {}
 
         source_path = os.path.realpath(source_path)
-        self._import(source_path)
+        self._import_config(source_path)
 
         tree = SyntaxTree(self._undefined_resources)
         message = ''
@@ -28,11 +28,13 @@ class ResourceManager:
             for source, cycles in tree.cycles.items():
                 message += '  in %s\n    ' % source
                 message += '\n    '.join(cycles)
+                message += '\n'
         if tree.undefined:
             message += '\nUndefined resources found:\n'
             for source, undefined in tree.undefined.items():
                 message += '  in %s\n    ' % source
                 message += ', '.join(undefined)
+                message += '\n'
         if message:
             raise RuntimeError(message)
 
@@ -94,30 +96,39 @@ class ResourceManager:
         if name not in self.__dict__:
             setattr(self, name, value)
 
-    def _import(self, absolute_path):
-        if absolute_path in self._imported:
+    def _set_definition(self, registry, name, value, absolute_path):
+        if name in registry:
+            raise SyntaxError('Duplicate definition of resource "{}" '
+                              'in config file {}'.format(name, absolute_path))
+        registry[name] = value
+        if name not in self._undefined_resources:
+            self._undefined_resources[name] = value
+            self._add_to_dict(name, TempPlaceholder)
+
+    def _import_config(self, absolute_path):
+        if absolute_path in self._imported_configs:
             return
-        self._imported[absolute_path] = None
+        self._imported_configs[absolute_path] = None
 
-        definitions, parents = parse_file(absolute_path)
+        definitions, parents, imports = parse_file(absolute_path)
         result = {}
-        for definition in definitions:
-            def_name = definition.name.body
-            if def_name in result:
-                raise SyntaxError('Duplicate definition of resource "{}" '
-                                  'in config file {}'.format(def_name, absolute_path))
-            result[def_name] = definition.value
+        for imp in imports:
+            for value, name in imp.values.items():
+                if name is not None:
+                    name = name.body
+                else:
+                    name = value
+                self._set_definition(result, name, LazyImport(imp.root, value, imp.main_token), absolute_path)
 
-            if def_name not in self._undefined_resources:
-                self._undefined_resources[def_name] = definition.value
-                self._add_to_dict(def_name, TempPlaceholder)
+        for definition in definitions:
+            self._set_definition(result, definition.name.body, definition.value, absolute_path)
 
         for parent in parents:
             parent = os.path.join(os.path.dirname(absolute_path), parent)
             parent = os.path.realpath(parent)
-            self._import(parent)
+            self._import_config(parent)
 
-        self._imported[absolute_path] = result
+        self._imported_configs[absolute_path] = result
 
     def _get_resource(self, name: str):
         if name in self._defined_resources:
@@ -134,7 +145,7 @@ class ResourceManager:
 
     @put_in_stack
     def _define_resource(self, node):
-        if type(node) is Value:
+        if type(node) is Literal:
             return json.loads(node.value.body)
         if type(node) is Array:
             return [self._define_resource(x) for x in node.values]
@@ -154,6 +165,13 @@ class ResourceManager:
                 return functools.partial(target, **kwargs)
             else:
                 return target(**kwargs)
+        if type(node) is LazyImport:
+            if node.root is None:
+                return importlib.import_module(node.name)
+            try:
+                return importlib.import_module(node.name, node.root)
+            except ModuleNotFoundError:
+                return getattr(importlib.import_module(node.root), node.name)
 
         raise TypeError('Undefined resource description of type {}'.format(type(node)))
 

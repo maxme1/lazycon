@@ -1,13 +1,17 @@
+from numpy import sum
+from registration.modules.utils import unique_ids
+
 data = dataset:from_ids
     ids = constants:ids
 
 load = utils:load_from_dataset
-    // we want this resource to be callable
-    // so it will not be initialized
+    # we want this resource to be callable
+    # so it will not be initialized
     @lazy
     dataset = data
 
-ids = utils:unique_ids
-    dataset = data
+ids = unique_ids(dataset = data)
 
 loader = data.load_by_id
+
+aggregated = sum(a = [1 2])

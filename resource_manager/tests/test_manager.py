@@ -27,6 +27,13 @@ def raises(module_type, module_name):
 
 class TestResourceManager(unittest.TestCase):
     def test_import(self):
+        try:
+            rm = ResourceManager('extends/imports', mock_get_resource)
+            self.assertEqual(rm.x, 3)
+        except RecursionError:
+            self.fail()
+
+    def test_extends(self):
         rm = ResourceManager('extends/inheritance', mock_get_resource)
         for resource in ['just_another_resource', 'one', 'dataset', 'one', 'two', 'three', 'four', 'deeper']:
             with self.subTest(i=resource):

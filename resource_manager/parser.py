@@ -31,7 +31,7 @@ class Parser:
             return self.array()
         if self.matches(TokenType.DICT_OPEN):
             return self.object()
-        return Value(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
+        return Literal(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
     def params(self):
         lazy = self.matches(TokenType.DIRECTIVE)
@@ -54,8 +54,8 @@ class Parser:
             self.require(TokenType.BLOCK_CLOSE)
             return data
 
-        while self.matches(TokenType.GETATTR, TokenType.LAMBDA_OPEN):
-            if self.matches(TokenType.GETATTR):
+        while self.matches(TokenType.DOT, TokenType.LAMBDA_OPEN):
+            if self.matches(TokenType.DOT):
                 self.advance()
                 name = self.require(TokenType.IDENTIFIER)
                 data = GetAttribute(data, name)
@@ -132,17 +132,57 @@ class Parser:
             return [os.path.join(prefix, x) for x in paths]
         return paths
 
-    def parse(self):
-        parents = []
-        while self.matches(TokenType.DIRECTIVE):
+    def dotted(self):
+        result = [self.require(TokenType.IDENTIFIER)]
+        while self.matches(TokenType.DOT):
             self.advance()
-            parents.extend(self.extends())
+            result.append(self.require(TokenType.IDENTIFIER))
+        return result
+
+    def import_as(self, allow_dotted):
+        value = self.dotted()
+        name = None
+        if self.matches(TokenType.AS):
+            self.advance()
+            name = self.require(TokenType.IDENTIFIER)
+        if len(value) > 1 and (not allow_dotted or name is None):
+            # TODO: improve message
+            raise SyntaxError('Dotted import not allowed in this context')
+        return tuple(value), name
+
+    def import_python(self):
+        root, values = [], {}
+        allow_dotted = True
+        if self.matches(TokenType.FROM):
+            self.advance()
+            allow_dotted = False
+            root = self.dotted()
+
+        main_token = self.require(TokenType.IMPORT)
+        value, name = self.import_as(allow_dotted)
+        values[value] = name
+        while self.matches(TokenType.COMA):
+            self.advance()
+            value, name = self.import_as(allow_dotted)
+            values[value] = name
+        self.ignore(TokenType.COMA)
+
+        return ImportPython(root, values, main_token)
+
+    def parse(self):
+        parents, imports = [], []
+        while self.matches(TokenType.DIRECTIVE, TokenType.IMPORT, TokenType.FROM):
+            if self.matches(TokenType.DIRECTIVE):
+                self.advance()
+                parents.extend(self.extends())
+            else:
+                imports.append(self.import_python())
 
         definitions = []
         while self.position < len(self.tokens):
             definitions.append(self.definition())
 
-        return definitions, parents
+        return definitions, parents, imports
 
     def advance(self):
         result = self.current
@@ -193,4 +233,5 @@ def parse_file(source_path):
             token.set_source(source_path)
         return Parser(tokens).parse()
     except SyntaxError as e:
+        raise
         raise SyntaxError('{} in file {}'.format(e.msg, source_path)) from None
