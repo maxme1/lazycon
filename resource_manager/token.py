@@ -23,6 +23,7 @@ class TokenType(Enum):
     IMPORT = auto()
     FROM = auto()
     AS = auto()
+    ASTERISK = auto()
 
     BLOCK_OPEN = auto()
     BLOCK_CLOSE = auto()
@@ -44,9 +45,11 @@ RESERVED = {
     'from': TokenType.FROM,
 }
 
-LITERALS = ('null', 'true', 'false')
+LAZY = re.compile(r'#\s*lazy')
+LITERALS = ('None', 'True', 'False')
 SINGLE = {
     ',': TokenType.COMA,
+    '*': TokenType.ASTERISK,
     ':': TokenType.COLON,
     '.': TokenType.DOT,
     '=': TokenType.EQUALS,

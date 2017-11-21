@@ -2,6 +2,6 @@
     "comments" "json"
 )
 
-@extends "folder/target"
+from folder.target import *
 
 another_resource = "just testing"

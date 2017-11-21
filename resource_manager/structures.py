@@ -84,7 +84,7 @@ class Partial(Structure):
     def to_str(self, level):
         result = '{}(\n'.format(self.target.to_str(level))
         if self.lazy:
-            result += '    ' * (level + 1) + '@lazy\n'
+            result += '    ' * (level + 1) + '# lazy\n'
 
         for param in self.params:
             result += '    ' * (level + 1) + param.to_str(level + 1) + '\n'

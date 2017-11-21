@@ -114,7 +114,7 @@ class Parser:
         prefix = ''
         if self.matches(TokenType.FROM):
             self.advance()
-            prefix = self.require(TokenType.STRING).body[1:-1]
+            prefix = eval(self.require(TokenType.STRING).body)
 
         self.require(TokenType.EXTENDS)
         block = self.matches(TokenType.LAMBDA_OPEN)
@@ -123,7 +123,7 @@ class Parser:
 
         paths = []
         while self.matches(TokenType.STRING):
-            paths.append(self.advance().body[1:-1])
+            paths.append(eval(self.advance().body))
             self.ignore(TokenType.COMA)
 
         if block:
@@ -150,24 +150,40 @@ class Parser:
             raise SyntaxError('Dotted import not allowed in this context')
         return tuple(value), name
 
-    def import_python(self):
-        root, values = [], {}
-        allow_dotted = True
+    def import_base(self):
+        root = []
+        config = False
         if self.matches(TokenType.FROM):
             self.advance()
-            allow_dotted = False
-            root = self.dotted()
+            config = self.ignore(TokenType.DOT)
+            if self.matches(TokenType.STRING):
+                config = True
+                root = self.advance()
+            else:
+                root = self.dotted()
 
         main_token = self.require(TokenType.IMPORT)
-        value, name = self.import_as(allow_dotted)
+        if self.matches(TokenType.ASTERISK):
+            self.advance()
+            return self.import_config(root)
+        if config:
+            return SyntaxError('This syntax is allowed only for importing configs')
+
+        values = {}
+        value, name = self.import_as(not root)
         values[value] = name
         while self.matches(TokenType.COMA):
             self.advance()
-            value, name = self.import_as(allow_dotted)
+            value, name = self.import_as(not root)
             values[value] = name
         self.ignore(TokenType.COMA)
 
         return ImportPython(root, values, main_token)
+
+    def import_config(self, root):
+        if type(root) is Literal:
+            return eval(root.body)
+        return os.sep.join(x.body for x in root)
 
     def parse(self):
         parents, imports = [], []
@@ -176,7 +192,11 @@ class Parser:
                 self.advance()
                 parents.extend(self.extends())
             else:
-                imports.append(self.import_python())
+                import_ = self.import_base()
+                if type(import_) is str:
+                    parents.append(import_)
+                else:
+                    imports.append(import_)
 
         definitions = []
         while self.position < len(self.tokens):
@@ -221,6 +241,8 @@ class Parser:
     def ignore(self, *types):
         if self.matches(*types):
             self.advance()
+            return True
+        return False
 
 
 def parse_file(source_path):

@@ -1,9 +1,8 @@
 another_resource = "just testing"
 
 dataset = dataset:isles(
-    @lazy
+    # lazy
     data_path = "my_path"
-    filename = "meta.csv"
 )
 
 one = 1
@@ -20,6 +19,6 @@ four = {
     "a": "example"
 }
 
-just_another_resource = null
+just_another_resource = None
 
 deeper = "i'm tired of inventing new resource names"

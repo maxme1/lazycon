@@ -1,14 +1,13 @@
 import functools
 import importlib
-import json
 import os
 import warnings
 from collections import OrderedDict
 
 from resource_manager.utils import put_in_stack
-from .tree_analysis import SyntaxTree
 from .parser import parse_file
 from .structures import *
+from .tree_analysis import SyntaxTree
 
 
 class ResourceManager:
@@ -146,11 +145,11 @@ class ResourceManager:
     @put_in_stack
     def _define_resource(self, node):
         if type(node) is Literal:
-            return json.loads(node.value.body)
+            return eval(node.value.body)
         if type(node) is Array:
             return [self._define_resource(x) for x in node.values]
         if type(node) is Dictionary:
-            return {json.loads(name.body): self._define_resource(value) for name, value in node.dictionary.items()}
+            return {eval(name.body): self._define_resource(value) for name, value in node.dictionary.items()}
         if type(node) is Resource:
             return self._get_resource(node.name.body)
         if type(node) is GetAttribute:

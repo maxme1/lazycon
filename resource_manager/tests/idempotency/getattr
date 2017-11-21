@@ -1,5 +1,5 @@
 my_module = dataset:dummy
-    // dataset that has a load_x method
+    # dataset that has a load_x method
     ids = my_list
 
 load_x = my_module.load_x

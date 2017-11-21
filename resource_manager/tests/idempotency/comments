@@ -1,8 +1,7 @@
-// some explanatory text
+# some explanatory text
 dataset = dataset:isles // and here
-    @lazy // here
- // between params
-    data_path = "my_path" // here too
-    filename = "meta.csv" // here, of course
-    // finally here
-  //different indentation
+    # lazy # here
+ # between params
+    data_path = "my_path" #
+    # finally here
+  #different indentation

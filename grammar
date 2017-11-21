@@ -1,10 +1,12 @@
-config = (extends | import | from_import)* definition*
+config = (extends | import | from_import | config_import)* definition*
 
 extends = DIRECTIVE ('from' STRING)? 'extends' paths | (LAMBDA_OPEN paths LAMBDA_CLOSE)
 paths = (STRING ','?)+
 
 import = 'import' dotted_import_as (',' dotted_import_as)* ','?
-import_from = 'from' dotted 'import' import_as (',' import_as)* ','?
+from_import = 'from' dotted 'import' import_as (',' import_as)* ','?
+config_import = 'from' ('.'? dotted) | STRING 'import' '*'
+
 dotted = IDENTIFIER ('.' IDENTIFIER)*
 import_as = IDENTIFIER (as IDENTIFIER)?
 dotted_import_as = dotted (as IDENTIFIER)? // for now, this is not fully supported
