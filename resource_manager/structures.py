@@ -42,11 +42,11 @@ class LazyImport(Structure):
 
     def to_str(self, level):
         result = ''
-        if self.root is not None:
+        if self.root:
             result += 'from %s ' % self.root
         result += 'import %s' % self.value
-        if self.name is not None:
-            result += ' as %s' % self.name
+        if self.name:
+            result += ' as %s' % self.name.body
         return result + '\n'
 
 

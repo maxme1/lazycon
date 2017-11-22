@@ -1,4 +1,14 @@
+from module import x as y
+
+from module import z
+
+from module import t as another_name
+
+from numpy import prod as product
+
 from numpy import sum
+
+import torch
 
 another_resource = "just testing"
 
