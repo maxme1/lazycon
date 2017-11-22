@@ -85,7 +85,10 @@ class ResourceManager:
     def _get_whole_config(self):
         result = ''
         for name, value in self._undefined_resources.items():
-            result += '{} = {}\n\n'.format(name, value.to_str(0))
+            if type(value) is LazyImport:
+                result += value.to_str(0) + '\n'
+            else:
+                result += '{} = {}\n\n'.format(name, value.to_str(0))
 
         return result[:-1]
 
@@ -112,12 +115,13 @@ class ResourceManager:
         definitions, parents, imports = parse_file(absolute_path)
         result = {}
         for imp in imports:
+            # TODO: bad names
             for value, name in imp.values.items():
                 if name is not None:
-                    name = name.body
+                    _name = name.body
                 else:
-                    name = value
-                self._set_definition(result, name, LazyImport(imp.root, value, imp.main_token), absolute_path)
+                    _name = value
+                self._set_definition(result, _name, LazyImport(imp.root, value, name, imp.main_token), absolute_path)
 
         for definition in definitions:
             self._set_definition(result, definition.name.body, definition.value, absolute_path)
@@ -166,11 +170,11 @@ class ResourceManager:
                 return target(**kwargs)
         if type(node) is LazyImport:
             if node.root is None:
-                return importlib.import_module(node.name)
+                return importlib.import_module(node.value)
             try:
-                return importlib.import_module(node.name, node.root)
+                return importlib.import_module(node.value, node.root)
             except ModuleNotFoundError:
-                return getattr(importlib.import_module(node.root), node.name)
+                return getattr(importlib.import_module(node.root), node.value)
 
         raise TypeError('Undefined resource description of type {}'.format(type(node)))
 

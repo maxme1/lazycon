@@ -1,3 +1,5 @@
+from numpy import sum
+
 another_resource = "just testing"
 
 dataset = dataset:isles(
