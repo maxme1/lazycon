@@ -10,7 +10,7 @@ def standardize(source):
     result = ''
     definitions, parents, imports = Parser(tokens).parse()
     if parents:
-        result += '@extends ' + ' '.join(f'"{x}"' for x in parents) + '\n'
+        result += 'import ' + ' '.join(f'{repr(x)}' for x in parents) + '\n'
     result += ''.join(imp.to_str(0) for imp in imports)
     for definition in definitions:
         result += definition.to_str(0) + '\n'

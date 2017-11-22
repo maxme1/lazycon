@@ -1,1 +1,0 @@
-@extends "../idempotency/json" "override"

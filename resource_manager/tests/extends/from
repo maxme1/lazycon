@@ -1,7 +1,0 @@
-@from "../idempotency" extends (
-    "comments" "json"
-)
-
-from folder.target import *
-
-another_resource = "just testing"

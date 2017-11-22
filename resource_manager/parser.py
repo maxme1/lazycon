@@ -34,10 +34,8 @@ class Parser:
         return Literal(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
     def params(self):
-        lazy = self.matches(TokenType.DIRECTIVE)
+        lazy = self.ignore(TokenType.LAZY)
         if lazy:
-            self.advance()
-            self.require(TokenType.LAZY)
             self.ignore(TokenType.COMA)
 
         params = []
@@ -110,28 +108,6 @@ class Parser:
         self.inside_json = inside_json
         return Array(values, array_begin)
 
-    def extends(self):
-        prefix = ''
-        if self.matches(TokenType.FROM):
-            self.advance()
-            prefix = eval(self.require(TokenType.STRING).body)
-
-        self.require(TokenType.EXTENDS)
-        block = self.matches(TokenType.LAMBDA_OPEN)
-        if block:
-            self.advance()
-
-        paths = []
-        while self.matches(TokenType.STRING):
-            paths.append(eval(self.advance().body))
-            self.ignore(TokenType.COMA)
-
-        if block:
-            self.require(TokenType.LAMBDA_CLOSE)
-        if prefix:
-            return [os.path.join(prefix, x) for x in paths]
-        return paths
-
     def dotted(self):
         result = [self.require(TokenType.IDENTIFIER)]
         while self.matches(TokenType.DOT):
@@ -152,22 +128,26 @@ class Parser:
 
     def import_base(self):
         root = []
-        config = False
         if self.matches(TokenType.FROM):
             self.advance()
-            config = self.ignore(TokenType.DOT)
-            if self.matches(TokenType.STRING):
-                config = True
-                root = self.advance()
-            else:
+            # starred import
+            if self.ignore(TokenType.DOT):
                 root = self.dotted()
+                self.require(TokenType.IMPORT)
+                self.require(TokenType.ASTERISK)
+                return [os.sep.join(x.body for x in root) + '.config']
+            # import by path
+            if self.matches(TokenType.STRING):
+                root = eval(self.advance().body)
+                self.require(TokenType.IMPORT)
+                return self.import_config(root)
+
+            root = self.dotted()
 
         main_token = self.require(TokenType.IMPORT)
-        if self.matches(TokenType.ASTERISK):
-            self.advance()
-            return self.import_config(root)
-        if config:
-            return SyntaxError('This syntax is allowed only for importing configs')
+        # import by path
+        if self.matches(TokenType.STRING, TokenType.LAMBDA_OPEN):
+            return self.import_config('')
 
         values = {}
         value, name = self.import_as(not root)
@@ -181,22 +161,28 @@ class Parser:
         return ImportPython(root, values, main_token)
 
     def import_config(self, root):
-        if type(root) is Literal:
-            return eval(root.body)
-        return os.sep.join(x.body for x in root)
+        block = self.ignore(TokenType.LAMBDA_OPEN)
+
+        paths = [eval(self.require(TokenType.STRING).body)]
+        self.ignore(TokenType.COMA)
+        while self.matches(TokenType.STRING):
+            paths.append(eval(self.advance().body))
+            self.ignore(TokenType.COMA)
+
+        if block:
+            self.require(TokenType.LAMBDA_CLOSE)
+        if root:
+            return [os.path.join(root, x) for x in paths]
+        return paths
 
     def parse(self):
         parents, imports = [], []
-        while self.matches(TokenType.DIRECTIVE, TokenType.IMPORT, TokenType.FROM):
-            if self.matches(TokenType.DIRECTIVE):
-                self.advance()
-                parents.extend(self.extends())
+        while self.matches(TokenType.IMPORT, TokenType.FROM):
+            import_ = self.import_base()
+            if type(import_) is ImportPython:
+                imports.append(import_)
             else:
-                import_ = self.import_base()
-                if type(import_) is str:
-                    parents.append(import_)
-                else:
-                    imports.append(import_)
+                parents.extend(import_)
 
         definitions = []
         while self.position < len(self.tokens):
@@ -233,7 +219,7 @@ class Parser:
                 message = 'Unexpected indent at line %d' % self.current.line
             else:
                 message = 'Unexpected token: ' \
-                          '"{}" at {}:{}'.format(self.current.body, self.current.line, self.current.column)
+                          '"{}"\n  at {}:{}'.format(self.current.body, self.current.line, self.current.column)
             raise SyntaxError(message)
 
         return self.advance()
@@ -255,5 +241,4 @@ def parse_file(source_path):
             token.set_source(source_path)
         return Parser(tokens).parse()
     except SyntaxError as e:
-        raise
         raise SyntaxError('{} in file {}'.format(e.msg, source_path)) from None

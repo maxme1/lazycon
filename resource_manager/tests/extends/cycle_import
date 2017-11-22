@@ -1,3 +1,0 @@
-from cycle_import2 import *
-
-some_value = 1

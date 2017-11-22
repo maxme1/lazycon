@@ -16,7 +16,7 @@ three = [
 ]
 
 four = {
-    "a": "example"
+    'a': """multiline string"""
 }
 
 just_another_resource = None

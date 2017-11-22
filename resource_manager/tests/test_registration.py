@@ -15,7 +15,7 @@ def get_rm(config_path):
 class TestRegistration(unittest.TestCase):
     def test_registration(self):
         try:
-            rm = get_rm('registration/base')
+            rm = get_rm('registration/base.config')
             # `ids` is a resource defined in the config
             for id_ in rm.ids:
                 # and `load` too

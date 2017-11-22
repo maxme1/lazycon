@@ -1,3 +1,0 @@
-from cycle_import import *
-
-another_value = 2

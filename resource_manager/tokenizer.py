@@ -10,7 +10,7 @@ def tokenize(source: str, indentation: int):
         line = line.rstrip()
         text = line.lstrip()
         # TODO: ugly
-        if not text.strip() or (text.startswith(('//', '#')) and not LAZY.match(text)):
+        if not text.strip() or (text.startswith('#') and not LAZY.match(text)):
             continue
 
         # if not inside json
@@ -31,15 +31,10 @@ def tokenize(source: str, indentation: int):
 
             # TODO: combine
             # comment
-            if text.startswith(('//', '#')):
+            if text.startswith('#'):
                 text = text.strip()
                 match = LAZY.match(text)
                 if match:
-                    # TODO: this is bad
-                    token = Token('@', TokenType.DIRECTIVE)
-                    token.add_info(line_number, position)
-                    tokens.append(token)
-
                     token = Token(match.group(), TokenType.LAZY)
                 else:
                     break

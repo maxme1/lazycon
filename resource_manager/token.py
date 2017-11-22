@@ -17,9 +17,7 @@ class TokenType(Enum):
     DICT_OPEN = auto()
     DICT_CLOSE = auto()
 
-    DIRECTIVE = auto()
     LAZY = auto()
-    EXTENDS = auto()
     IMPORT = auto()
     FROM = auto()
     AS = auto()
@@ -34,12 +32,10 @@ class TokenType(Enum):
 REGEXPS = {
     TokenType.NUMBER: re.compile(r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'),
     TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
-    TokenType.STRING: re.compile(r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1''', flags=re.S),
+    TokenType.STRING: re.compile(r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1|.)*?\1''', flags=re.DOTALL),
 }
 
 RESERVED = {
-    'lazy': TokenType.LAZY,
-    'extends': TokenType.EXTENDS,
     'import': TokenType.IMPORT,
     'as': TokenType.AS,
     'from': TokenType.FROM,
@@ -59,7 +55,6 @@ SINGLE = {
     '}': TokenType.DICT_CLOSE,
     '(': TokenType.LAMBDA_OPEN,
     ')': TokenType.LAMBDA_CLOSE,
-    '@': TokenType.DIRECTIVE,
 }
 
 JSON_OPEN = [TokenType.BRACKET_OPEN, TokenType.DICT_OPEN, TokenType.LAMBDA_OPEN]

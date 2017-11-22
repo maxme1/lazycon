@@ -1,5 +1,0 @@
-@extends "comments" "json"
-
-@extends "../inheritance/order1"
-
-another_resource = "just testing"
