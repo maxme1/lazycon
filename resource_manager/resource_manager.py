@@ -87,7 +87,9 @@ class ResourceManager:
         for name, value in self._undefined_resources.items():
             if type(value) is LazyImport:
                 result += value.to_str(0) + '\n'
-            else:
+
+        for name, value in self._undefined_resources.items():
+            if type(value) is not LazyImport:
                 result += '{} = {}\n\n'.format(name, value.to_str(0))
 
         return result[:-1]

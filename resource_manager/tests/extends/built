@@ -10,6 +10,8 @@ from numpy import sum
 
 import torch
 
+from a import some_other_name
+
 another_resource = "just testing"
 
 dataset = dataset:isles(
