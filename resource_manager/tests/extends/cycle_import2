@@ -1,3 +1,0 @@
-@extends "cycle_import"
-
-another_value = 2

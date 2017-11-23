@@ -31,13 +31,11 @@ class Parser:
             return self.array()
         if self.matches(TokenType.DICT_OPEN):
             return self.object()
-        return Value(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
+        return Literal(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
     def params(self):
-        lazy = self.matches(TokenType.DIRECTIVE)
+        lazy = self.ignore(TokenType.LAZY)
         if lazy:
-            self.advance()
-            self.require(TokenType.LAZY)
             self.ignore(TokenType.COMA)
 
         params = []
@@ -54,8 +52,8 @@ class Parser:
             self.require(TokenType.BLOCK_CLOSE)
             return data
 
-        while self.matches(TokenType.GETATTR, TokenType.LAMBDA_OPEN):
-            if self.matches(TokenType.GETATTR):
+        while self.matches(TokenType.DOT, TokenType.LAMBDA_OPEN):
+            if self.matches(TokenType.DOT):
                 self.advance()
                 name = self.require(TokenType.IDENTIFIER)
                 data = GetAttribute(data, name)
@@ -110,39 +108,90 @@ class Parser:
         self.inside_json = inside_json
         return Array(values, array_begin)
 
-    def extends(self):
-        prefix = ''
+    def dotted(self):
+        result = [self.require(TokenType.IDENTIFIER)]
+        while self.matches(TokenType.DOT):
+            self.advance()
+            result.append(self.require(TokenType.IDENTIFIER))
+        return result
+
+    def import_as(self, allow_dotted, token):
+        value = self.dotted()
+        name = None
+        if self.matches(TokenType.AS):
+            self.advance()
+            name = self.require(TokenType.IDENTIFIER)
+        if len(value) > 1 and not allow_dotted:
+            self.throw('Dotted import is not allowed with the "from" argument', token)
+        return tuple(value), name
+
+    def import_base(self):
+        root = []
         if self.matches(TokenType.FROM):
             self.advance()
-            prefix = self.require(TokenType.STRING).body[1:-1]
+            # starred import
+            if self.ignore(TokenType.DOT):
+                root = self.dotted()
+                self.require(TokenType.IMPORT)
+                self.require(TokenType.ASTERISK)
+                return [os.sep.join(x.body for x in root) + '.config']
+            # import by path
+            if self.matches(TokenType.STRING):
+                root = eval(self.advance().body)
+                self.require(TokenType.IMPORT)
+                return self.import_config(root)
 
-        self.require(TokenType.EXTENDS)
-        block = self.matches(TokenType.LAMBDA_OPEN)
-        if block:
+            root = self.dotted()
+
+        main_token = self.require(TokenType.IMPORT)
+        # import by path
+        if self.matches(TokenType.STRING) or self.matches(TokenType.STRING, shift=1):
+            return self.import_config('')
+
+        block = self.ignore(TokenType.LAMBDA_OPEN)
+        values = {}
+        value, name = self.import_as(not root, main_token)
+        values[value] = name
+        while self.matches(TokenType.COMA):
             self.advance()
+            value, name = self.import_as(not root, main_token)
+            values[value] = name
+        self.ignore(TokenType.COMA)
 
-        paths = []
+        if block:
+            self.require(TokenType.LAMBDA_CLOSE)
+
+        return ImportPython(root, values, main_token)
+
+    def import_config(self, root):
+        block = self.ignore(TokenType.LAMBDA_OPEN)
+
+        paths = [eval(self.require(TokenType.STRING).body)]
+        self.ignore(TokenType.COMA)
         while self.matches(TokenType.STRING):
-            paths.append(self.advance().body[1:-1])
+            paths.append(eval(self.advance().body))
             self.ignore(TokenType.COMA)
 
         if block:
             self.require(TokenType.LAMBDA_CLOSE)
-        if prefix:
-            return [os.path.join(prefix, x) for x in paths]
+        if root:
+            return [os.path.join(root, x) for x in paths]
         return paths
 
     def parse(self):
-        parents = []
-        while self.matches(TokenType.DIRECTIVE):
-            self.advance()
-            parents.extend(self.extends())
+        parents, imports = [], []
+        while self.matches(TokenType.IMPORT, TokenType.FROM):
+            import_ = self.import_base()
+            if type(import_) is ImportPython:
+                imports.append(import_)
+            else:
+                parents.extend(import_)
 
         definitions = []
         while self.position < len(self.tokens):
             definitions.append(self.definition())
 
-        return definitions, parents
+        return definitions, parents, imports
 
     def advance(self):
         result = self.current
@@ -167,13 +216,16 @@ class Parser:
 
         return False
 
+    def throw(self, message, token):
+        raise SyntaxError(message + '\n  at {}:{}'.format(self.current.line, self.current.column))
+
     def require(self, *types):
         if not self.matches(*types):
             if self.current.type == TokenType.BLOCK_OPEN:
                 message = 'Unexpected indent at line %d' % self.current.line
             else:
                 message = 'Unexpected token: ' \
-                          '"{}" at {}:{}'.format(self.current.body, self.current.line, self.current.column)
+                          '"{}"\n  at {}:{}'.format(self.current.body, self.current.line, self.current.column)
             raise SyntaxError(message)
 
         return self.advance()
@@ -181,6 +233,8 @@ class Parser:
     def ignore(self, *types):
         if self.matches(*types):
             self.advance()
+            return True
+        return False
 
 
 def parse_file(source_path):

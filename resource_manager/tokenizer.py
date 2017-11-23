@@ -9,7 +9,8 @@ def tokenize(source: str, indentation: int):
     for line_number, line in enumerate(source.splitlines(), 1):
         line = line.rstrip()
         text = line.lstrip()
-        if not text.strip() or text.startswith('//'):
+        # TODO: ugly
+        if not text.strip() or (text.startswith('#') and not LAZY.match(text)):
             continue
 
         # if not inside json
@@ -26,16 +27,23 @@ def tokenize(source: str, indentation: int):
                 tokens.extend([Token('<<<', TokenType.BLOCK_CLOSE, line_number)] * -delta)
 
         while text:
-            # comment
-            if text.startswith('//'):
-                break
-
             position = len(line) - len(text) + 1
-            token = next_token(text)
 
-            if token is None:
-                err = text.split()[0]
-                raise SyntaxError('Unrecognized token: "{}" at {}:{}'.format(err, line_number, position))
+            # TODO: combine
+            # comment
+            if text.startswith('#'):
+                text = text.strip()
+                match = LAZY.match(text)
+                if match:
+                    token = Token(match.group(), TokenType.LAZY)
+                else:
+                    break
+            else:
+                token = next_token(text)
+
+                if token is None:
+                    err = text.split()[0]
+                    raise SyntaxError('Unrecognized token: "{}" at {}:{}'.format(err, line_number, position))
 
             token.add_info(line_number, position)
 

@@ -1,7 +1,16 @@
-config = extends* definition*
+config = (import | from_import | config_import)* definition*
 
-extends = DIRECTIVE ('from' STRING)? 'extends' paths | (LAMBDA_OPEN paths LAMBDA_CLOSE)
+config_import = import_str | import_starred
+import_str = ('from' STRING)? 'import' paths | (LAMBDA_OPEN paths LAMBDA_CLOSE)
+import_starred = 'from' '.' dotted 'import' '*'
 paths = (STRING ','?)+
+
+import = 'import' dotted_import_as (',' dotted_import_as)* ','?
+from_import = 'from' dotted 'import' import_as (',' import_as)* ','?
+
+dotted = IDENTIFIER ('.' IDENTIFIER)*
+import_as = IDENTIFIER (as IDENTIFIER)?
+dotted_import_as = dotted (as IDENTIFIER)?
 
 definition = IDENTIFIER '=' expression
 
@@ -18,15 +27,14 @@ module = IDENTIFIER ':' IDENTIFIER partial?
 object = '{' (STRING ':' expression ','?)* '}'
 array = '[' (expression ','?)* ']'
 
-STRING = r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'
+STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1''' // with the S flag
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
 IDENTIFIER = r'[^\d\W]\w*'
 
-DIRECTIVE = '@'
 LAMBDA_OPEN = '('
 LAMBDA_CLOSE = ')'
 BLOCK_OPEN = <indent up>
 BLOCK_CLOSE = <indent down>
-COMMENT = r'//.*\n'
+COMMENT = r'#.*\n'
 
 // inside `array`, `object` and `partial` the indentation has no effect

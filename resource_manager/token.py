@@ -12,16 +12,16 @@ class TokenType(Enum):
     COMA = auto()
     EQUALS = auto()
     DOT = auto()
-    GETATTR = auto()
     BRACKET_OPEN = auto()
     BRACKET_CLOSE = auto()
     DICT_OPEN = auto()
     DICT_CLOSE = auto()
 
-    DIRECTIVE = auto()
     LAZY = auto()
-    EXTENDS = auto()
+    IMPORT = auto()
     FROM = auto()
+    AS = auto()
+    ASTERISK = auto()
 
     BLOCK_OPEN = auto()
     BLOCK_CLOSE = auto()
@@ -32,20 +32,22 @@ class TokenType(Enum):
 REGEXPS = {
     TokenType.NUMBER: re.compile(r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'),
     TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
-    TokenType.STRING: re.compile(r'"(\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^\"\\\0-\x1F\x7F]+)*"'),
+    TokenType.STRING: re.compile(r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1|.)*?\1''', flags=re.DOTALL),
 }
 
 RESERVED = {
-    'lazy': TokenType.LAZY,
-    'extends': TokenType.EXTENDS,
+    'import': TokenType.IMPORT,
+    'as': TokenType.AS,
     'from': TokenType.FROM,
 }
 
-LITERALS = ('null', 'true', 'false')
+LAZY = re.compile(r'#\s*lazy')
+LITERALS = ('None', 'True', 'False')
 SINGLE = {
     ',': TokenType.COMA,
+    '*': TokenType.ASTERISK,
     ':': TokenType.COLON,
-    '.': TokenType.GETATTR,
+    '.': TokenType.DOT,
     '=': TokenType.EQUALS,
     '[': TokenType.BRACKET_OPEN,
     ']': TokenType.BRACKET_CLOSE,
@@ -53,7 +55,6 @@ SINGLE = {
     '}': TokenType.DICT_CLOSE,
     '(': TokenType.LAMBDA_OPEN,
     ')': TokenType.LAMBDA_CLOSE,
-    '@': TokenType.DIRECTIVE,
 }
 
 JSON_OPEN = [TokenType.BRACKET_OPEN, TokenType.DICT_OPEN, TokenType.LAMBDA_OPEN]
