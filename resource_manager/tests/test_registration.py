@@ -23,6 +23,7 @@ class TestRegistration(unittest.TestCase):
                 # do some stuff with x...
             self.assertEqual(1, rm.loader(rm.ids[0]))
             self.assertEqual(rm.aggregated, 3)
+            self.assertIsNotNone(rm.rand_number)
 
         except Exception:
             self.fail()

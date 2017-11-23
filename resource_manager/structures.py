@@ -36,17 +36,17 @@ class ImportPython(Structure):
 
 
 class LazyImport(Structure):
-    def __init__(self, root, value, name, main_token: Token):
+    def __init__(self, from_, what, as_, main_token: Token):
         super().__init__(main_token)
-        self.root, self.value, self.name = root, value, name
+        self.from_, self.what, self.as_ = from_, what, as_
 
     def to_str(self, level):
         result = ''
-        if self.root:
-            result += 'from %s ' % self.root
-        result += 'import %s' % self.value
-        if self.name:
-            result += ' as %s' % self.name.body
+        if self.from_:
+            result += 'from %s ' % self.from_
+        result += 'import %s' % self.what
+        if self.as_:
+            result += ' as %s' % self.as_.body
         return result + '\n'
 
 

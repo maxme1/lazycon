@@ -10,8 +10,7 @@ from_import = 'from' dotted 'import' import_as (',' import_as)* ','?
 
 dotted = IDENTIFIER ('.' IDENTIFIER)*
 import_as = IDENTIFIER (as IDENTIFIER)?
-dotted_import_as = dotted (as IDENTIFIER)? // for now, this is not fully supported
-// dotted imports must contain an 'as'
+dotted_import_as = dotted (as IDENTIFIER)?
 
 definition = IDENTIFIER '=' expression
 
@@ -32,11 +31,10 @@ STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1''' // with the S f
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
 IDENTIFIER = r'[^\d\W]\w*'
 
-DIRECTIVE = '@'
 LAMBDA_OPEN = '('
 LAMBDA_CLOSE = ')'
 BLOCK_OPEN = <indent up>
 BLOCK_CLOSE = <indent down>
-COMMENT = r'//.*\n'
+COMMENT = r'#.*\n'
 
 // inside `array`, `object` and `partial` the indentation has no effect

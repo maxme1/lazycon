@@ -4,6 +4,8 @@ import os
 import warnings
 from collections import OrderedDict
 
+import sys
+
 from resource_manager.utils import put_in_stack
 from .parser import parse_file
 from .structures import *
@@ -117,13 +119,15 @@ class ResourceManager:
         definitions, parents, imports = parse_file(absolute_path)
         result = {}
         for imp in imports:
-            # TODO: bad names
-            for value, name in imp.values.items():
-                if name is not None:
-                    _name = name.body
+            for what, as_ in imp.values.items():
+                if as_ is not None:
+                    name = as_.body
                 else:
-                    _name = value
-                self._set_definition(result, _name, LazyImport(imp.root, value, name, imp.main_token), absolute_path)
+                    name = what
+                    packages = name.split('.')
+                    if len(packages) > 1:
+                        name = packages[0]
+                self._set_definition(result, name, LazyImport(imp.root, what, as_, imp.main_token), absolute_path)
 
         for definition in definitions:
             self._set_definition(result, definition.name.body, definition.value, absolute_path)
@@ -171,12 +175,16 @@ class ResourceManager:
             else:
                 return target(**kwargs)
         if type(node) is LazyImport:
-            if node.root is None:
-                return importlib.import_module(node.value)
+            if not node.from_:
+                result = importlib.import_module(node.what)
+                packages = node.what.split('.')
+                if len(packages) > 1:
+                    return sys.modules[packages[0]]
+                return result
             try:
-                return importlib.import_module(node.value, node.root)
+                return importlib.import_module(node.what, node.from_)
             except ModuleNotFoundError:
-                return getattr(importlib.import_module(node.root), node.value)
+                return getattr(importlib.import_module(node.from_), node.what)
 
         raise TypeError('Undefined resource description of type {}'.format(type(node)))
 

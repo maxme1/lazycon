@@ -115,15 +115,14 @@ class Parser:
             result.append(self.require(TokenType.IDENTIFIER))
         return result
 
-    def import_as(self, allow_dotted):
+    def import_as(self, allow_dotted, token):
         value = self.dotted()
         name = None
         if self.matches(TokenType.AS):
             self.advance()
             name = self.require(TokenType.IDENTIFIER)
-        if len(value) > 1 and (not allow_dotted or name is None):
-            # TODO: improve message
-            raise SyntaxError('Dotted import not allowed in this context')
+        if len(value) > 1 and not allow_dotted:
+            self.throw('Dotted import is not allowed with the "from" argument', token)
         return tuple(value), name
 
     def import_base(self):
@@ -146,17 +145,21 @@ class Parser:
 
         main_token = self.require(TokenType.IMPORT)
         # import by path
-        if self.matches(TokenType.STRING, TokenType.LAMBDA_OPEN):
+        if self.matches(TokenType.STRING) or self.matches(TokenType.STRING, shift=1):
             return self.import_config('')
 
+        block = self.ignore(TokenType.LAMBDA_OPEN)
         values = {}
-        value, name = self.import_as(not root)
+        value, name = self.import_as(not root, main_token)
         values[value] = name
         while self.matches(TokenType.COMA):
             self.advance()
-            value, name = self.import_as(not root)
+            value, name = self.import_as(not root, main_token)
             values[value] = name
         self.ignore(TokenType.COMA)
+
+        if block:
+            self.require(TokenType.LAMBDA_CLOSE)
 
         return ImportPython(root, values, main_token)
 
@@ -212,6 +215,9 @@ class Parser:
                 return True
 
         return False
+
+    def throw(self, message, token):
+        raise SyntaxError(message + '\n  at {}:{}'.format(self.current.line, self.current.column))
 
     def require(self, *types):
         if not self.matches(*types):
