@@ -88,7 +88,7 @@ class ResourceManager:
         result = ''
         for name, value in self._undefined_resources.items():
             if type(value) is LazyImport:
-                result += value.to_str(0) + '\n'
+                result += value.to_str(0)
 
         for name, value in self._undefined_resources.items():
             if type(value) is not LazyImport:
@@ -178,7 +178,7 @@ class ResourceManager:
             if not node.from_:
                 result = importlib.import_module(node.what)
                 packages = node.what.split('.')
-                if len(packages) > 1:
+                if len(packages) > 1 and not node.as_:
                     return sys.modules[packages[0]]
                 return result
             try:
