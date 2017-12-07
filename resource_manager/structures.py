@@ -13,6 +13,9 @@ class Structure:
     def to_str(self, level):
         pass
 
+    def error_message(self):
+        return 'building the module ' + self.to_str(0)
+
 
 class ImportPython(Structure):
     def __init__(self, root: List[Token], values: dict, main_token):
@@ -49,6 +52,12 @@ class LazyImport(Structure):
             result += ' as %s' % self.as_.body
         return result + '\n'
 
+    def error_message(self):
+        result = 'importing '
+        if self.from_:
+            result += self.from_ + '.'
+        return result + self.what
+
 
 class Definition(Structure):
     def __init__(self, name: Token, value: Structure):
@@ -78,6 +87,9 @@ class GetAttribute(Structure):
     def to_str(self, level):
         return '{}.{}'.format(self.data.to_str(level), self.name.body)
 
+    def error_message(self):
+        return 'getting attribute {} from {}'.format(self.data.to_str(0), self.name.body)
+
 
 class Partial(Structure):
     def __init__(self, target: Structure, params: list, lazy: bool):
@@ -87,7 +99,12 @@ class Partial(Structure):
         self.lazy = lazy
 
     def to_str(self, level):
-        result = '{}(\n'.format(self.target.to_str(level))
+        result = self.target.to_str(level) + '('
+        if not self.lazy and not self.params:
+            return result + ')'
+        else:
+            result += '\n'
+
         if self.lazy:
             result += '    ' * (level + 1) + '# lazy\n'
 
@@ -95,6 +112,9 @@ class Partial(Structure):
             result += '    ' * (level + 1) + param.to_str(level + 1) + '\n'
 
         return result + '    ' * level + ')'
+
+    def error_message(self):
+        return 'calling the resource %s' % self.target.to_str(0)
 
 
 class Module(Structure):
@@ -105,6 +125,9 @@ class Module(Structure):
 
     def to_str(self, level):
         return '{}:{}'.format(self.module_type.body, self.module_name.body)
+
+    def error_message(self):
+        return 'looking for the module %s' % self.to_str(0)
 
 
 class Literal(Structure):

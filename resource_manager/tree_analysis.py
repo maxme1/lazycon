@@ -7,8 +7,8 @@ class SyntaxTree:
     def __init__(self, resources: dict):
         self.resources = resources
         self._request_stack = []
-        self.cycles = defaultdict(list)
-        self.undefined = defaultdict(list)
+        self.cycles = defaultdict(set)
+        self.undefined = defaultdict(set)
 
         self._visited = {name: False for name in resources}
         for name, node in resources.items():
@@ -17,14 +17,14 @@ class SyntaxTree:
     def _analyze_tree(self, name, source):
         # undefined variable:
         if name not in self.resources:
-            self.undefined[source].append(name)
+            self.undefined[source].add(name)
             return
         if self._visited[name]:
             return
         # cycle
         if name in self._request_stack:
             prefix = " -> ".join(self._request_stack)
-            self.cycles[source].append('{} -> {}'.format(prefix, name))
+            self.cycles[source].add('{} -> {}'.format(prefix, name))
             return
 
         self._request_stack.append(name)

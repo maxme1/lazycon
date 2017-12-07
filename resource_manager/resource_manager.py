@@ -13,15 +13,29 @@ from .tree_analysis import SyntaxTree
 
 
 class ResourceManager:
-    def __init__(self, source_path: str, get_module: callable):
+    def __init__(self, source_path: str, get_module: callable, path_map: dict = None):
+        """
+        A config interpreter
+
+        Parameters
+        ----------
+        source_path: str
+            path to the config file
+        get_module: callable(module_type, module_name) -> object
+            a callable that loads external modules
+        path_map: dict, optional
+            a dict that maps keywords to paths. It is used to resolve paths during import.
+        """
+        # TODO: rename path_map to shortcuts
         self.get_module = get_module
         self._imported_configs = OrderedDict()
         self._defined_resources = {}
         self._undefined_resources = {}
+        self.path_map = path_map or {}
 
-        source_path = os.path.realpath(source_path)
-        self._import_config(source_path)
+        self._import_config(self._resolve_path(source_path))
 
+        # TODO: probably move to a method
         tree = SyntaxTree(self._undefined_resources)
         message = ''
         if tree.cycles:
@@ -56,16 +70,10 @@ class ResourceManager:
             if not self._definitions_stack:
                 raise
 
-            # TODO: is there a better way?
             definition = self._definitions_stack[-1]
-            if type(definition) is Partial:
-                name = definition.target.to_str(0)
-                message = 'An exception occurred while calling the resource %s'
-            else:
-                name = definition.to_str(0)
-                message = 'An exception occurred while building the resource %s'
-            raise RuntimeError(message % name +
-                               '\n    at %d:%d in %s' % definition.position()) from e
+            message = 'An exception occurred while ' + definition.error_message()
+            message += '\n    at %d:%d in %s' % definition.position()
+            raise RuntimeError(message) from e
 
     def get(self, name: str, default=None):
         try:
@@ -111,12 +119,26 @@ class ResourceManager:
             self._undefined_resources[name] = value
             self._add_to_dict(name, TempPlaceholder)
 
-    def _import_config(self, absolute_path):
-        if absolute_path in self._imported_configs:
-            return
-        self._imported_configs[absolute_path] = None
+    def _resolve_path(self, path: str, source: str = None):
+        parts = path.split(':', 1)
+        if len(parts) > 1:
+            shortcut = parts[0]
+            if shortcut not in self.path_map:
+                message = 'Shortcut %s not in recognized' % shortcut
+                if source:
+                    message = 'Error while processing file {}:\n ' % source + message
+                raise ValueError(message)
+            path = os.path.join(self.path_map[shortcut], parts[1])
 
-        definitions, parents, imports = parse_file(absolute_path)
+        path = os.path.expanduser(path)
+        return os.path.realpath(path)
+
+    def _import_config(self, source_path):
+        if source_path in self._imported_configs:
+            return
+        self._imported_configs[source_path] = None
+
+        definitions, parents, imports = parse_file(source_path)
         result = {}
         for imp in imports:
             for what, as_ in imp.values.items():
@@ -127,17 +149,18 @@ class ResourceManager:
                     packages = name.split('.')
                     if len(packages) > 1:
                         name = packages[0]
-                self._set_definition(result, name, LazyImport(imp.root, what, as_, imp.main_token), absolute_path)
+                self._set_definition(result, name, LazyImport(imp.root, what, as_, imp.main_token), source_path)
 
         for definition in definitions:
-            self._set_definition(result, definition.name.body, definition.value, absolute_path)
+            self._set_definition(result, definition.name.body, definition.value, source_path)
 
         for parent in parents:
-            parent = os.path.join(os.path.dirname(absolute_path), parent)
-            parent = os.path.realpath(parent)
+            if ':' not in parent:
+                parent = os.path.join(os.path.dirname(source_path), parent)
+            parent = self._resolve_path(parent, source_path)
             self._import_config(parent)
 
-        self._imported_configs[absolute_path] = result
+        self._imported_configs[source_path] = result
 
     def _get_resource(self, name: str):
         if name in self._defined_resources:
@@ -179,6 +202,7 @@ class ResourceManager:
                 result = importlib.import_module(node.what)
                 packages = node.what.split('.')
                 if len(packages) > 1 and not node.as_:
+                    # import a.b.c
                     return sys.modules[packages[0]]
                 return result
             try:
