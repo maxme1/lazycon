@@ -154,7 +154,7 @@ class ResourceManager:
         for definition in definitions:
             self._set_definition(result, definition.name.body, definition.value, source_path)
 
-        for parent in parents:
+        for parent in reversed(parents):
             if ':' not in parent:
                 parent = os.path.join(os.path.dirname(source_path), parent)
             parent = self._resolve_path(parent, source_path)

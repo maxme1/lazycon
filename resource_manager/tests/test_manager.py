@@ -59,11 +59,11 @@ class TestResourceManager(unittest.TestCase):
 
     def test_inheritance_order(self):
         rm = ResourceManager('extends/order1.config', mock_get_resource)
-        self.assertIsNone(rm.one)
-        self.assertIsNone(rm.two)
-        rm = ResourceManager('extends/order2.config', mock_get_resource)
         self.assertEqual(rm.one, 1)
         self.assertEqual(rm.two, '2')
+        rm = ResourceManager('extends/order2.config', mock_get_resource)
+        self.assertIsNone(rm.one)
+        self.assertIsNone(rm.two)
 
     def test_attr_error(self):
         rm = ResourceManager('extends/inheritance.config', mock_get_resource)

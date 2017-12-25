@@ -88,7 +88,7 @@ class GetAttribute(Structure):
         return '{}.{}'.format(self.data.to_str(level), self.name.body)
 
     def error_message(self):
-        return 'getting attribute {} from {}'.format(self.data.to_str(0), self.name.body)
+        return 'getting attribute {} from {}'.format(self.name.body, self.data.to_str(0))
 
 
 class Partial(Structure):
