@@ -23,10 +23,8 @@ class TokenType(Enum):
     AS = auto()
     ASTERISK = auto()
 
-    BLOCK_OPEN = auto()
-    BLOCK_CLOSE = auto()
-    LAMBDA_OPEN = auto()
-    LAMBDA_CLOSE = auto()
+    PAR_OPEN = auto()
+    PAR_CLOSE = auto()
 
 
 REGEXPS = {
@@ -41,7 +39,7 @@ RESERVED = {
     'from': TokenType.FROM,
 }
 
-LAZY = re.compile(r'#\s*lazy')
+LAZY = re.compile(r'# *lazy')
 LITERALS = ('None', 'True', 'False')
 SINGLE = {
     ',': TokenType.COMA,
@@ -53,13 +51,9 @@ SINGLE = {
     ']': TokenType.BRACKET_CLOSE,
     '{': TokenType.DICT_OPEN,
     '}': TokenType.DICT_CLOSE,
-    '(': TokenType.LAMBDA_OPEN,
-    ')': TokenType.LAMBDA_CLOSE,
+    '(': TokenType.PAR_OPEN,
+    ')': TokenType.PAR_CLOSE,
 }
-
-JSON_OPEN = [TokenType.BRACKET_OPEN, TokenType.DICT_OPEN, TokenType.LAMBDA_OPEN]
-JSON_CLOSE = {TokenType.BRACKET_CLOSE: TokenType.BRACKET_OPEN, TokenType.DICT_CLOSE: TokenType.DICT_OPEN,
-              TokenType.LAMBDA_CLOSE: TokenType.LAMBDA_OPEN}
 
 
 class Token:

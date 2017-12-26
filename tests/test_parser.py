@@ -6,7 +6,7 @@ from resource_manager.tokenizer import tokenize
 
 
 def standardize(source):
-    tokens = tokenize(source, 4)
+    tokens = tokenize(source)
     result = ''
     definitions, parents, imports = Parser(tokens).parse()
     if parents:

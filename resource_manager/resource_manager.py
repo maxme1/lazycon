@@ -13,7 +13,7 @@ from .tree_analysis import SyntaxTree
 
 
 class ResourceManager:
-    def __init__(self, source_path: str, get_module: callable, path_map: dict = None):
+    def __init__(self, source_path: str, get_module: callable, shortcuts: dict = None):
         """
         A config interpreter
 
@@ -23,15 +23,14 @@ class ResourceManager:
             path to the config file
         get_module: callable(module_type, module_name) -> object
             a callable that loads external modules
-        path_map: dict, optional
+        shortcuts: dict, optional
             a dict that maps keywords to paths. It is used to resolve paths during import.
         """
-        # TODO: rename path_map to shortcuts
         self.get_module = get_module
         self._imported_configs = OrderedDict()
         self._defined_resources = {}
         self._undefined_resources = {}
-        self.path_map = path_map or {}
+        self.shortcuts = shortcuts or {}
 
         self._import_config(self._resolve_path(source_path))
 
@@ -121,14 +120,15 @@ class ResourceManager:
 
     def _resolve_path(self, path: str, source: str = None):
         parts = path.split(':', 1)
+        assert len(parts) <= 2
         if len(parts) > 1:
             shortcut = parts[0]
-            if shortcut not in self.path_map:
-                message = 'Shortcut %s not in recognized' % shortcut
+            if shortcut not in self.shortcuts:
+                message = 'Shortcut %s is not recognized' % shortcut
                 if source:
-                    message = 'Error while processing file {}:\n ' % source + message
+                    message = 'Error while processing file %s:\n ' % source + message
                 raise ValueError(message)
-            path = os.path.join(self.path_map[shortcut], parts[1])
+            path = os.path.join(self.shortcuts[shortcut], parts[1])
 
         path = os.path.expanduser(path)
         return os.path.realpath(path)
@@ -156,8 +156,9 @@ class ResourceManager:
 
         for parent in reversed(parents):
             if ':' not in parent:
-                parent = os.path.join(os.path.dirname(source_path), parent)
-            parent = self._resolve_path(parent, source_path)
+                parent = os.path.realpath(os.path.join(os.path.dirname(source_path), parent))
+            else:
+                parent = self._resolve_path(parent, source_path)
             self._import_config(parent)
 
         self._imported_configs[source_path] = result

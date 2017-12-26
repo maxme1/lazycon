@@ -1,7 +1,7 @@
 config = (import | from_import | config_import)* definition*
 
 config_import = import_str | import_starred
-import_str = ('from' STRING)? 'import' paths | (LAMBDA_OPEN paths LAMBDA_CLOSE)
+import_str = ('from' STRING)? 'import' paths | (PAR_OPEN paths PAR_CLOSE)
 import_starred = 'from' '.' dotted 'import' '*'
 paths = (STRING ','?)+
 
@@ -14,27 +14,20 @@ dotted_import_as = dotted (as IDENTIFIER)?
 
 definition = IDENTIFIER '=' expression
 
-expression = simpleBlock | (simpleBlock getAttribute tail) | (module tail)
-simpleBLock = data (getAttribute | partial)*
+expression = data (getAttribute | partial)*
 getAttribute = '.' IDENTIFIER
-partial = LAMBDA_OPEN params LAMBDA_CLOSE
-tail = BLOCK_OPEN params BLOCK_CLOSE
+partial = PAR_OPEN params PAR_CLOSE
+params = LAZY? (definition ','?)*
 
-params = DIRECTIVE 'lazy'? (definition ','?)*
-
-data = module | IDENTIFIER | object | array | STRING | NUMBER | 'null' | 'false' | 'true'
-module = IDENTIFIER ':' IDENTIFIER partial?
-object = '{' (STRING ':' expression ','?)* '}'
+data = module | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
+module = IDENTIFIER ':' IDENTIFIER
+dictionary = '{' (STRING ':' expression ','?)* '}'
 array = '[' (expression ','?)* ']'
 
 STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1''' // with the S flag
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
 IDENTIFIER = r'[^\d\W]\w*'
-
-LAMBDA_OPEN = '('
-LAMBDA_CLOSE = ')'
-BLOCK_OPEN = <indent up>
-BLOCK_CLOSE = <indent down>
+PAR_OPEN = '('
+PAR_CLOSE = ')'
+LAZY = '# *lazy'
 COMMENT = r'#.*\n'
-
-// inside `array`, `object` and `partial` the indentation has no effect

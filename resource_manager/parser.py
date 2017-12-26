@@ -8,8 +8,6 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.position = 0
-        self.indent_step = 4
-        self.inside_json = False
 
     def module(self):
         module_type = self.require(TokenType.IDENTIFIER)
@@ -26,7 +24,7 @@ class Parser:
             else:
                 # identifier
                 return Resource(self.advance())
-        # json
+
         if self.matches(TokenType.BRACKET_OPEN):
             return self.array()
         if self.matches(TokenType.DICT_OPEN):
@@ -46,29 +44,15 @@ class Parser:
 
     def expression(self):
         data = self.data()
-        if type(data) is Module and self.matches(TokenType.BLOCK_OPEN) and not self.inside_json:
-            self.advance()
-            data = Partial(data, *self.params())
-            self.require(TokenType.BLOCK_CLOSE)
-            return data
-
-        while self.matches(TokenType.DOT, TokenType.LAMBDA_OPEN):
+        while self.matches(TokenType.DOT, TokenType.PAR_OPEN):
             if self.matches(TokenType.DOT):
                 self.advance()
                 name = self.require(TokenType.IDENTIFIER)
                 data = GetAttribute(data, name)
-                if self.matches(TokenType.BLOCK_OPEN) and not self.inside_json:
-                    self.advance()
-                    data = Partial(data, *self.params())
-                    self.require(TokenType.BLOCK_CLOSE)
-                    return data
             else:
-                inside_json = self.inside_json
-                self.inside_json = True
                 self.advance()
                 data = Partial(data, *self.params())
-                self.require(TokenType.LAMBDA_CLOSE)
-                self.inside_json = inside_json
+                self.require(TokenType.PAR_CLOSE)
 
         return data
 
@@ -80,8 +64,6 @@ class Parser:
         return Definition(left, right)
 
     def object(self):
-        inside_json = self.inside_json
-        self.inside_json = True
         dict_begin = self.require(TokenType.DICT_OPEN)
         pairs = {}
         while not self.matches(TokenType.DICT_CLOSE):
@@ -92,12 +74,9 @@ class Parser:
             self.ignore(TokenType.COMA)
 
         self.require(TokenType.DICT_CLOSE)
-        self.inside_json = inside_json
         return Dictionary(pairs, dict_begin)
 
     def array(self):
-        inside_json = self.inside_json
-        self.inside_json = True
         array_begin = self.require(TokenType.BRACKET_OPEN)
         values = []
         while not self.matches(TokenType.BRACKET_CLOSE):
@@ -105,7 +84,6 @@ class Parser:
             self.ignore(TokenType.COMA)
 
         self.require(TokenType.BRACKET_CLOSE)
-        self.inside_json = inside_json
         return Array(values, array_begin)
 
     def dotted(self):
@@ -148,7 +126,7 @@ class Parser:
         if self.matches(TokenType.STRING) or self.matches(TokenType.STRING, shift=1):
             return self.import_config('')
 
-        block = self.ignore(TokenType.LAMBDA_OPEN)
+        block = self.ignore(TokenType.PAR_OPEN)
         values = {}
         value, name = self.import_as(not root, main_token)
         values[value] = name
@@ -159,12 +137,12 @@ class Parser:
         self.ignore(TokenType.COMA)
 
         if block:
-            self.require(TokenType.LAMBDA_CLOSE)
+            self.require(TokenType.PAR_CLOSE)
 
         return ImportPython(root, values, main_token)
 
     def import_config(self, root):
-        block = self.ignore(TokenType.LAMBDA_OPEN)
+        block = self.ignore(TokenType.PAR_OPEN)
 
         paths = [eval(self.require(TokenType.STRING).body)]
         self.ignore(TokenType.COMA)
@@ -173,7 +151,7 @@ class Parser:
             self.ignore(TokenType.COMA)
 
         if block:
-            self.require(TokenType.LAMBDA_CLOSE)
+            self.require(TokenType.PAR_CLOSE)
         if root:
             return [os.path.join(root, x) for x in paths]
         return paths
@@ -221,13 +199,8 @@ class Parser:
 
     def require(self, *types):
         if not self.matches(*types):
-            if self.current.type == TokenType.BLOCK_OPEN:
-                message = 'Unexpected indent at line %d' % self.current.line
-            else:
-                message = 'Unexpected token: ' \
-                          '"{}"\n  at {}:{}'.format(self.current.body, self.current.line, self.current.column)
-            raise SyntaxError(message)
-
+            raise SyntaxError('Unexpected token: '
+                              '"{}"\n  at {}:{}'.format(self.current.body, self.current.line, self.current.column))
         return self.advance()
 
     def ignore(self, *types):
@@ -242,7 +215,7 @@ def parse_file(source_path):
         source = file.read()
 
     try:
-        tokens = tokenize(source, 4)
+        tokens = tokenize(source)
         for token in tokens:
             token.set_source(source_path)
         return Parser(tokens).parse()

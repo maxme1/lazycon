@@ -16,7 +16,7 @@ def mock_get_resource(module_type, module_name):
 def raises(module_type, module_name):
     name = f'{module_type}.{module_name}'
 
-    if name == 'dataset_wrapper.merge_datasets':
+    if name == 'dataset.isles':
         raise KeyError
 
     def x(**kwargs):
@@ -88,6 +88,6 @@ class TestResourceManager(unittest.TestCase):
             ResourceManager('misc/duplicate.config', mock_get_resource)
 
     def test_exc_handling(self):
-        rm = ResourceManager('idempotency/nested_module.config', raises)
+        rm = ResourceManager('idempotency/module.config', raises)
         with self.assertRaises(RuntimeError):
             rm.dataset
