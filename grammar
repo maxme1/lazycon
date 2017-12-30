@@ -17,7 +17,8 @@ definition = IDENTIFIER '=' expression
 expression = data (getAttribute | partial)*
 getAttribute = '.' IDENTIFIER
 partial = PAR_OPEN params PAR_CLOSE
-params = LAZY? (definition ','?)*
+params = LAZY? (positional ','?)* (definition ','?)*
+positional = '*'? expression
 
 data = module | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
 module = IDENTIFIER ':' IDENTIFIER

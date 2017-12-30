@@ -193,11 +193,18 @@ class ResourceManager:
             return self.get_module(node.module_type.body, node.module_name.body)
         if type(node) is Partial:
             target = self._define_resource(node.target)
+            args = []
+            for vararg, arg in zip(node.varargs, node.args):
+                temp = self._define_resource(arg)
+                if vararg:
+                    args.extend(temp)
+                else:
+                    args.append(temp)
             kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
             if node.lazy:
-                return functools.partial(target, **kwargs)
+                return functools.partial(target, *args, **kwargs)
             else:
-                return target(**kwargs)
+                return target(*args, **kwargs)
         if type(node) is LazyImport:
             if not node.from_:
                 result = importlib.import_module(node.what)

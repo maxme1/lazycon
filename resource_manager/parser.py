@@ -36,11 +36,20 @@ class Parser:
         if lazy:
             self.ignore(TokenType.COMA)
 
+        vararg, args = [], []
+        while not self.matches(TokenType.PAR_CLOSE):
+            # if keyword parameter
+            if self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1):
+                break
+            vararg.append(self.ignore(TokenType.ASTERISK))
+            args.append(self.expression())
+            self.ignore(TokenType.COMA)
+
         params = []
         while self.matches(TokenType.IDENTIFIER):
             params.append(self.definition())
             self.ignore(TokenType.COMA)
-        return params, lazy
+        return args, vararg, params, lazy
 
     def expression(self):
         data = self.data()

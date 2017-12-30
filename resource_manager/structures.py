@@ -92,21 +92,29 @@ class GetAttribute(Structure):
 
 
 class Partial(Structure):
-    def __init__(self, target: Structure, params: list, lazy: bool):
+    def __init__(self, target: Structure, args: list, vararg: list, params: list, lazy: bool):
         super().__init__(target.main_token)
         self.target = target
+        self.args = args
+        self.varargs = vararg
         self.params = params
         self.lazy = lazy
 
     def to_str(self, level):
         result = self.target.to_str(level) + '('
-        if not self.lazy and not self.params:
+        if not self.lazy and not self.params and not self.args:
             return result + ')'
         else:
             result += '\n'
 
         if self.lazy:
             result += '    ' * (level + 1) + '# lazy\n'
+
+        for vararg, arg in zip(self.varargs, self.args):
+            result += '    ' * (level + 1)
+            if vararg:
+                result += '*'
+            result += arg.to_str(level + 1) + '\n'
 
         for param in self.params:
             result += '    ' * (level + 1) + param.to_str(level + 1) + '\n'

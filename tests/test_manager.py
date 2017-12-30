@@ -1,5 +1,7 @@
 import unittest
 
+import numpy as np
+
 from resource_manager.resource_manager import ResourceManager
 
 
@@ -69,6 +71,12 @@ class TestResourceManager(unittest.TestCase):
         rm = ResourceManager('extends/inheritance.config', mock_get_resource)
         with self.assertRaises(AttributeError):
             rm.undefined_value
+
+    def test_functions(self):
+        rm = ResourceManager('idempotency/function.config', mock_get_resource)
+        np.testing.assert_array_equal(rm.mean, [2, 5])
+        np.testing.assert_array_almost_equal(rm.std(), [0.81, 0.81], decimal=2)
+        self.assertEqual(rm.random.shape, (1, 1, 2, 2))
 
     def test_build_config(self):
         rm = ResourceManager('extends/inheritance.config', mock_get_resource)
