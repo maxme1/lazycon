@@ -6,15 +6,11 @@ def tokenize(source: str):
     for line_number, line in enumerate(source.splitlines(), 1):
         line = line.rstrip()
         text = line.lstrip()
-        # TODO: ugly
-        if not text.strip() or (text.startswith('#') and not LAZY.match(text)):
-            continue
 
         while text:
             position = len(line) - len(text) + 1
 
-            # TODO: combine
-            # comment
+            # comment or lazy
             if text.startswith('#'):
                 text = text.strip()
                 match = LAZY.match(text)
