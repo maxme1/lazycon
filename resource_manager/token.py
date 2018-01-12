@@ -39,7 +39,7 @@ RESERVED = {
     'from': TokenType.FROM,
 }
 
-LAZY = re.compile(r'# *lazy')
+LAZY = re.compile(r'^# *lazy *$')
 LITERALS = ('None', 'True', 'False')
 SINGLE = {
     ',': TokenType.COMA,

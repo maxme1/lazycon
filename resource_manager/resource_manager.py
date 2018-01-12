@@ -3,6 +3,7 @@ import importlib
 import os
 import warnings
 from collections import OrderedDict
+from typing import Callable
 
 import sys
 
@@ -12,8 +13,10 @@ from .structures import *
 from .tree_analysis import SyntaxTree
 
 
+# TODO: add support for input from strings
+# TODO: get rid of path_map
 class ResourceManager:
-    def __init__(self, source_path: str, get_module: callable, shortcuts: dict = None):
+    def __init__(self, source_path: str, shortcuts: dict = None, get_module: Callable = None, path_map=None):
         """
         A config interpreter
 
@@ -21,16 +24,16 @@ class ResourceManager:
         ----------
         source_path: str
             path to the config file
-        get_module: callable(module_type, module_name) -> object
-            a callable that loads external modules
         shortcuts: dict, optional
             a dict that maps keywords to paths. It is used to resolve paths during import.
+        get_module: callable(module_type, module_name) -> object
+            a callable that loads external modules
         """
         self.get_module = get_module
         self._imported_configs = OrderedDict()
         self._defined_resources = {}
         self._undefined_resources = {}
-        self.shortcuts = shortcuts or {}
+        self.shortcuts = shortcuts or path_map or {}
 
         self._import_config(self._resolve_path(source_path))
 
@@ -190,6 +193,8 @@ class ResourceManager:
             data = self._define_resource(node.data)
             return getattr(data, node.name.body)
         if type(node) is Module:
+            if self.get_module is None:
+                raise ValueError('The function "get_module" was not provided, so your modules are unreachable')
             return self.get_module(node.module_type.body, node.module_name.body)
         if type(node) is Partial:
             target = self._define_resource(node.target)

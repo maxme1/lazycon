@@ -38,16 +38,14 @@ def tokenize(source: str):
 
 
 def next_token(text: str):
-    for literal in LITERALS:
-        if text.startswith(literal):
-            return Token(literal, TokenType.LITERAL)
-
     for tokenType, regex in REGEXPS.items():
         match = regex.match(text)
         if match:
             match = match.group()
             if match in RESERVED:
                 return Token(match, RESERVED[match])
+            if match in LITERALS:
+                return Token(match, TokenType.LITERAL)
             return Token(match, tokenType)
 
     for char, tokeType in SINGLE.items():
