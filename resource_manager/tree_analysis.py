@@ -33,12 +33,17 @@ class SyntaxTree:
 
         self._visited[name] = True
 
-    def _analyze_node(self, node: Structure):
+    def _analyze_node(self, node):
         if type(node) is Resource:
             self._analyze_tree(node.name.body, node.position()[-1])
         if type(node) is GetAttribute:
-            self._analyze_node(node.data)
-        if type(node) is Partial:
+            self._analyze_node(node.target)
+        if type(node) is GetItem:
+            for arg in node.args:
+                self._analyze_node(arg)
+        if type(node) is Call:
+            for arg in node.args:
+                self._analyze_node(arg)
             for param in node.params:
                 self._analyze_node(param.value)
         if type(node) is Array:

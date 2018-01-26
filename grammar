@@ -2,7 +2,7 @@ config = (import | from_import | config_import)* definition*
 
 config_import = import_str | import_starred
 import_str = ('from' STRING)? 'import' paths | (PAR_OPEN paths PAR_CLOSE)
-import_starred = 'from' '.' dotted 'import' '*'
+import_starred = 'from' IDENTIFIER? '.' dotted 'import' '*'
 paths = (STRING ','?)+
 
 import = 'import' dotted_import_as (',' dotted_import_as)* ','?
@@ -14,9 +14,10 @@ dotted_import_as = dotted (as IDENTIFIER)?
 
 definition = IDENTIFIER '=' expression
 
-expression = data (getAttribute | partial)*
+expression = data (getAttribute | call | getItem)*
+getItem = '[' expression (',' expression)* ']'
 getAttribute = '.' IDENTIFIER
-partial = PAR_OPEN params PAR_CLOSE
+call = PAR_OPEN params PAR_CLOSE
 params = LAZY? (positional ','?)* (definition ','?)*
 positional = '*'? expression
 

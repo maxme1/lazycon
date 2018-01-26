@@ -1,43 +1,111 @@
+import os
+import sys
 import functools
 import importlib
-import os
-import warnings
-from collections import OrderedDict
 from typing import Callable
+from collections import OrderedDict
 
-import sys
-
-from resource_manager.utils import put_in_stack
-from .parser import parse_file
 from .structures import *
+from .utils import put_in_stack
+from .parser import parse_file, parse_string
 from .tree_analysis import SyntaxTree
 
 
-# TODO: add support for input from strings
-# TODO: get rid of path_map
 class ResourceManager:
-    def __init__(self, source_path: str, shortcuts: dict = None, get_module: Callable = None, path_map=None):
-        """
-        A config interpreter
+    """
+    A config interpreter.
 
-        Parameters
-        ----------
-        source_path: str
-            path to the config file
-        shortcuts: dict, optional
-            a dict that maps keywords to paths. It is used to resolve paths during import.
-        get_module: callable(module_type, module_name) -> object
-            a callable that loads external modules
-        """
+    Parameters
+    ----------
+    shortcuts: dict, optional
+        a dict that maps keywords to paths. It is used to resolve paths during import.
+    get_module: callable(module_type, module_name) -> object, optional
+        a callable that loads external modules
+    """
+
+    def __init__(self, shortcuts: dict = None, get_module: Callable = None):
         self.get_module = get_module
-        self._imported_configs = OrderedDict()
-        self._defined_resources = {}
-        self._undefined_resources = {}
-        self.shortcuts = shortcuts or path_map or {}
+        self.shortcuts = shortcuts or {}
 
-        self._import_config(self._resolve_path(source_path))
+        self._imported_configs = {}
+        self._defined_resources = OrderedDict()
+        self._undefined_resources = OrderedDict()
+        self._request_stack = []
+        self._definitions_stack = []
 
-        # TODO: probably move to a method
+    @classmethod
+    def read_config(cls, source_path: str, shortcuts: dict = None, get_module: Callable = None):
+        rm = cls(shortcuts, get_module)
+        rm.import_config(source_path)
+        return rm
+
+    def import_config(self, path: str):
+        path = self._resolve_path(path)
+        result = self._import(path)
+        self._update_resources(result)
+
+    def string_input(self, source: str):
+        definitions, parents, imports = parse_string(source)
+        result = self._get_resources(definitions, imports, parents, '')
+        self._update_resources(result)
+
+    def render_config(self):
+        result = ''
+        for name, value in self._undefined_resources.items():
+            if type(value) is LazyImport:
+                result += value.to_str(0)
+        if result:
+            result += '\n'
+
+        for name, value in self._undefined_resources.items():
+            if type(value) is not LazyImport:
+                result += '{} = {}\n\n'.format(name, value.to_str(0))
+
+        return result[:-1]
+
+    def save_config(self, path):
+        with open(path, 'w') as file:
+            file.write(self.render_config())
+
+    def __getattr__(self, item):
+        return self.get_resource(item)
+
+    def get_resource(self, name: str):
+        self._request_stack = []
+        self._definitions_stack = []
+        return self._get_resource(name)
+
+    def _get_resource(self, name: str):
+        if name in self._defined_resources:
+            return self._defined_resources[name]
+
+        if name not in self._undefined_resources:
+            raise AttributeError('Resource "{}" is not defined'.format(name))
+
+        try:
+            node = self._undefined_resources[name]
+            # a whole new request, so clear the stack
+            resource = self._define_resource(node)
+            self._defined_resources[name] = resource
+            return resource
+
+        except BaseException as e:
+            # TODO: is it needed here?
+            if not self._definitions_stack:
+                raise
+
+            definition = self._definitions_stack[-1]
+            message = 'An exception occurred while ' + definition.error_message()
+            message += '\n    at %d:%d in %s' % definition.position()
+            raise RuntimeError(message) from e
+
+    def _update_resources(self, resources):
+        # TODO: what if some of the resources were already rendered?
+        self._undefined_resources.update(resources)
+        self._semantic_analysis()
+
+    def _semantic_analysis(self):
+        # TODO: separate
         tree = SyntaxTree(self._undefined_resources)
         message = ''
         if tree.cycles:
@@ -55,96 +123,33 @@ class ResourceManager:
         if message:
             raise RuntimeError(message)
 
-    def __getattribute__(self, name: str):
-        # TODO: looks kinda ugly. not sure if it's worth it
-        try:
-            value = super().__getattribute__(name)
-            if value is not TempPlaceholder:
-                return value
-        except AttributeError:
-            pass
-        # a whole new request, so clear the stack
-        self._request_stack = []
-        self._definitions_stack = []
-        try:
-            return self._get_resource(name)
-        except BaseException as e:
-            if not self._definitions_stack:
-                raise
+    def _import(self, absolute_path: str):
+        if absolute_path in self._imported_configs:
+            # TODO: test this feature
+            return self._imported_configs[absolute_path]
+        # avoiding cycles
+        self._imported_configs[absolute_path] = {}
 
-            definition = self._definitions_stack[-1]
-            message = 'An exception occurred while ' + definition.error_message()
-            message += '\n    at %d:%d in %s' % definition.position()
-            raise RuntimeError(message) from e
+        definitions, parents, imports = parse_file(absolute_path)
+        result = self._get_resources(definitions, imports, parents, absolute_path)
+        return result
 
-    def get(self, name: str, default=None):
-        try:
-            return getattr(self, name)
-        except AttributeError:
-            return default
-
-    def set(self, name, value, override=False):
-        warnings.warn("Manually modifying the ResourceManager's state is highly not recommended", RuntimeWarning)
-        if name in self._defined_resources and not override:
-            raise RuntimeError('Attempt to overwrite resource {}'.format(name))
-        self._defined_resources[name] = value
-        self._add_to_dict(name, value)
-
-    def save_config(self, path):
-        with open(path, 'w') as file:
-            file.write(self._get_whole_config())
-
-    def _get_whole_config(self):
-        result = ''
-        for name, value in self._undefined_resources.items():
-            if type(value) is LazyImport:
-                result += value.to_str(0)
-
-        for name, value in self._undefined_resources.items():
-            if type(value) is not LazyImport:
-                result += '{} = {}\n\n'.format(name, value.to_str(0))
-
-        return result[:-1]
-
-    def _add_to_dict(self, name, value):
-        # adding support for interactive shells and notebooks:
-        # TODO: this may be ugly, but is the only way I found to avoid triggering getattr
-        if name not in self.__dict__:
-            setattr(self, name, value)
-
-    def _set_definition(self, registry, name, value, absolute_path):
+    @staticmethod
+    def _set_definition(registry, name, value):
         if name in registry:
-            raise SyntaxError('Duplicate definition of resource "{}" '
-                              'in config file {}'.format(name, absolute_path))
+            raise SyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source()))
         registry[name] = value
-        if name not in self._undefined_resources:
-            self._undefined_resources[name] = value
-            self._add_to_dict(name, TempPlaceholder)
 
-    def _resolve_path(self, path: str, source: str = None):
-        parts = path.split(':', 1)
-        assert len(parts) <= 2
-        if len(parts) > 1:
-            shortcut = parts[0]
-            if shortcut not in self.shortcuts:
-                message = 'Shortcut %s is not recognized' % shortcut
-                if source:
-                    message = 'Error while processing file %s:\n ' % source + message
-                raise ValueError(message)
-            path = os.path.join(self.shortcuts[shortcut], parts[1])
+    def _get_resources(self, definitions, imports, parents, absolute_path):
+        parent_resources = {}
+        for parent in parents:
+            parent = self._resolve_path(parent, absolute_path)
+            parent_resources.update(self._import(parent))
 
-        path = os.path.expanduser(path)
-        return os.path.realpath(path)
-
-    def _import_config(self, source_path):
-        if source_path in self._imported_configs:
-            return
-        self._imported_configs[source_path] = None
-
-        definitions, parents, imports = parse_file(source_path)
         result = {}
         for imp in imports:
             for what, as_ in imp.values.items():
+                # TODO: too ugly
                 if as_ is not None:
                     name = as_.body
                 else:
@@ -152,33 +157,34 @@ class ResourceManager:
                     packages = name.split('.')
                     if len(packages) > 1:
                         name = packages[0]
-                self._set_definition(result, name, LazyImport(imp.root, what, as_, imp.main_token), source_path)
+                self._set_definition(result, name, LazyImport(imp.root, what, as_, imp.main_token))
 
         for definition in definitions:
-            self._set_definition(result, definition.name.body, definition.value, source_path)
+            self._set_definition(result, definition.name.body, definition.value)
 
-        for parent in reversed(parents):
-            if ':' not in parent:
-                parent = os.path.realpath(os.path.join(os.path.dirname(source_path), parent))
-            else:
-                parent = self._resolve_path(parent, source_path)
-            self._import_config(parent)
+        parent_resources.update(result)
+        return parent_resources
 
-        self._imported_configs[source_path] = result
+    def _resolve_path(self, path: str, source: str = ''):
+        if path.count(':') > 1:
+            raise SyntaxError('The path cannot contain more than one ":" separator.')
 
-    def _get_resource(self, name: str):
-        if name in self._defined_resources:
-            return self._defined_resources[name]
+        parts = path.split(':', 1)
+        if len(parts) > 1:
+            shortcut, root = parts
+            if shortcut not in self.shortcuts:
+                message = 'Shortcut "%s" is not recognized' % shortcut
+                if source:
+                    message = 'Error while processing %s:\n ' % source + message
+                raise ValueError(message)
+            path = os.path.join(self.shortcuts[shortcut], root)
+        else:
+            path = os.path.join(os.path.dirname(source), path)
 
-        try:
-            node = self._undefined_resources[name]
-        except KeyError:
-            raise AttributeError('Resource "{}" is not defined'.format(name)) from None
+        path = os.path.expanduser(path)
+        return os.path.realpath(path)
 
-        resource = self._define_resource(node)
-        self._defined_resources[name] = resource
-        return resource
-
+    # TODO: get rid of this decorator?
     @put_in_stack
     def _define_resource(self, node):
         if type(node) is Literal:
@@ -190,13 +196,19 @@ class ResourceManager:
         if type(node) is Resource:
             return self._get_resource(node.name.body)
         if type(node) is GetAttribute:
-            data = self._define_resource(node.data)
+            data = self._define_resource(node.target)
             return getattr(data, node.name.body)
+        if type(node) is GetItem:
+            target = self._define_resource(node.target)
+            args = tuple(self._define_resource(arg) for arg in node.args)
+            if not node.to_tuple:
+                args = args[0]
+            return target[args]
         if type(node) is Module:
             if self.get_module is None:
                 raise ValueError('The function "get_module" was not provided, so your modules are unreachable')
             return self.get_module(node.module_type.body, node.module_name.body)
-        if type(node) is Partial:
+        if type(node) is Call:
             target = self._define_resource(node.target)
             args = []
             for vararg, arg in zip(node.varargs, node.args):
@@ -224,6 +236,9 @@ class ResourceManager:
                 return getattr(importlib.import_module(node.from_), node.what)
 
         raise TypeError('Undefined resource description of type {}'.format(type(node)))
+
+
+read_config = ResourceManager.read_config
 
 
 class TempPlaceholder:

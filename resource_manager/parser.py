@@ -33,34 +33,54 @@ class Parser:
 
     def params(self):
         lazy = self.ignore(TokenType.LAZY)
-        if lazy:
-            self.ignore(TokenType.COMA)
 
-        vararg, args = [], []
+        vararg, args, coma = [], [], False
         while not self.matches(TokenType.PAR_CLOSE):
             # if keyword parameter
+            if coma:
+                self.require(TokenType.COMA)
             if self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1):
                 break
+
             vararg.append(self.ignore(TokenType.ASTERISK))
             args.append(self.expression())
-            self.ignore(TokenType.COMA)
+            coma = True
 
-        params = []
-        while self.matches(TokenType.IDENTIFIER):
+        params, coma = [], False
+        while self.matches(TokenType.IDENTIFIER, TokenType.COMA):
+            if coma:
+                self.require(TokenType.COMA)
             params.append(self.definition())
+            coma = True
+
+        if params or args:
             self.ignore(TokenType.COMA)
         return args, vararg, params, lazy
 
     def expression(self):
         data = self.data()
-        while self.matches(TokenType.DOT, TokenType.PAR_OPEN):
+        while self.matches(TokenType.DOT, TokenType.PAR_OPEN, TokenType.BRACKET_OPEN):
             if self.matches(TokenType.DOT):
                 self.advance()
                 name = self.require(TokenType.IDENTIFIER)
                 data = GetAttribute(data, name)
+            elif self.matches(TokenType.BRACKET_OPEN):
+                self.advance()
+
+                args = [self.expression()]
+                coma = False
+                while self.matches(TokenType.COMA):
+                    self.advance()
+                    if self.matches(TokenType.BRACKET_CLOSE):
+                        coma = True
+                        break
+                    args.append(self.expression())
+
+                self.require(TokenType.BRACKET_CLOSE)
+                data = GetItem(data, args, coma)
             else:
                 self.advance()
-                data = Partial(data, *self.params())
+                data = Call(data, *self.params())
                 self.require(TokenType.PAR_CLOSE)
 
         return data
@@ -97,43 +117,46 @@ class Parser:
 
     def dotted(self):
         result = [self.require(TokenType.IDENTIFIER)]
-        while self.matches(TokenType.DOT):
-            self.advance()
+        while self.ignore(TokenType.DOT):
             result.append(self.require(TokenType.IDENTIFIER))
         return result
 
     def import_as(self, allow_dotted, token):
         value = self.dotted()
         name = None
-        if self.matches(TokenType.AS):
-            self.advance()
+        if self.ignore(TokenType.AS):
             name = self.require(TokenType.IDENTIFIER)
         if len(value) > 1 and not allow_dotted:
             self.throw('Dotted import is not allowed with the "from" argument', token)
         return tuple(value), name
 
-    def import_base(self):
+    def import_(self):
         root = []
-        if self.matches(TokenType.FROM):
-            self.advance()
-            # starred import
-            if self.ignore(TokenType.DOT):
-                root = self.dotted()
-                self.require(TokenType.IMPORT)
-                self.require(TokenType.ASTERISK)
-                return [os.sep.join(x.body for x in root) + '.config']
-            # import by path
+        local = False
+        if self.ignore(TokenType.FROM):
             if self.matches(TokenType.STRING):
                 root = eval(self.advance().body)
                 self.require(TokenType.IMPORT)
                 return self.import_config(root)
 
+            local = self.ignore(TokenType.DOT)
             root = self.dotted()
 
         main_token = self.require(TokenType.IMPORT)
+
+        if self.ignore(TokenType.ASTERISK):
+            parent = ''
+            if not local:
+                parent = root[0].body + ':'
+                root = root[1:]
+            return [parent + os.sep.join(x.body for x in root) + '.config']
+
         # import by path
         if self.matches(TokenType.STRING) or self.matches(TokenType.STRING, shift=1):
             return self.import_config('')
+
+        if local:
+            self.throw("Local imports are only allowed for config files", main_token)
 
         block = self.ignore(TokenType.PAR_OPEN)
         values = {}
@@ -168,7 +191,7 @@ class Parser:
     def parse(self):
         parents, imports = [], []
         while self.matches(TokenType.IMPORT, TokenType.FROM):
-            import_ = self.import_base()
+            import_ = self.import_()
             if type(import_) is ImportPython:
                 imports.append(import_)
             else:
@@ -188,7 +211,7 @@ class Parser:
     @property
     def current(self):
         if self.position >= len(self.tokens):
-            raise SyntaxError('Unexpected end of file')
+            raise SyntaxError('Unexpected end of source')
         return self.tokens[self.position]
 
     def matches(self, *types, shift=0):
@@ -219,14 +242,20 @@ class Parser:
         return False
 
 
-def parse_file(source_path):
-    with open(source_path) as file:
-        source = file.read()
-
+def parse(source, source_path):
     try:
         tokens = tokenize(source)
         for token in tokens:
             token.set_source(source_path)
         return Parser(tokens).parse()
     except SyntaxError as e:
-        raise SyntaxError('{} in file {}'.format(e.msg, source_path)) from None
+        raise SyntaxError('{} in {}'.format(e.msg, source_path)) from None
+
+
+def parse_file(config_path):
+    with open(config_path) as file:
+        return parse(file.read(), config_path)
+
+
+def parse_string(source):
+    return parse(source, '<string input>')

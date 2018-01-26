@@ -19,14 +19,16 @@ def standardize(source):
 
 class TestParser(unittest.TestCase):
     def test_idempotency(self):
-        folder = os.path.join(os.path.dirname(__file__), 'idempotency')
+        folder = os.path.dirname(__file__)
 
-        for i, filename in enumerate(os.listdir(folder)):
-            path = os.path.join(folder, filename)
-            with self.subTest(filename=filename):
-                with open(path, 'r') as file:
-                    source = file.read()
-                temp = standardize(source)
-                self.assertEqual(temp, standardize(temp))
+        for root, _, files in os.walk(folder):
+            for filename in files:
+                if filename.endswith('.config'):
+                    path = os.path.join(root, filename)
+                    with self.subTest(filename=filename):
+                        with open(path, 'r') as file:
+                            source = file.read()
+                        temp = standardize(source)
+                        self.assertEqual(temp, standardize(temp))
 
 # TODO: add exceptions testing
