@@ -201,7 +201,7 @@ class ResourceManager:
         if type(node) is GetItem:
             target = self._define_resource(node.target)
             args = tuple(self._define_resource(arg) for arg in node.args)
-            if not node.to_tuple:
+            if not node.trailing_coma and len(args) == 1:
                 args = args[0]
             return target[args]
         if type(node) is Module:
