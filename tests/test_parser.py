@@ -31,4 +31,9 @@ class TestParser(unittest.TestCase):
                         temp = standardize(source)
                         self.assertEqual(temp, standardize(temp))
 
-# TODO: add exceptions testing
+    def test_token(self):
+        with self.assertRaises(SyntaxError):
+            tokenize('''
+            # unrecognized token:
+            &
+            ''')

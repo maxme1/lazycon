@@ -54,10 +54,24 @@ class TestResourceManager(unittest.TestCase):
         np.testing.assert_array_almost_equal(rm.std(), [0.81, 0.81], decimal=2)
         self.assertEqual(rm.random.shape, (1, 1, 2, 2))
 
+    def test_types(self):
+        rm = read_config('expressions/types.config')
+        try:
+            rm.one
+            rm.two
+            rm.three
+            rm.four
+        except BaseException:
+            self.fail()
+
     def test_build_config(self):
         rm = read_config('imports/config_import.config', shortcuts={'expressions': 'expressions'})
         with open('imports/built.config') as built:
             self.assertEqual(rm.render_config(), built.read())
+
+    def test_cached(self):
+        rm = read_config('imports/cached/main.config')
+        self.assertEqual(1, rm.x)
 
     def test_cycles(self):
         with self.assertRaises(RuntimeError):

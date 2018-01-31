@@ -25,7 +25,7 @@ class ResourceManager:
 
     def __init__(self, shortcuts: dict = None, get_module: Callable = None):
         self.get_module = get_module
-        self.shortcuts = shortcuts or {}
+        self._shortcuts = shortcuts or {}
 
         self._imported_configs = {}
         self._defined_resources = OrderedDict()
@@ -35,21 +35,46 @@ class ResourceManager:
 
     @classmethod
     def read_config(cls, source_path: str, shortcuts: dict = None, get_module: Callable = None):
+        """
+        Import the config located at `source_path` and return a ResourceManager instance.
+
+        Parameters
+        ----------
+        source_path: str
+            path to the config to import
+        shortcuts: dict, optional
+            a dict that maps keywords to paths. It is used to resolve paths during import.
+        get_module: callable(module_type, module_name) -> object, optional
+            a callable that loads external modules
+
+        Returns
+        -------
+        resource_manager: ResourceManager
+        """
         rm = cls(shortcuts, get_module)
         rm.import_config(source_path)
         return rm
 
     def import_config(self, path: str):
+        """Import the config located at `path`."""
         path = self._resolve_path(path)
         result = self._import(path)
         self._update_resources(result)
 
     def string_input(self, source: str):
+        """Interpret the `source`."""
         definitions, parents, imports = parse_string(source)
         result = self._get_resources(definitions, imports, parents, '')
         self._update_resources(result)
 
-    def render_config(self):
+    def render_config(self) -> str:
+        """
+        Generate a string containing definitions of all the resources in the current scope.
+
+        Returns
+        -------
+        config: str
+        """
         result = ''
         for name, value in self._undefined_resources.items():
             if type(value) is LazyImport:
@@ -63,7 +88,8 @@ class ResourceManager:
 
         return result[:-1]
 
-    def save_config(self, path):
+    def save_config(self, path: str):
+        """Render the config and save it to `path`"""
         with open(path, 'w') as file:
             file.write(self.render_config())
 
@@ -125,13 +151,13 @@ class ResourceManager:
 
     def _import(self, absolute_path: str):
         if absolute_path in self._imported_configs:
-            # TODO: test this feature
             return self._imported_configs[absolute_path]
         # avoiding cycles
         self._imported_configs[absolute_path] = {}
 
         definitions, parents, imports = parse_file(absolute_path)
         result = self._get_resources(definitions, imports, parents, absolute_path)
+        self._imported_configs[absolute_path] = result
         return result
 
     @staticmethod
@@ -172,12 +198,12 @@ class ResourceManager:
         parts = path.split(':', 1)
         if len(parts) > 1:
             shortcut, root = parts
-            if shortcut not in self.shortcuts:
+            if shortcut not in self._shortcuts:
                 message = 'Shortcut "%s" is not recognized' % shortcut
                 if source:
                     message = 'Error while processing %s:\n ' % source + message
                 raise ValueError(message)
-            path = os.path.join(self.shortcuts[shortcut], root)
+            path = os.path.join(self._shortcuts[shortcut], root)
         else:
             path = os.path.join(os.path.dirname(source), path)
 
