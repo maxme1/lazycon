@@ -9,7 +9,7 @@ def get_rm(config_path):
     db_path = 'registration/database.json'
     generate_config('registration', db_path, 'registration')
     get_module_ = functools.partial(get_module, db_path=db_path)
-    return ResourceManager(config_path, get_module=get_module_)
+    return ResourceManager.read_config(config_path, get_module=get_module_)
 
 
 class TestRegistration(unittest.TestCase):

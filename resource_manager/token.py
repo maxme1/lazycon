@@ -69,6 +69,3 @@ class Token:
 
     def set_source(self, source):
         self.source = source
-
-    def __repr__(self):
-        return '{}:{}'.format(self.type, self.body)
