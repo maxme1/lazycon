@@ -28,34 +28,41 @@ class Parser:
         if self.matches(TokenType.BRACKET_OPEN):
             return self.array()
         if self.matches(TokenType.DICT_OPEN):
-            return self.object()
+            return self.dictionary()
         return Literal(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
 
+    def is_keyword(self):
+        return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1)
+
     def params(self):
+        self.require(TokenType.PAR_OPEN)
         lazy = self.ignore(TokenType.LAZY)
+        vararg, args, keyword = [], [], []
+        if self.ignore(TokenType.PAR_CLOSE):
+            return args, vararg, keyword, lazy
 
-        vararg, args, coma = [], [], False
-        while not self.matches(TokenType.PAR_CLOSE):
-            # if keyword parameter
-            if coma:
-                self.require(TokenType.COMA)
-            if self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1):
-                break
-
+        # if has positional
+        if not self.is_keyword():
             vararg.append(self.ignore(TokenType.ASTERISK))
             args.append(self.expression())
-            coma = True
 
-        params, coma = [], False
-        while self.matches(TokenType.IDENTIFIER, TokenType.COMA):
-            if coma:
-                self.require(TokenType.COMA)
-            params.append(self.definition())
-            coma = True
+            while self.ignore(TokenType.COMA):
+                if self.is_keyword() or self.matches(TokenType.PAR_CLOSE):
+                    break
+                vararg.append(self.ignore(TokenType.ASTERISK))
+                args.append(self.expression())
 
-        if params or args:
-            self.ignore(TokenType.COMA)
-        return args, vararg, params, lazy
+        # keyword
+        if self.matches(TokenType.IDENTIFIER):
+            keyword.append(self.definition())
+
+            while self.ignore(TokenType.COMA):
+                if self.matches(TokenType.PAR_CLOSE):
+                    break
+                keyword.append(self.definition())
+
+        self.require(TokenType.PAR_CLOSE)
+        return args, vararg, keyword, lazy
 
     def expression(self):
         data = self.data()
@@ -67,40 +74,44 @@ class Parser:
             elif self.matches(TokenType.BRACKET_OPEN):
                 self.advance()
 
-                args = [self.expression()]
-                coma = False
-                while self.matches(TokenType.COMA):
-                    self.advance()
+                args, coma = [self.expression()], False
+                while self.ignore(TokenType.COMA):
+                    coma = True
                     if self.matches(TokenType.BRACKET_CLOSE):
-                        coma = True
                         break
                     args.append(self.expression())
 
                 self.require(TokenType.BRACKET_CLOSE)
                 data = GetItem(data, args, coma)
             else:
-                self.advance()
                 data = Call(data, *self.params())
-                self.require(TokenType.PAR_CLOSE)
 
         return data
 
     def definition(self):
-        left = self.require(TokenType.IDENTIFIER)
+        name = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.EQUALS)
-        right = self.expression()
+        return Definition(name, self.expression())
 
-        return Definition(left, right)
+    def pair(self):
+        key = self.expression()
+        self.require(TokenType.COLON)
+        return key, self.expression()
 
-    def object(self):
+    # TODO: unify dict and list?
+    def dictionary(self):
         dict_begin = self.require(TokenType.DICT_OPEN)
-        pairs = {}
-        while not self.matches(TokenType.DICT_CLOSE):
-            key = self.require(TokenType.STRING)
-            self.require(TokenType.COLON)
-            pairs[key] = self.expression()
+        pairs = []
+        # empty dict
+        if self.ignore(TokenType.DICT_CLOSE):
+            return Dictionary(pairs, dict_begin)
 
-            self.ignore(TokenType.COMA)
+        pairs.append(self.pair())
+
+        while self.ignore(TokenType.COMA):
+            if self.matches(TokenType.DICT_CLOSE):
+                break
+            pairs.append(self.pair())
 
         self.require(TokenType.DICT_CLOSE)
         return Dictionary(pairs, dict_begin)
@@ -108,9 +119,16 @@ class Parser:
     def array(self):
         array_begin = self.require(TokenType.BRACKET_OPEN)
         values = []
-        while not self.matches(TokenType.BRACKET_CLOSE):
+        # empty array
+        if self.ignore(TokenType.BRACKET_CLOSE):
+            return Array(values, array_begin)
+
+        values.append(self.expression())
+
+        while self.ignore(TokenType.COMA):
+            if self.matches(TokenType.BRACKET_CLOSE):
+                break
             values.append(self.expression())
-            self.ignore(TokenType.COMA)
 
         self.require(TokenType.BRACKET_CLOSE)
         return Array(values, array_begin)
@@ -231,8 +249,7 @@ class Parser:
 
     def require(self, *types):
         if not self.matches(*types):
-            raise SyntaxError('Unexpected token: '
-                              '"{}"\n  at {}:{}'.format(self.current.body, self.current.line, self.current.column))
+            self.throw('Unexpected token: "%s"' % self.current.body, self.current)
         return self.advance()
 
     def ignore(self, *types):

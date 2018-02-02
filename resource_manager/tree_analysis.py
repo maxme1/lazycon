@@ -50,5 +50,6 @@ class SyntaxTree:
             for x in node.values:
                 self._analyze_node(x)
         if type(node) is Dictionary:
-            for key, value in node.dictionary.items():
+            for key, value in node.pairs:
+                self._analyze_node(key)
                 self._analyze_node(value)

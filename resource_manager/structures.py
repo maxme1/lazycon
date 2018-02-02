@@ -189,12 +189,12 @@ class Array(Structure):
 
 
 class Dictionary(Structure):
-    def __init__(self, dictionary: dict, main_token):
+    def __init__(self, pairs: list, main_token):
         super().__init__(main_token)
-        self.dictionary = dictionary
+        self.pairs = pairs
 
     def to_str(self, level):
         result = '{\n'
-        for key, value in self.dictionary.items():
-            result += '    ' * (level + 1) + '{}: {},\n'.format(key.body, value.to_str(level + 1))
+        for key, value in self.pairs:
+            result += '    ' * (level + 1) + '{}: {},\n'.format(key.to_str(level + 1), value.to_str(level + 1))
         return result[:-1] + '    ' * level + '\n}'

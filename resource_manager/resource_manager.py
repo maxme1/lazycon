@@ -6,7 +6,6 @@ from typing import Callable
 from collections import OrderedDict
 
 from .structures import *
-from .utils import put_in_stack
 from .parser import parse_file, parse_string
 from .tree_analysis import SyntaxTree
 
@@ -89,7 +88,7 @@ class ResourceManager:
         return result[:-1]
 
     def save_config(self, path: str):
-        """Render the config and save it to `path`"""
+        """Render the config and save it to `path`."""
         with open(path, 'w') as file:
             file.write(self.render_config())
 
@@ -173,9 +172,8 @@ class ResourceManager:
             parent_resources.update(self._import(parent))
 
         result = {}
-        for imp in imports:
-            for what, as_ in imp.values.items():
-                # TODO: too ugly
+        for import_ in imports:
+            for what, as_ in import_.values.items():
                 if as_ is not None:
                     name = as_.body
                 else:
@@ -183,7 +181,7 @@ class ResourceManager:
                     packages = name.split('.')
                     if len(packages) > 1:
                         name = packages[0]
-                self._set_definition(result, name, LazyImport(imp.root, what, as_, imp.main_token))
+                self._set_definition(result, name, LazyImport(import_.root, what, as_, import_.main_token))
 
         for definition in definitions:
             self._set_definition(result, definition.name.body, definition.value)
@@ -210,15 +208,19 @@ class ResourceManager:
         path = os.path.expanduser(path)
         return os.path.realpath(path)
 
-    # TODO: get rid of this decorator?
-    @put_in_stack
     def _define_resource(self, node):
+        self._definitions_stack.append(node)
+        value = self._interpret_node(node)
+        self._definitions_stack.pop()
+        return value
+
+    def _interpret_node(self, node):
         if type(node) is Literal:
             return eval(node.value.body)
         if type(node) is Array:
             return [self._define_resource(x) for x in node.values]
         if type(node) is Dictionary:
-            return {eval(name.body): self._define_resource(value) for name, value in node.dictionary.items()}
+            return {self._define_resource(key): self._define_resource(value) for key, value in node.pairs}
         if type(node) is Resource:
             return self._get_resource(node.name.body)
         if type(node) is GetAttribute:
@@ -257,15 +259,15 @@ class ResourceManager:
                     return sys.modules[packages[0]]
                 return result
             try:
+                return getattr(importlib.import_module(node.from_), node.what)
+            except AttributeError:
+                pass
+            try:
                 return importlib.import_module(node.what, node.from_)
             except ModuleNotFoundError:
-                return getattr(importlib.import_module(node.from_), node.what)
+                return importlib.import_module(node.from_ + '.' + node.what)
 
         raise TypeError('Undefined resource description of type {}'.format(type(node)))
 
 
 read_config = ResourceManager.read_config
-
-
-class TempPlaceholder:
-    pass

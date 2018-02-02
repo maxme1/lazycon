@@ -1,14 +1,13 @@
 import unittest
 import os
 
-from resource_manager.parser import Parser
+from resource_manager.parser import parse_string
 from resource_manager.tokenizer import tokenize
 
 
 def standardize(source):
-    tokens = tokenize(source)
+    definitions, parents, imports = parse_string(source)
     result = ''
-    definitions, parents, imports = Parser(tokens).parse()
     if parents:
         result += 'import ' + ' '.join(f'{repr(x)}' for x in parents) + '\n'
     result += ''.join(imp.to_str(0) for imp in imports)
@@ -31,9 +30,17 @@ class TestParser(unittest.TestCase):
                         temp = standardize(source)
                         self.assertEqual(temp, standardize(temp))
 
-    def test_token(self):
+    def test_unrecognized_token(self):
         with self.assertRaises(SyntaxError):
             tokenize('''
             # unrecognized token:
             &
             ''')
+
+    def test_unexpected_token(self):
+        with self.assertRaises(SyntaxError):
+            parse_string('a = [1, 2 3]')
+
+    def test_unexpected_eof(self):
+        with self.assertRaises(SyntaxError):
+            parse_string('a = [1, 2')

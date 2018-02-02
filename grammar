@@ -15,16 +15,17 @@ dotted_import_as = dotted (as IDENTIFIER)?
 definition = IDENTIFIER '=' expression
 
 expression = data (getAttribute | call | getItem)*
-getItem = '[' expression (',' expression)* ']'
+getItem = '[' expression (',' expression)* ','? ']'
 getAttribute = '.' IDENTIFIER
 call = PAR_OPEN params PAR_CLOSE
-params = LAZY? (positional ','?)* (definition ','?)*
-positional = '*'? expression
+params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
+positional = '*'? expression (',' '*'? expression)*
+keyword = definition (',' definition)*
 
 data = module | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
 module = IDENTIFIER ':' IDENTIFIER
-dictionary = '{' pair (',' pair)* ','? '}'
-pair = STRING ':' expression
+dictionary = '{' (pair (',' pair)* ','?)? '}'
+pair = expression ':' expression
 array = '[' expression (',' expression)* ','? ']'
 
 STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1''' // with the S flag

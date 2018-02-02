@@ -19,9 +19,25 @@ def raises(module_type, module_name):
 
 
 class TestResourceManager(unittest.TestCase):
+    def test_string_input(self):
+        rm = ResourceManager()
+        rm.string_input('''
+        from builtins import sum
+        a = [1,2,3]
+        b = sum(a)
+        ''')
+        self.assertEqual(6, rm.b)
+
     def test_import(self):
         rm = read_config('imports/imports.config')
         self.assertEqual(rm.numpy, np)
+        try:
+            rm.r
+            rm.os
+            rm.std
+            rm.mean
+        except BaseException:
+            self.fail()
 
     def test_cycle_import(self):
         try:
