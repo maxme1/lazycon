@@ -26,12 +26,14 @@ data = module | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'Fa
 module = IDENTIFIER ':' IDENTIFIER
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = expression ':' expression
-array = '[' expression (',' expression)* ','? ']'
+array = '[' (expression (',' expression)* ','?)? ']'
 
-STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1''' // with the S flag
+// this is an approximate regex. the true one is simply imported from `tokenize`
+STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1'''
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
+
 IDENTIFIER = r'[^\d\W]\w*'
 PAR_OPEN = '('
 PAR_CLOSE = ')'
-LAZY = '# *lazy'
-COMMENT = r'#.*\n'
+LAZY = '#\s*lazy\s*$'
+COMMENT = r'#.*$'

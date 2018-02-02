@@ -1,5 +1,6 @@
-from enum import Enum, auto
 import re
+from enum import Enum, auto
+from tokenize import Number, String
 
 
 class TokenType(Enum):
@@ -28,9 +29,9 @@ class TokenType(Enum):
 
 
 REGEXPS = {
-    TokenType.NUMBER: re.compile(r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'),
+    TokenType.NUMBER: re.compile(Number),
+    TokenType.STRING: re.compile(String, flags=re.UNICODE),
     TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
-    TokenType.STRING: re.compile(r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1|.)*?\1''', flags=re.DOTALL),
 }
 
 RESERVED = {
@@ -39,7 +40,7 @@ RESERVED = {
     'from': TokenType.FROM,
 }
 
-LAZY = re.compile(r'^# *lazy *$')
+LAZY = re.compile(r'^#\s*lazy\s*$')
 LITERALS = ('None', 'True', 'False')
 SINGLE = {
     ',': TokenType.COMA,

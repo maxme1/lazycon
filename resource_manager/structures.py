@@ -14,7 +14,7 @@ class Structure:
         return self.main_token.source
 
     def to_str(self, level):
-        pass
+        raise NotImplementedError
 
     def error_message(self):
         return 'building the module ' + self.to_str(0)
