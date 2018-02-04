@@ -1,6 +1,6 @@
 from typing import List
 
-from resource_manager.token import Token
+from .token import Token
 
 
 class Structure:
@@ -17,23 +17,23 @@ class Structure:
         raise NotImplementedError
 
     def error_message(self):
-        return 'building the module ' + self.to_str(0)
+        return 'building the resource ' + self.to_str(0)
 
 
 class ImportPython(Structure):
-    def __init__(self, root: List[Token], values: dict, main_token):
+    def __init__(self, root: List[Token], values: list, main_token):
         super().__init__(main_token)
         self._root = root
         self.root = '.'.join(x.body for x in root)
         self._values = values
-        self.values = {'.'.join(x.body for x in value): name for value, name in values.items()}
+        self.values = [('.'.join(x.body for x in value), name) for value, name in values]
 
     def to_str(self, level):
         result = ''
         if self.root:
             result += 'from %s ' % self.root
         result += 'import '
-        for value, name in self.values.items():
+        for value, name in self.values:
             result += value + ' '
             if name is not None:
                 result += 'as ' + name.body

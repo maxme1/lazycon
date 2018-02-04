@@ -107,22 +107,22 @@ class ResourceManager:
         if name not in self._undefined_resources:
             raise AttributeError('Resource "{}" is not defined'.format(name))
 
+        node = self._undefined_resources[name]
         try:
-            node = self._undefined_resources[name]
-            # a whole new request, so clear the stack
             resource = self._define_resource(node)
-            self._defined_resources[name] = resource
-            return resource
-
         except BaseException as e:
-            # TODO: is it needed here?
             if not self._definitions_stack:
                 raise
+            # TODO: should all the traceback be printed?
+            definition = self._definitions_stack[0]
+            # print(self._definitions_stack)
+            self._definitions_stack = []
 
-            definition = self._definitions_stack[-1]
-            message = 'An exception occurred while ' + definition.error_message()
-            message += '\n    at %d:%d in %s' % definition.position()
-            raise RuntimeError(message) from e
+            raise RuntimeError('An exception occurred while ' + definition.error_message() +
+                               '\n    at %d:%d in %s' % definition.position()) from e
+
+        self._defined_resources[name] = resource
+        return resource
 
     def _update_resources(self, resources):
         # TODO: what if some of the resources were already rendered?
@@ -173,7 +173,7 @@ class ResourceManager:
 
         result = {}
         for import_ in imports:
-            for what, as_ in import_.values.items():
+            for what, as_ in import_.values:
                 if as_ is not None:
                     name = as_.body
                 else:
@@ -215,6 +215,7 @@ class ResourceManager:
         return value
 
     def _interpret_node(self, node):
+        # TODO: move to Structure's method?
         if type(node) is Literal:
             return eval(node.value.body)
         if type(node) is Array:

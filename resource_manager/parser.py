@@ -174,18 +174,14 @@ class Parser:
             return self.import_config('')
 
         if local:
-            self.throw("Local imports are only allowed for config files", main_token)
+            self.throw("Relative imports are only allowed for config files", main_token)
 
         block = self.ignore(TokenType.PAR_OPEN)
-        values = {}
-        value, name = self.import_as(not root, main_token)
-        values[value] = name
-        while self.matches(TokenType.COMA):
-            self.advance()
-            value, name = self.import_as(not root, main_token)
-            values[value] = name
-        self.ignore(TokenType.COMA)
+        values = [self.import_as(not root, main_token)]
+        while self.ignore(TokenType.COMA):
+            values.append(self.import_as(not root, main_token))
 
+        self.ignore(TokenType.COMA)
         if block:
             self.require(TokenType.PAR_CLOSE)
 
