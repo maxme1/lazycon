@@ -1,2 +1,2 @@
 from .resource_manager import ResourceManager, read_config
-from .registration_system import *
+from resource_manager.legacy.registration_system import *

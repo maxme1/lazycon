@@ -1,12 +1,13 @@
-config = (import | from_import | config_import)* definition*
+config = importConfig* import* definition*
 
-config_import = import_str | import_starred
-import_str = ('from' STRING)? 'import' paths | (PAR_OPEN paths PAR_CLOSE)
+importConfig = import_str | import_starred
+importStr = ('from' STRING)? 'import' paths | (PAR_OPEN paths PAR_CLOSE)
 import_starred = 'from' IDENTIFIER? '.' dotted 'import' '*'
 paths = (STRING ','?)+
 
-import = 'import' dotted_import_as (',' dotted_import_as)* ','?
-from_import = 'from' dotted 'import' import_as (',' import_as)* ','?
+import = importSimple | importFrom
+importSimple = 'import' dotted_import_as (',' dotted_import_as)* ','?
+importFrom = 'from' dotted 'import' import_as (',' import_as)* ','?
 
 dotted = IDENTIFIER ('.' IDENTIFIER)*
 import_as = IDENTIFIER (as IDENTIFIER)?

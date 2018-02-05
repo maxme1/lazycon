@@ -1,5 +1,7 @@
 from typing import List
 
+import os
+
 from .token import Token
 
 
@@ -21,12 +23,13 @@ class Structure:
 
 
 class ImportPython(Structure):
-    def __init__(self, root: List[Token], values: list, main_token):
+    def __init__(self, root: List[Token], values: list, relative: bool, main_token):
         super().__init__(main_token)
         self._root = root
         self.root = '.'.join(x.body for x in root)
         self._values = values
         self.values = [('.'.join(x.body for x in value), name) for value, name in values]
+        self.relative = relative
 
     def to_str(self, level):
         result = ''
@@ -41,8 +44,49 @@ class ImportPython(Structure):
         return result[:-2] + '\n'
 
 
+class ImportStarred(Structure):
+    def __init__(self, root: List[Token], relative: bool):
+        super().__init__(root[0])
+
+        self.root = root
+        self.relative = relative
+
+    def get_paths(self):
+        parent = ''
+        root = self.root
+        if not self.relative:
+            parent = root[0].body + ':'
+            root = root[1:]
+        return [parent + os.sep.join(x.body for x in root) + '.config']
+
+    def to_str(self, level):
+        result = 'from '
+        if self.relative:
+            result += '.'
+        return result + '.'.join(x.body for x in self.root) + ' import *'
+
+
+class ImportPath(Structure):
+    def __init__(self, root, paths, main_token):
+        super().__init__(main_token)
+        self.root = root
+        self.paths = paths
+
+    def get_paths(self):
+        paths = [eval(x.body) for x in self.paths]
+        if not self.root:
+            return paths
+        return [os.path.join(self.root.body, x) for x in paths]
+
+    def to_str(self, level):
+        result = ''
+        if self.root:
+            result = 'from ' + self.root.body
+        return result + 'import ' + ','.join(x.body for x in self.paths)
+
+
 class LazyImport(Structure):
-    def __init__(self, from_, what, as_, main_token: Token):
+    def __init__(self, from_, what, as_, relative: bool, main_token: Token):
         super().__init__(main_token)
         self.from_, self.what, self.as_ = from_, what, as_
 

@@ -7,9 +7,7 @@ from resource_manager.tokenizer import tokenize
 
 def standardize(source):
     definitions, parents, imports = parse_string(source)
-    result = ''
-    if parents:
-        result += 'import ' + ' '.join(f'{repr(x)}' for x in parents) + '\n'
+    result = '\n'.join(imp.to_str(0) for imp in parents)
     result += ''.join(imp.to_str(0) for imp in imports)
     for definition in definitions:
         result += definition.to_str(0) + '\n'
@@ -44,3 +42,11 @@ class TestParser(unittest.TestCase):
     def test_unexpected_eof(self):
         with self.assertRaises(SyntaxError):
             parse_string('a = [1, 2')
+
+    def test_mixed_import(self):
+        with self.assertRaises(SyntaxError):
+            parse_string('''
+            from .abc import *
+            import numpy
+            import "asdasd"
+            ''')

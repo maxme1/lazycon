@@ -115,7 +115,6 @@ class ResourceManager:
                 raise
             # TODO: should all the traceback be printed?
             definition = self._definitions_stack[0]
-            # print(self._definitions_stack)
             self._definitions_stack = []
 
             raise RuntimeError('An exception occurred while ' + definition.error_message() +
@@ -165,11 +164,12 @@ class ResourceManager:
             raise SyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source()))
         registry[name] = value
 
-    def _get_resources(self, definitions, imports, parents, absolute_path):
+    def _get_resources(self, definitions: List[Definition], imports: List[ImportPython], parents, absolute_path):
         parent_resources = {}
         for parent in parents:
-            parent = self._resolve_path(parent, absolute_path)
-            parent_resources.update(self._import(parent))
+            for path in parent.get_paths():
+                path = self._resolve_path(path, absolute_path)
+                parent_resources.update(self._import(path))
 
         result = {}
         for import_ in imports:
@@ -181,7 +181,8 @@ class ResourceManager:
                     packages = name.split('.')
                     if len(packages) > 1:
                         name = packages[0]
-                self._set_definition(result, name, LazyImport(import_.root, what, as_, import_.main_token))
+                self._set_definition(result, name,
+                                     LazyImport(import_.root, what, as_, import_.relative, import_.main_token))
 
         for definition in definitions:
             self._set_definition(result, definition.name.body, definition.value)

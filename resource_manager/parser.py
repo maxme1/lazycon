@@ -139,67 +139,62 @@ class Parser:
             result.append(self.require(TokenType.IDENTIFIER))
         return result
 
-    def import_as(self, allow_dotted, token):
-        value = self.dotted()
+    def import_as(self, allow_dotted):
+        if allow_dotted:
+            value = self.dotted()
+        else:
+            value = self.require(TokenType.IDENTIFIER),
         name = None
         if self.ignore(TokenType.AS):
             name = self.require(TokenType.IDENTIFIER)
-        if len(value) > 1 and not allow_dotted:
-            self.throw('Dotted import is not allowed with the "from" argument', token)
         return tuple(value), name
 
     def import_(self):
-        root = []
-        local = False
+        root, relative = [], False
         if self.ignore(TokenType.FROM):
+            # TODO: I guess this should become legacy
             if self.matches(TokenType.STRING):
-                root = eval(self.advance().body)
-                self.require(TokenType.IMPORT)
-                return self.import_config(root)
+                root = self.advance()
+                token = self.require(TokenType.IMPORT)
+                return ImportPath(root, self.paths(), token)
 
-            local = self.ignore(TokenType.DOT)
+            relative = self.ignore(TokenType.DOT)
             root = self.dotted()
 
         main_token = self.require(TokenType.IMPORT)
 
-        if self.ignore(TokenType.ASTERISK):
-            parent = ''
-            if not local:
-                parent = root[0].body + ':'
-                root = root[1:]
-            return [parent + os.sep.join(x.body for x in root) + '.config']
-
         # import by path
+        # TODO: legacy too
         if self.matches(TokenType.STRING) or self.matches(TokenType.STRING, shift=1):
-            return self.import_config('')
+            return ImportPath(root, self.paths(), main_token)
 
-        if local:
+        if self.ignore(TokenType.ASTERISK):
+            return ImportStarred(root, relative)
+
+        # TODO: support
+        if relative:
             self.throw("Relative imports are only allowed for config files", main_token)
 
         block = self.ignore(TokenType.PAR_OPEN)
-        values = [self.import_as(not root, main_token)]
+        values = [self.import_as(not root)]
         while self.ignore(TokenType.COMA):
-            values.append(self.import_as(not root, main_token))
+            values.append(self.import_as(not root))
 
-        self.ignore(TokenType.COMA)
         if block:
             self.require(TokenType.PAR_CLOSE)
+        return ImportPython(root, values, relative, main_token)
 
-        return ImportPython(root, values, main_token)
-
-    def import_config(self, root):
+    def paths(self):
         block = self.ignore(TokenType.PAR_OPEN)
 
-        paths = [eval(self.require(TokenType.STRING).body)]
+        paths = [self.require(TokenType.STRING)]
         self.ignore(TokenType.COMA)
         while self.matches(TokenType.STRING):
-            paths.append(eval(self.advance().body))
+            paths.append(self.advance())
             self.ignore(TokenType.COMA)
 
         if block:
             self.require(TokenType.PAR_CLOSE)
-        if root:
-            return [os.path.join(root, x) for x in paths]
         return paths
 
     def parse(self):
@@ -209,7 +204,9 @@ class Parser:
             if type(import_) is ImportPython:
                 imports.append(import_)
             else:
-                parents.extend(import_)
+                if imports:
+                    self.throw('Starred and path imports are only allowed at the top of the config', import_.main_token)
+                parents.append(import_)
 
         definitions = []
         while self.position < len(self.tokens):
@@ -241,7 +238,7 @@ class Parser:
         return False
 
     def throw(self, message, token):
-        raise SyntaxError(message + '\n  at {}:{}'.format(self.current.line, self.current.column))
+        raise SyntaxError(message + '\n  at {}:{}'.format(token.line, token.column))
 
     def require(self, *types):
         if not self.matches(*types):
