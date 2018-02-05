@@ -190,6 +190,7 @@ class ResourceManager:
         parent_resources.update(result)
         return parent_resources
 
+    # TODO: change signature to path, source, shortcut
     def _resolve_path(self, path: str, source: str = ''):
         if path.count(':') > 1:
             raise SyntaxError('The path cannot contain more than one ":" separator.')
@@ -209,67 +210,11 @@ class ResourceManager:
         path = os.path.expanduser(path)
         return os.path.realpath(path)
 
-    def _define_resource(self, node):
+    def _define_resource(self, node: Structure):
         self._definitions_stack.append(node)
-        value = self._interpret_node(node)
+        value = node.render(self)
         self._definitions_stack.pop()
         return value
-
-    def _interpret_node(self, node):
-        # TODO: move to Structure's method?
-        if type(node) is Literal:
-            return eval(node.value.body)
-        if type(node) is Array:
-            return [self._define_resource(x) for x in node.values]
-        if type(node) is Dictionary:
-            return {self._define_resource(key): self._define_resource(value) for key, value in node.pairs}
-        if type(node) is Resource:
-            return self._get_resource(node.name.body)
-        if type(node) is GetAttribute:
-            data = self._define_resource(node.target)
-            return getattr(data, node.name.body)
-        if type(node) is GetItem:
-            target = self._define_resource(node.target)
-            args = tuple(self._define_resource(arg) for arg in node.args)
-            if not node.trailing_coma and len(args) == 1:
-                args = args[0]
-            return target[args]
-        if type(node) is Module:
-            if self.get_module is None:
-                raise ValueError('The function "get_module" was not provided, so your modules are unreachable')
-            return self.get_module(node.module_type.body, node.module_name.body)
-        if type(node) is Call:
-            target = self._define_resource(node.target)
-            args = []
-            for vararg, arg in zip(node.varargs, node.args):
-                temp = self._define_resource(arg)
-                if vararg:
-                    args.extend(temp)
-                else:
-                    args.append(temp)
-            kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
-            if node.lazy:
-                return functools.partial(target, *args, **kwargs)
-            else:
-                return target(*args, **kwargs)
-        if type(node) is LazyImport:
-            if not node.from_:
-                result = importlib.import_module(node.what)
-                packages = node.what.split('.')
-                if len(packages) > 1 and not node.as_:
-                    # import a.b.c
-                    return sys.modules[packages[0]]
-                return result
-            try:
-                return getattr(importlib.import_module(node.from_), node.what)
-            except AttributeError:
-                pass
-            try:
-                return importlib.import_module(node.what, node.from_)
-            except ModuleNotFoundError:
-                return importlib.import_module(node.from_ + '.' + node.what)
-
-        raise TypeError('Undefined resource description of type {}'.format(type(node)))
 
 
 read_config = ResourceManager.read_config
