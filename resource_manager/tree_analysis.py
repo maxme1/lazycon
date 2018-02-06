@@ -10,46 +10,73 @@ class SyntaxTree:
         self.cycles = defaultdict(set)
         self.undefined = defaultdict(set)
 
-        self._visited = {name: False for name in resources}
+        self._scopes = []
+        self._global = {}
+        self._structure_types = []
         for name, node in resources.items():
-            self._analyze_tree(name, node.position()[-1])
+            self._analyze_tree(name)
 
-    def _analyze_tree(self, name, source):
-        # undefined variable:
-        if name not in self.resources:
-            self.undefined[source].add(name)
-            return
-        if self._visited[name]:
-            return
-        # cycle
-        if name in self._request_stack:
-            prefix = " -> ".join(self._request_stack)
-            self.cycles[source].add('{} -> {}'.format(prefix, name))
-            return
-
+    def _analyze_tree(self, name):
         self._request_stack.append(name)
+        self._global[name] = False
         self._analyze_node(self.resources[name])
+        self._global[name] = True
         self._request_stack.pop()
 
-        self._visited[name] = True
+    def _analyze_node(self, node: Structure):
+        node.render(self)
 
-    def _analyze_node(self, node):
-        if type(node) is Resource:
-            self._analyze_tree(node.name.body, node.position()[-1])
-        if type(node) is GetAttribute:
-            self._analyze_node(node.target)
-        if type(node) is GetItem:
-            for arg in node.args:
-                self._analyze_node(arg)
-        if type(node) is Call:
-            for arg in node.args:
-                self._analyze_node(arg)
-            for param in node.params:
-                self._analyze_node(param.value)
-        if type(node) is Array:
-            for x in node.values:
-                self._analyze_node(x)
-        if type(node) is Dictionary:
-            for key, value in node.pairs:
-                self._analyze_node(key)
-                self._analyze_node(value)
+    def _render_resource(self, node: Resource):
+        name = node.name.body
+        # is it an argument?
+        for scope in reversed(self._scopes):
+            if name in scope:
+                return
+
+        source = node.source()
+        # undefined variable:
+        if name not in self._global:
+            self.undefined[source].add(name)
+            return
+        # cycle
+        if not self._global[name]:
+            prefix = " -> ".join(self._request_stack)
+            self.cycles[source].add('{} -> {}'.format(prefix, name))
+
+    def _render_get_attribute(self, node: GetAttribute):
+        self._analyze_node(node.target)
+
+    def _render_get_item(self, node: GetItem):
+        self._analyze_node(node.target)
+        for arg in node.args:
+            self._analyze_node(arg)
+
+    def _render_call(self, node: Call):
+        for arg in node.args:
+            self._analyze_node(arg)
+        for param in node.params:
+            self._analyze_node(param.value)
+
+    def _render_array(self, node: Array):
+        for x in node.values:
+            self._analyze_node(x)
+
+    def _render_dictionary(self, node: Dictionary):
+        for key, value in node.pairs:
+            self._analyze_node(key)
+            self._analyze_node(value)
+
+    def _render_lambda(self, node: Lambda):
+        # TODO: checks
+        self._scopes.append({x.body for x in node.params})
+        self._analyze_node(node.expression)
+        self._scopes.pop()
+
+    def _render_lazy_import(self, node: LazyImport):
+        pass
+
+    def _render_literal(self, node: Literal):
+        pass
+
+    def _render_module(self, node: Module):
+        pass

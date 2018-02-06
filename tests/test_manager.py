@@ -70,6 +70,12 @@ class TestResourceManager(unittest.TestCase):
         np.testing.assert_array_almost_equal(rm.std(), [0.81, 0.81], decimal=2)
         self.assertEqual(rm.random.shape, (1, 1, 2, 2))
 
+    def test_lambda(self):
+        rm = read_config('expressions/lambda_.config')
+        self.assertEqual(8, rm.b(2))
+        self.assertEqual(8, rm.c(2, rm.a))
+        self.assertEqual(8, rm.d())
+
     def test_types(self):
         rm = read_config('expressions/types.config')
         try:

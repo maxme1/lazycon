@@ -15,8 +15,9 @@ class Structure:
     def __init__(self, main_token: Token):
         self.main_token = main_token
 
-    def render(self, interpreter):
-        print(snake_case(self.__class__.__name__))
+    def render(self, walker):
+        name = snake_case(self.__class__.__name__)
+        return getattr(walker, '_render_' + name)(self)
 
     def to_str(self, level):
         raise NotImplementedError

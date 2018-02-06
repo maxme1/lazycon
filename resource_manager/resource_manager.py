@@ -217,5 +217,80 @@ class ResourceManager:
         self._definitions_stack.pop()
         return value
 
+    def _render_lambda(self, node: Lambda):
+        def f(*args):
+            # TODO: checks
+            self._scopes.append({x.body: y for x, y in zip(node.params, args)})
+            result = self._define_resource(node.expression)
+            self._scopes.pop()
+            return result
+
+        return f
+
+    def _render_resource(self, node: Resource):
+        name = node.name.body
+        for scope in reversed(self._scopes):
+            if name in scope:
+                return scope[name]
+        return self._get_resource(name)
+
+    def _render_get_attribute(self, node: GetAttribute):
+        data = self._define_resource(node.target)
+        return getattr(data, node.name.body)
+
+    def _render_get_item(self, node: GetItem):
+        target = self._define_resource(node.target)
+        args = tuple(self._define_resource(arg) for arg in node.args)
+        if not node.trailing_coma and len(args) == 1:
+            args = args[0]
+        return target[args]
+
+    def _render_call(self, node: Call):
+        target = self._define_resource(node.target)
+        args = []
+        for vararg, arg in zip(node.varargs, node.args):
+            temp = self._define_resource(arg)
+            if vararg:
+                args.extend(temp)
+            else:
+                args.append(temp)
+        kwargs = {param.name.body: self._define_resource(param.value) for param in node.params}
+        if node.lazy:
+            return functools.partial(target, *args, **kwargs)
+        else:
+            return target(*args, **kwargs)
+
+    def _render_module(self, node: Module):
+        if self.get_module is None:
+            raise ValueError('The function "get_module" was not provided, so your modules are unreachable')
+        return self.get_module(node.module_type.body, node.module_name.body)
+
+    def _render_literal(self, node: Literal):
+        return eval(node.value.body)
+
+    def _render_array(self, node: Array):
+        return [self._define_resource(x) for x in node.values]
+
+    def _render_dictionary(self, node: Dictionary):
+        return {self._define_resource(key): self._define_resource(value) for key, value in node.pairs}
+
+    def _render_lazy_import(self, node: LazyImport):
+        assert not node.relative
+        if not node.from_:
+            result = importlib.import_module(node.what)
+            packages = node.what.split('.')
+            if len(packages) > 1 and not node.as_:
+                # import a.b.c
+                return sys.modules[packages[0]]
+            return result
+        try:
+            return getattr(importlib.import_module(node.from_), node.what)
+        except AttributeError:
+            pass
+        try:
+            return importlib.import_module(node.what, node.from_)
+        except ModuleNotFoundError:
+            return importlib.import_module(node.from_ + '.' + node.what)
+
 
 read_config = ResourceManager.read_config
