@@ -74,7 +74,9 @@ class TestResourceManager(unittest.TestCase):
         rm = read_config('expressions/lambda_.config')
         self.assertEqual(8, rm.b(2))
         self.assertEqual(8, rm.c(2, rm.a))
-        self.assertEqual(8, rm.d())
+        self.assertListEqual([1, 2], rm.d(1)(2))
+        self.assertEqual(8, rm.e())
+        self.assertListEqual([1, 8, 32], rm.test)
 
     def test_types(self):
         rm = read_config('expressions/types.config')
