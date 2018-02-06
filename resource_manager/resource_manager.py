@@ -1,13 +1,12 @@
-import os
 import sys
 import functools
 import importlib
 from typing import Callable
-from collections import OrderedDict
 
-from .structures import *
 from .parser import parse_file, parse_string
+from .helpers import Scope, LambdaFunction
 from .tree_analysis import SyntaxTree
+from .structures import *
 
 
 class ResourceManager:
@@ -27,8 +26,7 @@ class ResourceManager:
         self._shortcuts = shortcuts or {}
 
         self._imported_configs = {}
-        self._defined_resources = OrderedDict()
-        self._undefined_resources = OrderedDict()
+        self._scopes = [Scope()]
         self._request_stack = []
         self._definitions_stack = []
 
@@ -74,14 +72,16 @@ class ResourceManager:
         -------
         config: str
         """
+        assert len(self._scopes) == 1
+        scope = self._scopes[0]
         result = ''
-        for name, value in self._undefined_resources.items():
+        for name, value in scope._undefined_resources.items():
             if type(value) is LazyImport:
                 result += value.to_str(0)
         if result:
             result += '\n'
 
-        for name, value in self._undefined_resources.items():
+        for name, value in scope._undefined_resources.items():
             if type(value) is not LazyImport:
                 result += '{} = {}\n\n'.format(name, value.to_str(0))
 
@@ -98,80 +98,35 @@ class ResourceManager:
     def get_resource(self, name: str):
         self._request_stack = []
         self._definitions_stack = []
-        return self._get_resource(name)
+        assert len(self._scopes) == 1
+        return self._scopes[0].get_resource(name, self._render)
 
-    def _get_resource(self, name: str):
-        if name in self._defined_resources:
-            return self._defined_resources[name]
-
-        if name not in self._undefined_resources:
-            raise AttributeError('Resource "{}" is not defined'.format(name))
-
-        node = self._undefined_resources[name]
-        try:
-            resource = self._define_resource(node)
-        except BaseException as e:
-            if not self._definitions_stack:
-                raise
-            # TODO: should all the traceback be printed?
-            definition = self._definitions_stack[0]
-            self._definitions_stack = []
-
-            raise RuntimeError('An exception occurred while ' + definition.error_message() +
-                               '\n    at %d:%d in %s' % definition.position()) from e
-
-        self._defined_resources[name] = resource
-        return resource
-
-    def _update_resources(self, resources):
+    def _update_resources(self, scope):
+        assert len(self._scopes) == 1
         # TODO: what if some of the resources were already rendered?
-        self._undefined_resources.update(resources)
-        self._semantic_analysis()
+        self._scopes[0].overwrite(scope)
+        SyntaxTree.analyze(scope)
 
-    def _semantic_analysis(self):
-        # TODO: separate
-        tree = SyntaxTree(self._undefined_resources)
-        message = ''
-        if tree.cycles:
-            message += 'Cyclic dependencies found in the following resources:\n'
-            for source, cycles in tree.cycles.items():
-                message += '  in %s\n    ' % source
-                message += '\n    '.join(cycles)
-                message += '\n'
-        if tree.undefined:
-            message += '\nUndefined resources found:\n'
-            for source, undefined in tree.undefined.items():
-                message += '  in %s\n    ' % source
-                message += ', '.join(undefined)
-                message += '\n'
-        if message:
-            raise RuntimeError(message)
-
-    def _import(self, absolute_path: str):
+    def _import(self, absolute_path: str) -> Scope:
         if absolute_path in self._imported_configs:
             return self._imported_configs[absolute_path]
         # avoiding cycles
-        self._imported_configs[absolute_path] = {}
+        self._imported_configs[absolute_path] = Scope()
 
         definitions, parents, imports = parse_file(absolute_path)
         result = self._get_resources(definitions, imports, parents, absolute_path)
         self._imported_configs[absolute_path] = result
         return result
 
-    @staticmethod
-    def _set_definition(registry, name, value):
-        if name in registry:
-            raise SyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source()))
-        registry[name] = value
-
     def _get_resources(self, definitions: List[Definition], imports: List[ImportPython], parents, absolute_path):
-        parent_resources = {}
+        # TODO: absolute_path is redundant
+        parent_scope = Scope()
         for parent in parents:
             for path in parent.get_paths():
                 path = self._resolve_path(path, absolute_path)
-                parent_resources.update(self._import(path))
+                parent_scope.overwrite(self._import(path))
 
-        result = {}
+        scope = Scope()
         for import_ in imports:
             for what, as_ in import_.values:
                 if as_ is not None:
@@ -181,14 +136,13 @@ class ResourceManager:
                     packages = name.split('.')
                     if len(packages) > 1:
                         name = packages[0]
-                self._set_definition(result, name,
-                                     LazyImport(import_.root, what, as_, import_.relative, import_.main_token))
+                scope.set_resource(name, LazyImport(import_.root, what, as_, import_.relative, import_.main_token))
 
         for definition in definitions:
-            self._set_definition(result, definition.name.body, definition.value)
+            scope.set_resource(definition.name.body, definition.value)
 
-        parent_resources.update(result)
-        return parent_resources
+        parent_scope.overwrite(scope)
+        return parent_scope
 
     # TODO: change signature to path, source, shortcut
     def _resolve_path(self, path: str, source: str = ''):
@@ -210,11 +164,86 @@ class ResourceManager:
         path = os.path.expanduser(path)
         return os.path.realpath(path)
 
-    def _define_resource(self, node: Structure):
+    def _render(self, node: Structure):
         self._definitions_stack.append(node)
-        value = node.render(self)
+        try:
+            value = node.render(self)
+        except BaseException as e:
+            if not self._definitions_stack:
+                raise
+            # TODO: should all the traceback be printed?
+            definition = self._definitions_stack[0]
+            self._definitions_stack = []
+
+            raise RuntimeError('An exception occurred while ' + definition.error_message() +
+                               '\n    at %d:%d in %s' % definition.position()) from e
         self._definitions_stack.pop()
         return value
+
+    def _render_lambda(self, node: Lambda):
+        assert self._scopes
+        return LambdaFunction(node, self._scopes[-1], self)
+
+    def _render_resource(self, node: Resource):
+        assert self._scopes
+        return self._scopes[-1].get_resource(node.name.body, self._render)
+
+    def _render_get_attribute(self, node: GetAttribute):
+        data = self._render(node.target)
+        return getattr(data, node.name.body)
+
+    def _render_get_item(self, node: GetItem):
+        target = self._render(node.target)
+        args = tuple(self._render(arg) for arg in node.args)
+        if not node.trailing_coma and len(args) == 1:
+            args = args[0]
+        return target[args]
+
+    def _render_call(self, node: Call):
+        target = self._render(node.target)
+        args = []
+        for vararg, arg in zip(node.varargs, node.args):
+            temp = self._render(arg)
+            if vararg:
+                args.extend(temp)
+            else:
+                args.append(temp)
+        kwargs = {param.name.body: self._render(param.value) for param in node.params}
+        if node.lazy:
+            return functools.partial(target, *args, **kwargs)
+        return target(*args, **kwargs)
+
+    def _render_module(self, node: Module):
+        if self.get_module is None:
+            raise ValueError('The function "get_module" was not provided, so your modules are unreachable')
+        return self.get_module(node.module_type.body, node.module_name.body)
+
+    def _render_literal(self, node: Literal):
+        return eval(node.value.body)
+
+    def _render_array(self, node: Array):
+        return [self._render(x) for x in node.values]
+
+    def _render_dictionary(self, node: Dictionary):
+        return {self._render(key): self._render(value) for key, value in node.pairs}
+
+    def _render_lazy_import(self, node: LazyImport):
+        assert not node.relative
+        if not node.from_:
+            result = importlib.import_module(node.what)
+            packages = node.what.split('.')
+            if len(packages) > 1 and not node.as_:
+                # import a.b.c
+                return sys.modules[packages[0]]
+            return result
+        try:
+            return getattr(importlib.import_module(node.from_), node.what)
+        except AttributeError:
+            pass
+        try:
+            return importlib.import_module(node.what, node.from_)
+        except ModuleNotFoundError:
+            return importlib.import_module(node.from_ + '.' + node.what)
 
 
 read_config = ResourceManager.read_config

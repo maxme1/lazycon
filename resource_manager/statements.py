@@ -1,6 +1,4 @@
 import os
-import sys
-import importlib
 from typing import List
 
 from .structures import Structure, Token
@@ -84,24 +82,6 @@ class LazyImport(Structure):
         super().__init__(main_token)
         self.from_, self.what, self.as_ = from_, what, as_
         self.relative = relative
-
-    def render(self, interpreter):
-        assert not self.relative
-        if not self.from_:
-            result = importlib.import_module(self.what)
-            packages = self.what.split('.')
-            if len(packages) > 1 and not self.as_:
-                # import a.b.c
-                return sys.modules[packages[0]]
-            return result
-        try:
-            return getattr(importlib.import_module(self.from_), self.what)
-        except AttributeError:
-            pass
-        try:
-            return importlib.import_module(self.what, self.from_)
-        except ModuleNotFoundError:
-            return importlib.import_module(self.from_ + '.' + self.what)
 
     def to_str(self, level):
         result = ''

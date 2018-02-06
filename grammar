@@ -23,11 +23,12 @@ params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
 positional = '*'? expression (',' '*'? expression)*
 keyword = definition (',' definition)*
 
-data = module | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
+data = lambda | module | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
 module = IDENTIFIER ':' IDENTIFIER
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = expression ':' expression
 array = '[' (expression (',' expression)* ','?)? ']'
+lambda = 'lambda' (IDENTIFIER (',' IDENTIFIER)*)? ':' expression
 
 // this is an approximate regex. the true one is simply imported from `tokenize`
 STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1'''
