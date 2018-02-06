@@ -29,6 +29,7 @@ class ResourceManager:
         self._imported_configs = {}
         self._defined_resources = OrderedDict()
         self._undefined_resources = OrderedDict()
+        self._scopes = []
         self._request_stack = []
         self._definitions_stack = []
 

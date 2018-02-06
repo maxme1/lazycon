@@ -1,4 +1,14 @@
+import re
+
 from .token import Token
+
+first_cap = re.compile('(.)([A-Z][a-z]+)')
+all_cap = re.compile('([a-z0-9])([A-Z])')
+
+
+def snake_case(name):
+    name = first_cap.sub(r'\1_\2', name)
+    return all_cap.sub(r'\1_\2', name).lower()
 
 
 class Structure:
@@ -6,7 +16,7 @@ class Structure:
         self.main_token = main_token
 
     def render(self, interpreter):
-        raise NotImplementedError
+        print(snake_case(self.__class__.__name__))
 
     def to_str(self, level):
         raise NotImplementedError

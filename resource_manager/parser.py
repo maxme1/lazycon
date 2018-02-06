@@ -29,7 +29,19 @@ class Parser:
             return self.array()
         if self.matches(TokenType.DICT_OPEN):
             return self.dictionary()
+        if self.matches(TokenType.LAMBDA):
+            return self.lambda_()
         return Literal(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
+
+    def lambda_(self):
+        token = self.require(TokenType.LAMBDA)
+        params = []
+        if self.matches(TokenType.IDENTIFIER):
+            params = [self.advance()]
+            while self.ignore(TokenType.COMA):
+                params.append(self.require(TokenType.IDENTIFIER))
+        self.require(TokenType.COLON)
+        return Lambda(params, self.expression(), token)
 
     def is_keyword(self):
         return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1)

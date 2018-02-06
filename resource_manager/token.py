@@ -8,6 +8,7 @@ class TokenType(Enum):
     NUMBER = auto()
     LITERAL = auto()
     IDENTIFIER = auto()
+    LAMBDA = auto()
 
     COLON = auto()
     COMA = auto()
@@ -38,6 +39,7 @@ RESERVED = {
     'import': TokenType.IMPORT,
     'as': TokenType.AS,
     'from': TokenType.FROM,
+    'lambda': TokenType.LAMBDA,
 }
 
 LAZY = re.compile(r'^#\s*lazy\s*$')

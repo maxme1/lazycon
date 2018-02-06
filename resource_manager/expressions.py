@@ -1,7 +1,28 @@
 import functools
+from typing import List
 
 from .structures import Structure
 from .token import Token
+
+
+class Lambda(Structure):
+    def __init__(self, params: List[Token], expression: Structure, main_token):
+        super().__init__(main_token)
+        self.expression = expression
+        self.params = params
+
+    def render(self, interpreter):
+        def f(*args):
+            # TODO: checks
+            interpreter._scopes.append({x.body: y for x, y in zip(self.params, args)})
+            result = interpreter._define_resource(self.expression)
+            interpreter._scopes.pop()
+            return result
+
+        return f
+
+    def to_str(self, level):
+        return 'lambda ' + ','.join(x.body for x in self.params) + ': ' + self.expression.to_str(level + 1)
 
 
 class Resource(Structure):
@@ -10,7 +31,11 @@ class Resource(Structure):
         self.name = name
 
     def render(self, interpreter):
-        return interpreter._get_resource(self.name.body)
+        name = self.name.body
+        for scope in reversed(interpreter._scopes):
+            if name in scope:
+                return scope[name]
+        return interpreter._get_resource(name)
 
     def to_str(self, level):
         return self.name.body
@@ -107,7 +132,7 @@ class Call(Structure):
 
         body = lazy + ',\n'.join(body)
         if body:
-            body = '\n' + body + '    ' * level + '\n'
+            body = '\n' + body + '\n' + '    ' * level
 
         return target + '(' + body + ')'
 
