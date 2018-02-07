@@ -30,7 +30,8 @@ class TokenType(Enum):
 
 
 REGEXPS = {
-    TokenType.NUMBER: re.compile(Number),
+    # TODO: we need the minus, because there is no `-` operator
+    TokenType.NUMBER: re.compile('-?' + Number),
     TokenType.STRING: re.compile(String, flags=re.UNICODE),
     TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
 }
