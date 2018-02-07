@@ -105,7 +105,7 @@ class ResourceManager:
         assert len(self._scopes) == 1
         # TODO: what if some of the resources were already rendered?
         self._scopes[0].overwrite(scope)
-        SyntaxTree.analyze(scope)
+        SyntaxTree.analyze(self._scopes[0])
 
     def _import(self, absolute_path: str) -> Scope:
         if absolute_path in self._imported_configs:

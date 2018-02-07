@@ -13,7 +13,7 @@ class SyntaxTree:
         self._duplicate_arguments = defaultdict(list)
 
         self._scopes = []
-        self._global = {}
+        self._global = {x: False for x in resources}
         self._structure_types = []
         for name, node in resources.items():
             self._analyze_tree(name)
@@ -49,7 +49,6 @@ class SyntaxTree:
 
     def _analyze_tree(self, name):
         self._request_stack.append(name)
-        self._global[name] = False
         self._analyze_node(self.resources[name])
         self._global[name] = True
         self._request_stack.pop()
@@ -70,9 +69,12 @@ class SyntaxTree:
             self.undefined[source].add(name)
             return
         # cycle
-        if not self._global[name]:
+        if name in self._request_stack:
             prefix = " -> ".join(self._request_stack)
             self.cycles[source].add('{} -> {}'.format(prefix, name))
+
+        if not self._global[name]:
+            self._analyze_tree(name)
 
     def _render_get_attribute(self, node: GetAttribute):
         self._analyze_node(node.target)
