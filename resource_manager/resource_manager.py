@@ -4,7 +4,7 @@ import importlib
 from typing import Callable
 
 from .parser import parse_file, parse_string
-from .helpers import Scope, LambdaFunction
+from .helpers import Scope
 from .tree_analysis import SyntaxTree
 from .structures import *
 
@@ -182,7 +182,24 @@ class ResourceManager:
 
     def _render_lambda(self, node: Lambda):
         assert self._scopes
-        return LambdaFunction(node, self._scopes[-1], self)
+        upper_scope = self._scopes[-1]
+
+        def f(*args):
+            if len(args) != len(node.params):
+                raise ValueError('Function requires %d argument(s), but %d provided' % (len(node.params), len(args)))
+            scope = Scope()
+            for x, y in zip(node.params, args):
+                scope.define_resource(x.body, y)
+            scope.set_upper(upper_scope)
+
+            self._scopes.append(scope)
+            try:
+                result = self._render(node.expression)
+            finally:
+                self._scopes.pop()
+            return result
+
+        return f
 
     def _render_resource(self, node: Resource):
         assert self._scopes

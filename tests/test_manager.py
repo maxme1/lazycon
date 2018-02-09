@@ -78,6 +78,11 @@ class TestResourceManager(unittest.TestCase):
         self.assertEqual(8, rm.e())
         self.assertListEqual([1, 8, 32], rm.test)
 
+    def test_lambda_args(self):
+        rm = read_config('expressions/lambda_.config')
+        with self.assertRaises(ValueError):
+            rm.b(1, 2)
+
     def test_types(self):
         rm = read_config('expressions/types.config')
         try:

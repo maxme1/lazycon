@@ -41,23 +41,3 @@ class Scope:
         resource = renderer(node)
         self._defined_resources[name] = resource
         return resource
-
-
-class LambdaFunction:
-    def __init__(self, node, scope, interpreter):
-        self.node = node
-        self.scope = scope
-        self.interpreter = interpreter
-
-    def __call__(self, *args):
-        scope = Scope()
-        for x, y in zip(self.node.params, args):
-            scope.define_resource(x.body, y)
-        scope.set_upper(self.scope)
-
-        self.interpreter._scopes.append(scope)
-        try:
-            result = self.interpreter._render(self.node.expression)
-        finally:
-            self.interpreter._scopes.pop()
-        return result

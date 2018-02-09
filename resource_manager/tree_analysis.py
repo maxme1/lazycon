@@ -10,7 +10,7 @@ class SyntaxTree:
         self._request_stack = []
         self.cycles = defaultdict(set)
         self.undefined = defaultdict(set)
-        self._duplicate_arguments = defaultdict(list)
+        self.duplicate = defaultdict(list)
 
         self._scopes = []
         self._global = {x: False for x in resources}
@@ -18,43 +18,32 @@ class SyntaxTree:
         for name, node in resources.items():
             self._analyze_tree(name)
 
+    def _format(self, message, elements):
+        message += ':\n'
+        for source, item in elements.items():
+            message += '  in %s\n    ' % source
+            message += ', '.join(item)
+            message += '\n'
+        return message
+
     @staticmethod
     def analyze(scope: Scope):
         tree = SyntaxTree(scope._undefined_resources)
         message = ''
         if tree.cycles:
-            message += 'Cyclic dependencies found in the following resources:\n'
-            for source, cycles in tree.cycles.items():
-                message += '  in %s\n    ' % source
-                message += '\n    '.join(cycles)
-                message += '\n'
+            message += tree._format('Cyclic dependencies found', tree.cycles)
         if tree.undefined:
-            if message:
-                message += '\n'
-            message += 'Undefined resources found:\n'
-            for source, undefined in tree.undefined.items():
-                message += '  in %s\n    ' % source
-                message += ', '.join(undefined)
-                message += '\n'
-        if tree._duplicate_arguments:
-            if message:
-                message += '\n'
-            message += 'Duplicate arguments in lambda definition:\n'
-            for source, nodes in tree._duplicate_arguments.items():
-                message += '  in %s\n    at ' % source
-                message += ', '.join('%d:%d' % node.position()[:2] for node in nodes)
-                message += '\n'
+            message += tree._format('Undefined resources found', tree.undefined)
+        if tree.duplicate:
+            message += tree._format('Duplicate arguments in lambda definition', tree.duplicate)
         if message:
             raise RuntimeError(message)
 
     def _analyze_tree(self, name):
         self._request_stack.append(name)
-        self._analyze_node(self.resources[name])
+        self.resources[name].render(self)
         self._global[name] = True
         self._request_stack.pop()
-
-    def _analyze_node(self, node: Structure):
-        node.render(self)
 
     def _render_resource(self, node: Resource):
         name = node.name.body
@@ -72,39 +61,41 @@ class SyntaxTree:
         if name in self._request_stack:
             prefix = " -> ".join(self._request_stack)
             self.cycles[source].add('{} -> {}'.format(prefix, name))
+            return
 
         if not self._global[name]:
             self._analyze_tree(name)
 
     def _render_get_attribute(self, node: GetAttribute):
-        self._analyze_node(node.target)
+        node.target.render(self)
 
     def _render_get_item(self, node: GetItem):
-        self._analyze_node(node.target)
+        node.target.render(self)
         for arg in node.args:
-            self._analyze_node(arg)
+            arg.render(self)
 
     def _render_call(self, node: Call):
+        node.target.render(self)
         for arg in node.args:
-            self._analyze_node(arg)
+            arg.render(self)
         for param in node.params:
-            self._analyze_node(param.value)
+            param.value.render(self)
 
     def _render_array(self, node: Array):
         for x in node.values:
-            self._analyze_node(x)
+            x.render(self)
 
     def _render_dictionary(self, node: Dictionary):
         for key, value in node.pairs:
-            self._analyze_node(key)
-            self._analyze_node(value)
+            key.render(self)
+            value.render(self)
 
     def _render_lambda(self, node: Lambda):
         names = {x.body for x in node.params}
         if len(names) != len(node.params):
-            self._duplicate_arguments[node.source()].append(node)
+            self.duplicate[node.source()].append('at %d:%d' % node.position()[:2])
         self._scopes.append(names)
-        self._analyze_node(node.expression)
+        node.expression.render(self)
         self._scopes.pop()
 
     def _render_lazy_import(self, node: LazyImport):
