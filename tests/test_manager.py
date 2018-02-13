@@ -5,19 +5,6 @@ import numpy as np
 from resource_manager.resource_manager import ResourceManager, read_config
 
 
-# TODO: replace with mock
-def raises(module_type, module_name):
-    name = f'{module_type}.{module_name}'
-
-    if name == 'dataset.isles':
-        raise KeyError
-
-    def x(**kwargs):
-        return name
-
-    return x
-
-
 class TestResourceManager(unittest.TestCase):
     def test_string_input(self):
         rm = ResourceManager()
@@ -115,6 +102,10 @@ class TestResourceManager(unittest.TestCase):
             read_config('misc/duplicate.config')
 
     def test_exc_handling(self):
-        rm = read_config('expressions/module.config', get_module=raises)
+        rm = ResourceManager()
+        rm.string_input('''
+        from builtins import sum
+        a = sum(1)
+        ''')
         with self.assertRaises(RuntimeError):
-            rm.dataset
+            rm.a

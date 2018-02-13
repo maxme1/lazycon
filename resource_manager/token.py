@@ -61,9 +61,9 @@ SINGLE = {
 
 
 class Token:
-    def __init__(self, body, type, line=None):
+    def __init__(self, body, token_type, line=None):
         self.body = body
-        self.type = type
+        self.type = token_type
         self.line = line
         self.column = None
         self.source = None

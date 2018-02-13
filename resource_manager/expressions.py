@@ -96,19 +96,6 @@ class Call(Structure):
         return 'calling the resource %s' % self.target.to_str(0)
 
 
-class Module(Structure):
-    def __init__(self, module_type, module_name):
-        super().__init__(module_type)
-        self.module_type = module_type
-        self.module_name = module_name
-
-    def to_str(self, level):
-        return '{}:{}'.format(self.module_type.body, self.module_name.body)
-
-    def error_message(self):
-        return 'looking for the module %s' % self.to_str(0)
-
-
 class Literal(Structure):
     def __init__(self, value):
         super().__init__(value)

@@ -1,12 +1,11 @@
-import sys
 import functools
 import importlib
-from typing import Callable
+import sys
 
-from .parser import parse_file, parse_string
 from .helpers import Scope
-from .tree_analysis import SyntaxTree
+from .parser import parse_file, parse_string
 from .structures import *
+from .tree_analysis import SyntaxTree
 
 
 class ResourceManager:
@@ -17,12 +16,9 @@ class ResourceManager:
     ----------
     shortcuts: dict, optional
         a dict that maps keywords to paths. It is used to resolve paths during import.
-    get_module: callable(module_type, module_name) -> object, optional
-        a callable that loads external modules
     """
 
-    def __init__(self, shortcuts: dict = None, get_module: Callable = None):
-        self.get_module = get_module
+    def __init__(self, shortcuts: dict = None):
         self._shortcuts = shortcuts or {}
 
         self._imported_configs = {}
@@ -31,7 +27,7 @@ class ResourceManager:
         self._definitions_stack = []
 
     @classmethod
-    def read_config(cls, source_path: str, shortcuts: dict = None, get_module: Callable = None):
+    def read_config(cls, source_path: str, shortcuts: dict = None):
         """
         Import the config located at `source_path` and return a ResourceManager instance.
 
@@ -41,14 +37,12 @@ class ResourceManager:
             path to the config to import
         shortcuts: dict, optional
             a dict that maps keywords to paths. It is used to resolve paths during import.
-        get_module: callable(module_type, module_name) -> object, optional
-            a callable that loads external modules
 
         Returns
         -------
         resource_manager: ResourceManager
         """
-        rm = cls(shortcuts, get_module)
+        rm = cls(shortcuts)
         rm.import_config(source_path)
         return rm
 
@@ -229,11 +223,6 @@ class ResourceManager:
         if node.lazy:
             return functools.partial(target, *args, **kwargs)
         return target(*args, **kwargs)
-
-    def _render_module(self, node: Module):
-        if self.get_module is None:
-            raise ValueError('The function "get_module" was not provided, so your modules are unreachable')
-        return self.get_module(node.module_type.body, node.module_name.body)
 
     def _render_literal(self, node: Literal):
         return eval(node.value.body)

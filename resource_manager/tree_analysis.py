@@ -103,6 +103,3 @@ class SyntaxTree:
 
     def _render_literal(self, node: Literal):
         pass
-
-    def _render_module(self, node: Module):
-        pass

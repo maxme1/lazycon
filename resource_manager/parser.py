@@ -1,5 +1,3 @@
-import os
-
 from .tokenizer import TokenType, tokenize
 from .structures import *
 
@@ -9,22 +7,9 @@ class Parser:
         self.tokens = tokens
         self.position = 0
 
-    def module(self):
-        module_type = self.require(TokenType.IDENTIFIER)
-        self.require(TokenType.COLON)
-        name = self.require(TokenType.IDENTIFIER)
-
-        return Module(module_type, name)
-
     def data(self):
         if self.matches(TokenType.IDENTIFIER):
-            # module
-            if self.matches(TokenType.COLON, shift=1):
-                return self.module()
-            else:
-                # identifier
-                return Resource(self.advance())
-
+            return Resource(self.advance())
         if self.matches(TokenType.BRACKET_OPEN):
             return self.array()
         if self.matches(TokenType.DICT_OPEN):
@@ -183,7 +168,6 @@ class Parser:
         if self.ignore(TokenType.ASTERISK):
             return ImportStarred(root, relative)
 
-        # TODO: support
         if relative:
             self.throw("Relative imports are only allowed for config files", main_token)
 

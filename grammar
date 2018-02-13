@@ -23,11 +23,11 @@ params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
 positional = '*'? expression (',' '*'? expression)*
 keyword = definition (',' definition)*
 
-data = lambda | module | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
-module = IDENTIFIER ':' IDENTIFIER
+data = lambda | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = expression ':' expression
 array = '[' (expression (',' expression)* ','?)? ']'
+# TODO: add varargs
 lambda = 'lambda' (IDENTIFIER (',' IDENTIFIER)*)? ':' expression
 
 // this is an approximate regex. the true one is simply imported from `tokenize`
