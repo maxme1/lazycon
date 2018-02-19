@@ -1,6 +1,6 @@
 from typing import List
 
-from .structures import Structure
+from .structures import Structure, MAX_COLUMNS
 from .token import Token
 
 
@@ -111,10 +111,11 @@ class Array(Structure):
         self.values = values
 
     def to_str(self, level):
-        result = '[\n'
-        for value in self.values:
-            result += '    ' * (level + 1) + value.to_str(level + 1) + ',\n'
-        return result + '    ' * level + ']'
+        body = ', '.join(value.to_str(0) for value in self.values)
+        if len(body) > MAX_COLUMNS:
+            body = ',\n'.join(self.level(level + 1) + value.to_str(level + 1) for value in self.values)
+            body = '\n' + body + self.level(level) + '\n'
+        return '[' + body + ']'
 
 
 class Dictionary(Structure):
@@ -123,7 +124,9 @@ class Dictionary(Structure):
         self.pairs = pairs
 
     def to_str(self, level):
-        result = '{\n'
-        for key, value in self.pairs:
-            result += '    ' * (level + 1) + '{}: {},\n'.format(key.to_str(level + 1), value.to_str(level + 1))
-        return result[:-1] + '    ' * level + '\n}'
+        body = ', '.join(key.to_str(0) + ': ' + value.to_str(0) for key, value in self.pairs)
+        if len(body) > MAX_COLUMNS:
+            body = ',\n'.join(self.level(level + 1) + key.to_str(level + 1) + ': ' + value.to_str(level + 1)
+                              for key, value in self.pairs)
+            body = '\n' + body + self.level(level) + '\n'
+        return '{' + body + '}'

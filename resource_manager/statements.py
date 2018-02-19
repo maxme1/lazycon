@@ -39,42 +39,44 @@ class ImportPython(Structure):
 class ImportStarred(Structure):
     def __init__(self, root: List[Token], relative: bool):
         super().__init__(root[0])
-
+        root = [x.body for x in root]
+        if relative:
+            self.shortcut = ''
+        else:
+            self.shortcut = root.pop(0)
         self.root = root
         self.relative = relative
 
     def get_paths(self):
-        parent = ''
-        root = self.root
-        if not self.relative:
-            parent = root[0].body + ':'
-            root = root[1:]
-        return [parent + os.sep.join(x.body for x in root) + '.config']
+        return [(self.shortcut, os.path.join(*self.root) + '.config')]
 
     def to_str(self, level):
-        result = 'from '
-        if self.relative:
-            result += '.'
-        return result + '.'.join(x.body for x in self.root) + ' import *'
+        return 'from ' + self.shortcut + '.' + '.'.join(self.root) + ' import *'
 
 
 class ImportPath(Structure):
     def __init__(self, root, paths, main_token):
         super().__init__(main_token)
-        self.root = root
-        self.paths = paths
+        self.from_ = root
+        self.paths = [x.body for x in paths]
+
+        root = eval(root.body) if root else ''
+        parts = root.split(':', 1)
+        assert len(parts) <= 2
+        if len(parts) == 2:
+            self.shortcut = parts.pop(0)
+        else:
+            self.shortcut = ''
+        self.root = parts[0]
 
     def get_paths(self):
-        paths = [eval(x.body) for x in self.paths]
-        if not self.root:
-            return paths
-        return [os.path.join(self.root.body, x) for x in paths]
+        return [(self.shortcut, os.path.join(self.root, path)) for path in map(eval, self.paths)]
 
     def to_str(self, level):
         result = ''
-        if self.root:
-            result = 'from ' + self.root.body
-        return result + 'import ' + ','.join(x.body for x in self.paths)
+        if self.from_:
+            result = 'from ' + self.from_.body
+        return result + 'import ' + ','.join(self.paths)
 
 
 class LazyImport(Structure):

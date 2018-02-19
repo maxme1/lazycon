@@ -152,8 +152,11 @@ class Parser:
             # TODO: I guess this should become legacy
             if self.matches(TokenType.STRING):
                 root = self.advance()
+                if root.body.count(':') > 1:
+                    raise self.throw('The path cannot contain more than one ":" separator.', root)
+
                 token = self.require(TokenType.IMPORT)
-                return ImportPath(root, self.paths(), token)
+                return ImportPath(root, self.paths(0), token)
 
             relative = self.ignore(TokenType.DOT)
             root = self.dotted()
@@ -163,7 +166,9 @@ class Parser:
         # import by path
         # TODO: legacy too
         if self.matches(TokenType.STRING) or self.matches(TokenType.STRING, shift=1):
-            return ImportPath(root, self.paths(), main_token)
+            if root:
+                self.throw('If you use import by path, the "from" part must also contain a path', main_token)
+            return ImportPath(root, self.paths(1), main_token)
 
         if self.ignore(TokenType.ASTERISK):
             return ImportStarred(root, relative)
@@ -180,7 +185,7 @@ class Parser:
             self.require(TokenType.PAR_CLOSE)
         return ImportPython(root, values, relative, main_token)
 
-    def paths(self):
+    def paths(self, count):
         block = self.ignore(TokenType.PAR_OPEN)
 
         paths = [self.require(TokenType.STRING)]
@@ -188,6 +193,10 @@ class Parser:
         while self.matches(TokenType.STRING):
             paths.append(self.advance())
             self.ignore(TokenType.COMA)
+
+        for path in paths:
+            if path.body.count(':') > count:
+                raise self.throw('The resulting path cannot contain more than one ":" separator.', path)
 
         if block:
             self.require(TokenType.PAR_CLOSE)
@@ -210,7 +219,7 @@ class Parser:
 
         return definitions, parents, imports
 
-    def advance(self):
+    def advance(self) -> Token:
         result = self.current
         self.position += 1
         return result
@@ -236,7 +245,7 @@ class Parser:
     def throw(self, message, token):
         raise SyntaxError(message + '\n  at {}:{}'.format(token.line, token.column))
 
-    def require(self, *types):
+    def require(self, *types) -> Token:
         if not self.matches(*types):
             self.throw('Unexpected token: "%s"' % self.current.body, self.current)
         return self.advance()
@@ -255,7 +264,7 @@ def parse(source, source_path):
             token.set_source(source_path)
         return Parser(tokens).parse()
     except SyntaxError as e:
-        raise SyntaxError('{} in {}'.format(e.msg, source_path)) from None
+        raise SyntaxError('{} in {}'.format(e.msg, source_path or '<string input>')) from None
 
 
 def parse_file(config_path):
@@ -264,4 +273,4 @@ def parse_file(config_path):
 
 
 def parse_string(source):
-    return parse(source, '<string input>')
+    return parse(source, '')

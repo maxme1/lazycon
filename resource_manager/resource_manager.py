@@ -48,14 +48,13 @@ class ResourceManager:
 
     def import_config(self, path: str):
         """Import the config located at `path`."""
-        path = self._resolve_path(path)
+        path = self._resolve_path(path, '', '')
         result = self._import(path)
         self._update_resources(result)
 
     def string_input(self, source: str):
         """Interpret the `source`."""
-        definitions, parents, imports = parse_string(source)
-        result = self._get_resources(definitions, imports, parents, '')
+        result = self._get_resources(*parse_string(source))
         self._update_resources(result)
 
     def render_config(self) -> str:
@@ -107,17 +106,16 @@ class ResourceManager:
         # avoiding cycles
         self._imported_configs[absolute_path] = Scope()
 
-        definitions, parents, imports = parse_file(absolute_path)
-        result = self._get_resources(definitions, imports, parents, absolute_path)
+        result = self._get_resources(*parse_file(absolute_path))
         self._imported_configs[absolute_path] = result
         return result
 
-    def _get_resources(self, definitions: List[Definition], imports: List[ImportPython], parents, absolute_path):
-        # TODO: absolute_path is redundant
+    def _get_resources(self, definitions: List[Definition], parents, imports: List[ImportPython]):
         parent_scope = Scope()
         for parent in parents:
-            for path in parent.get_paths():
-                path = self._resolve_path(path, absolute_path)
+            source_path = parent.main_token.source
+            for shortcut, path in parent.get_paths():
+                path = self._resolve_path(path, source_path, shortcut)
                 parent_scope.overwrite(self._import(path))
 
         scope = Scope()
@@ -138,20 +136,14 @@ class ResourceManager:
         parent_scope.overwrite(scope)
         return parent_scope
 
-    # TODO: change signature to path, source, shortcut
-    def _resolve_path(self, path: str, source: str = ''):
-        if path.count(':') > 1:
-            raise SyntaxError('The path cannot contain more than one ":" separator.')
-
-        parts = path.split(':', 1)
-        if len(parts) > 1:
-            shortcut, root = parts
+    def _resolve_path(self, path: str, source: str, shortcut: str):
+        if shortcut:
             if shortcut not in self._shortcuts:
                 message = 'Shortcut "%s" is not recognized' % shortcut
                 if source:
                     message = 'Error while processing %s:\n ' % source + message
                 raise ValueError(message)
-            path = os.path.join(self._shortcuts[shortcut], root)
+            path = os.path.join(self._shortcuts[shortcut], path)
         else:
             path = os.path.join(os.path.dirname(source), path)
 

@@ -2,6 +2,7 @@ import re
 from enum import Enum, auto
 from tokenize import Number, String
 
+# TODO: move to Python's tokenizer
 
 class TokenType(Enum):
     STRING = auto()

@@ -4,6 +4,7 @@ from .token import Token
 
 first_cap = re.compile('(.)([A-Z][a-z]+)')
 all_cap = re.compile('([a-z0-9])([A-Z])')
+MAX_COLUMNS = 60
 
 
 def snake_case(name):
@@ -26,10 +27,13 @@ class Structure:
         return 'building the resource ' + self.to_str(0)
 
     def position(self):
-        return self.main_token.line, self.main_token.column, self.main_token.source
+        return self.main_token.line, self.main_token.column, self.source()
 
     def source(self):
-        return self.main_token.source
+        return self.main_token.source or '<string input>'
+
+    def level(self, level):
+        return '    ' * level
 
 
 from .expressions import *
