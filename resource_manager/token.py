@@ -1,12 +1,13 @@
 import re
-from enum import Enum, auto
 import token
+from enum import Enum
 
 
 class TokenType(Enum):
     STRING = token.STRING
     NUMBER = token.NUMBER
     IDENTIFIER = token.NAME
+    MINUS = token.MINUS
 
     COLON = token.COLON
     COMA = token.COMMA

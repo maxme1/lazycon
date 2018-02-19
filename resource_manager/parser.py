@@ -19,7 +19,13 @@ class Parser:
             return self.dictionary()
         if self.matches(TokenType.LAMBDA):
             return self.lambda_()
-        return Literal(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
+        if self.matches(TokenType.MINUS, TokenType.NUMBER):
+            return self.number()
+        return Literal(self.require(TokenType.STRING, TokenType.LITERAL))
+
+    def number(self):
+        minus = self.ignore(TokenType.MINUS)
+        return Number(self.require(TokenType.NUMBER), minus)
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
@@ -245,8 +251,10 @@ class Parser:
 
         return False
 
-    def throw(self, message, token):
-        raise SyntaxError(message + '\n  at %d:%d' % token.start)
+    @staticmethod
+    def throw(message, token):
+        source = token.source or '<string input>'
+        raise SyntaxError(message + '\n  at %d:%d in %s' % (token.start + (source,)))
 
     def require(self, *types) -> TokenInfo:
         if not self.matches(*types):
@@ -264,13 +272,9 @@ def parse(source, source_path):
     try:
         tokens = tokenize(source, source_path)
     except TokenError:
+        # TODO: describe error
         raise SyntaxError
-    try:
-        return Parser(tokens).parse()
-    # TODO: token already has the required information. move to parser's body
-    except SyntaxError as e:
-        raise
-        raise SyntaxError('{} in {}'.format(e.msg, source_path or '<string input>')) from None
+    return Parser(tokens).parse()
 
 
 def parse_file(config_path):

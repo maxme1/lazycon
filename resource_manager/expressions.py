@@ -105,6 +105,18 @@ class Literal(Structure):
         return self.value.body
 
 
+class Number(Literal):
+    def __init__(self, value, minus):
+        super().__init__(value)
+        self.minus = minus
+
+    def to_str(self, level):
+        result = ''
+        if self.minus:
+            result = '-'
+        return result + super().to_str(0)
+
+
 class Array(Structure):
     def __init__(self, values: list, main_token):
         super().__init__(main_token)
