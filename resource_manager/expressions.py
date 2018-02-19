@@ -1,11 +1,11 @@
 from typing import List
 
 from .structures import Structure, MAX_COLUMNS
-from .token import Token
+from .token import TokenWrapper
 
 
 class Lambda(Structure):
-    def __init__(self, params: List[Token], expression: Structure, main_token):
+    def __init__(self, params: List[TokenWrapper], expression: Structure, main_token):
         super().__init__(main_token)
         self.expression = expression
         self.params = params
@@ -15,7 +15,7 @@ class Lambda(Structure):
 
 
 class Resource(Structure):
-    def __init__(self, name: Token):
+    def __init__(self, name: TokenWrapper):
         super().__init__(name)
         self.name = name
 
@@ -24,7 +24,7 @@ class Resource(Structure):
 
 
 class GetAttribute(Structure):
-    def __init__(self, target: Structure, name: Token):
+    def __init__(self, target: Structure, name: TokenWrapper):
         super().__init__(name)
         self.target = target
         self.name = name

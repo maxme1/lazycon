@@ -28,13 +28,6 @@ class TestParser(unittest.TestCase):
                         temp = standardize(source)
                         self.assertEqual(temp, standardize(temp))
 
-    def test_unrecognized_token(self):
-        with self.assertRaises(SyntaxError):
-            tokenize('''
-            # unrecognized token:
-            &
-            ''')
-
     def test_unexpected_token(self):
         with self.assertRaises(SyntaxError):
             parse_string('a = [1, 2 3]')

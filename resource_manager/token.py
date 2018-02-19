@@ -1,76 +1,54 @@
 import re
 from enum import Enum, auto
-from tokenize import Number, String
+import token
 
-# TODO: move to Python's tokenizer
 
 class TokenType(Enum):
-    STRING = auto()
-    NUMBER = auto()
-    LITERAL = auto()
-    IDENTIFIER = auto()
-    LAMBDA = auto()
+    STRING = token.STRING
+    NUMBER = token.NUMBER
+    IDENTIFIER = token.NAME
 
-    COLON = auto()
-    COMA = auto()
-    EQUALS = auto()
-    DOT = auto()
-    BRACKET_OPEN = auto()
-    BRACKET_CLOSE = auto()
-    DICT_OPEN = auto()
-    DICT_CLOSE = auto()
+    COLON = token.COLON
+    COMA = token.COMMA
+    EQUALS = token.EQUAL
+    DOT = token.DOT
+    ASTERISK = token.STAR
+    BRACKET_OPEN = token.LSQB
+    BRACKET_CLOSE = token.RSQB
+    DICT_OPEN = token.LBRACE
+    DICT_CLOSE = token.RBRACE
+    PAR_OPEN = token.LPAR
+    PAR_CLOSE = token.RPAR
 
-    LAZY = auto()
-    IMPORT = auto()
-    FROM = auto()
-    AS = auto()
-    ASTERISK = auto()
+    # names
+    IMPORT = -1
+    LAMBDA = -2
+    FROM = -3
+    AS = -4
+    LITERAL = -5
+    LAZY = -6
 
-    PAR_OPEN = auto()
-    PAR_CLOSE = auto()
-
-
-REGEXPS = {
-    # TODO: we need the minus, because there is no `-` operator
-    TokenType.NUMBER: re.compile('-?' + Number),
-    TokenType.STRING: re.compile(String, flags=re.UNICODE),
-    TokenType.IDENTIFIER: re.compile(r'[^\d\W]\w*'),
-}
 
 RESERVED = {
     'import': TokenType.IMPORT,
     'as': TokenType.AS,
     'from': TokenType.FROM,
     'lambda': TokenType.LAMBDA,
+    'None': TokenType.LITERAL,
+    'True': TokenType.LITERAL,
+    'False': TokenType.LITERAL
 }
 
 LAZY = re.compile(r'^#\s*lazy\s*$')
-LITERALS = ('None', 'True', 'False')
-SINGLE = {
-    ',': TokenType.COMA,
-    '*': TokenType.ASTERISK,
-    ':': TokenType.COLON,
-    '.': TokenType.DOT,
-    '=': TokenType.EQUALS,
-    '[': TokenType.BRACKET_OPEN,
-    ']': TokenType.BRACKET_CLOSE,
-    '{': TokenType.DICT_OPEN,
-    '}': TokenType.DICT_CLOSE,
-    '(': TokenType.PAR_OPEN,
-    ')': TokenType.PAR_CLOSE,
-}
 
 
-class Token:
-    def __init__(self, body, token_type, line=None):
-        self.body = body
-        self.type = token_type
-        self.line = line
-        self.column = None
-        self.source = None
-
-    def add_info(self, line, column):
-        self.line, self.column = line, column
-
-    def set_source(self, source):
+class TokenWrapper:
+    def __init__(self, token, source, token_type):
         self.source = source
+        self.token = token
+        self.body = token.string
+        if token_type is not None:
+            self.exact_type = token_type.value
+
+    def __getattr__(self, item):
+        return getattr(self.token, item)
