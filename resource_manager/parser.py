@@ -1,9 +1,12 @@
-from .tokenizer import TokenType, tokenize
+from tokenize import TokenError
+
+from .tokenizer import tokenize
+from .token import TokenType
 from .structures import *
 
 
 class Parser:
-    def __init__(self, tokens):
+    def __init__(self, tokens: List[TokenWrapper]):
         self.tokens = tokens
         self.position = 0
 
@@ -16,7 +19,13 @@ class Parser:
             return self.dictionary()
         if self.matches(TokenType.LAMBDA):
             return self.lambda_()
-        return Literal(self.require(TokenType.STRING, TokenType.NUMBER, TokenType.LITERAL))
+        if self.matches(TokenType.MINUS, TokenType.NUMBER):
+            return self.number()
+        return Literal(self.require(TokenType.STRING, TokenType.LITERAL))
+
+    def number(self):
+        minus = self.ignore(TokenType.MINUS)
+        return Number(self.require(TokenType.NUMBER), minus)
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
@@ -219,7 +228,7 @@ class Parser:
 
         return definitions, parents, imports
 
-    def advance(self) -> Token:
+    def advance(self) -> TokenWrapper:
         result = self.current
         self.position += 1
         return result
@@ -237,15 +246,17 @@ class Parser:
             return False
 
         for tokenType in types:
-            if temp.type == tokenType:
+            if temp.exact_type == tokenType.value:
                 return True
 
         return False
 
-    def throw(self, message, token):
-        raise SyntaxError(message + '\n  at {}:{}'.format(token.line, token.column))
+    @staticmethod
+    def throw(message, token):
+        source = token.source or '<string input>'
+        raise SyntaxError(message + '\n  at %d:%d in %s' % (token.line, token.column, source))
 
-    def require(self, *types) -> Token:
+    def require(self, *types) -> TokenWrapper:
         if not self.matches(*types):
             self.throw('Unexpected token: "%s"' % self.current.body, self.current)
         return self.advance()
@@ -259,12 +270,11 @@ class Parser:
 
 def parse(source, source_path):
     try:
-        tokens = tokenize(source)
-        for token in tokens:
-            token.set_source(source_path)
-        return Parser(tokens).parse()
-    except SyntaxError as e:
-        raise SyntaxError('{} in {}'.format(e.msg, source_path or '<string input>')) from None
+        tokens = tokenize(source, source_path)
+    except TokenError as e:
+        source_path = source_path or '<string input>'
+        raise SyntaxError(e.args[0] + ' at %d:%d in %s' % (e.args[1] + (source_path,))) from None
+    return Parser(tokens).parse()
 
 
 def parse_file(config_path):

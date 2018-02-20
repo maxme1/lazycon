@@ -1,11 +1,11 @@
 from typing import List
 
 from .structures import Structure, MAX_COLUMNS
-from .token import Token
+from .token import TokenWrapper
 
 
 class Lambda(Structure):
-    def __init__(self, params: List[Token], expression: Structure, main_token):
+    def __init__(self, params: List[TokenWrapper], expression: Structure, main_token):
         super().__init__(main_token)
         self.expression = expression
         self.params = params
@@ -15,7 +15,7 @@ class Lambda(Structure):
 
 
 class Resource(Structure):
-    def __init__(self, name: Token):
+    def __init__(self, name: TokenWrapper):
         super().__init__(name)
         self.name = name
 
@@ -24,7 +24,7 @@ class Resource(Structure):
 
 
 class GetAttribute(Structure):
-    def __init__(self, target: Structure, name: Token):
+    def __init__(self, target: Structure, name: TokenWrapper):
         super().__init__(name)
         self.target = target
         self.name = name
@@ -84,6 +84,7 @@ class Call(Structure):
             body.append(prefix + arg.to_str(level + 1))
 
         for param in self.params:
+            # TODO: there should be no space before and after `=`
             body.append('    ' * (level + 1) + param.to_str(level + 1))
 
         body = lazy + ',\n'.join(body)
@@ -103,6 +104,18 @@ class Literal(Structure):
 
     def to_str(self, level):
         return self.value.body
+
+
+class Number(Literal):
+    def __init__(self, value, minus):
+        super().__init__(value)
+        self.minus = minus
+
+    def to_str(self, level):
+        result = ''
+        if self.minus:
+            result = '-'
+        return result + super().to_str(0)
 
 
 class Array(Structure):

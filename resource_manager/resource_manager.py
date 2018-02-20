@@ -219,6 +219,12 @@ class ResourceManager:
     def _render_literal(self, node: Literal):
         return eval(node.value.body)
 
+    def _render_number(self, node: Number):
+        num = eval(node.value.body)
+        if node.minus:
+            num = -num
+        return num
+
     def _render_array(self, node: Array):
         return [self._render(x) for x in node.values]
 

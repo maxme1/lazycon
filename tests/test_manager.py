@@ -42,7 +42,7 @@ class TestResourceManager(unittest.TestCase):
 
     def test_import_in_string(self):
         rm = ResourceManager()
-        rm.string_input('''from .expressions.types import *''')
+        rm.string_input('from .expressions.types import *')
         self.assertEqual(1, rm.one)
 
     def test_attr_error(self):

@@ -1,11 +1,11 @@
 import os
 from typing import List
 
-from .structures import Structure, Token
+from .structures import Structure, TokenWrapper
 
 
 class Definition(Structure):
-    def __init__(self, name: Token, value: Structure):
+    def __init__(self, name: TokenWrapper, value: Structure):
         super().__init__(name)
         self.name = name
         self.value = value
@@ -15,7 +15,7 @@ class Definition(Structure):
 
 
 class ImportPython(Structure):
-    def __init__(self, root: List[Token], values: list, relative: bool, main_token):
+    def __init__(self, root: List[TokenWrapper], values: list, relative: bool, main_token):
         super().__init__(main_token)
         self.from_ = root
         self.root = '.'.join(x.body for x in root)
@@ -37,7 +37,7 @@ class ImportPython(Structure):
 
 
 class ImportStarred(Structure):
-    def __init__(self, root: List[Token], relative: bool):
+    def __init__(self, root: List[TokenWrapper], relative: bool):
         super().__init__(root[0])
         root = [x.body for x in root]
         if relative:
@@ -80,7 +80,7 @@ class ImportPath(Structure):
 
 
 class LazyImport(Structure):
-    def __init__(self, from_, what, as_, relative: bool, main_token: Token):
+    def __init__(self, from_, what, as_, relative: bool, main_token: TokenWrapper):
         super().__init__(main_token)
         self.from_, self.what, self.as_ = from_, what, as_
         self.relative = relative

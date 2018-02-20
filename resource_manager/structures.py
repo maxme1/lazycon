@@ -1,6 +1,6 @@
 import re
 
-from .token import Token
+from .token import TokenWrapper
 
 first_cap = re.compile('(.)([A-Z][a-z]+)')
 all_cap = re.compile('([a-z0-9])([A-Z])')
@@ -13,7 +13,7 @@ def snake_case(name):
 
 
 class Structure:
-    def __init__(self, main_token: Token):
+    def __init__(self, main_token: TokenWrapper):
         self.main_token = main_token
 
     def render(self, walker):
