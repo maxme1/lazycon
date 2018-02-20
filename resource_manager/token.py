@@ -1,9 +1,14 @@
 import re
 import token
-from enum import Enum
+from enum import Enum, auto, unique
 
 
+@unique
 class TokenType(Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        # for a proper auto()
+        return -len([x for x in last_values if x < 0]) - 1
+
     STRING = token.STRING
     NUMBER = token.NUMBER
     IDENTIFIER = token.NAME
@@ -22,12 +27,12 @@ class TokenType(Enum):
     PAR_CLOSE = token.RPAR
 
     # names
-    IMPORT = -1
-    LAMBDA = -2
-    FROM = -3
-    AS = -4
-    LITERAL = -5
-    LAZY = -6
+    IMPORT = auto()
+    LAMBDA = auto()
+    FROM = auto()
+    AS = auto()
+    LITERAL = auto()
+    LAZY = auto()
 
 
 RESERVED = {
