@@ -1,14 +1,11 @@
 import re
 import token
-from enum import Enum, auto, unique
+from enum import Enum, unique
+from tokenize import TokenInfo
 
 
 @unique
 class TokenType(Enum):
-    def _generate_next_value_(name, start, count, last_values):
-        # for a proper auto()
-        return -len([x for x in last_values if x < 0]) - 1
-
     STRING = token.STRING
     NUMBER = token.NUMBER
     IDENTIFIER = token.NAME
@@ -27,12 +24,7 @@ class TokenType(Enum):
     PAR_CLOSE = token.RPAR
 
     # names
-    IMPORT = auto()
-    LAMBDA = auto()
-    FROM = auto()
-    AS = auto()
-    LITERAL = auto()
-    LAZY = auto()
+    IMPORT, LAMBDA, FROM, AS, LITERAL, LAZY = range(-6, 0)
 
 
 RESERVED = {
@@ -46,15 +38,17 @@ RESERVED = {
 }
 
 LAZY = re.compile(r'^#\s*lazy\s*$')
+EXCLUDE = {'NEWLINE', 'NL', 'INDENT', 'DEDENT', 'ENDMARKER', 'ENCODING'}
 
 
 class TokenWrapper:
-    def __init__(self, token, source, token_type):
-        self.source = source
-        self.token = token
+    def __init__(self, token: TokenInfo, source, token_type):
+        self._token = token
         self.body = token.string
         if token_type is not None:
             self.exact_type = token_type.value
-
-    def __getattr__(self, item):
-        return getattr(self.token, item)
+        else:
+            self.exact_type = token.exact_type
+        self.line, self.column = token.start
+        self.column += 1
+        self.source = source

@@ -27,7 +27,7 @@ class Structure:
         return 'building the resource ' + self.to_str(0)
 
     def position(self):
-        return self.main_token.start + (self.source(),)
+        return self.main_token.line, self.main_token.column, self.source()
 
     def source(self):
         return self.main_token.source or '<string input>'

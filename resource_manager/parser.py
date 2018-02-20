@@ -1,4 +1,4 @@
-from tokenize import TokenInfo, TokenError
+from tokenize import TokenError
 
 from .tokenizer import tokenize
 from .token import TokenType
@@ -6,7 +6,7 @@ from .structures import *
 
 
 class Parser:
-    def __init__(self, tokens: List[TokenInfo]):
+    def __init__(self, tokens: List[TokenWrapper]):
         self.tokens = tokens
         self.position = 0
 
@@ -228,7 +228,7 @@ class Parser:
 
         return definitions, parents, imports
 
-    def advance(self) -> TokenInfo:
+    def advance(self) -> TokenWrapper:
         result = self.current
         self.position += 1
         return result
@@ -254,11 +254,11 @@ class Parser:
     @staticmethod
     def throw(message, token):
         source = token.source or '<string input>'
-        raise SyntaxError(message + '\n  at %d:%d in %s' % (token.start + (source,)))
+        raise SyntaxError(message + '\n  at %d:%d in %s' % (token.line, token.column, source))
 
-    def require(self, *types) -> TokenInfo:
+    def require(self, *types) -> TokenWrapper:
         if not self.matches(*types):
-            self.throw('Unexpected token: "%s"' % self.current.string, self.current)
+            self.throw('Unexpected token: "%s"' % self.current.body, self.current)
         return self.advance()
 
     def ignore(self, *types):
@@ -271,9 +271,9 @@ class Parser:
 def parse(source, source_path):
     try:
         tokens = tokenize(source, source_path)
-    except TokenError:
-        # TODO: describe error
-        raise SyntaxError
+    except TokenError as e:
+        source_path = source_path or '<string input>'
+        raise SyntaxError(e.args[0] + ' at %d:%d in %s' % (e.args[1] + (source_path,))) from None
     return Parser(tokens).parse()
 
 
