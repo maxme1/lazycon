@@ -45,6 +45,11 @@ class TestResourceManager(unittest.TestCase):
         rm.string_input('from .expressions.types import *')
         self.assertEqual(1, rm.one)
 
+    def test_upper_import(self):
+        rm = read_config('imports/folder/upper_import.config')
+        self.assertEqual('just override os', rm.os)
+        self.assertEqual(np, rm.numpy)
+
     def test_attr_error(self):
         rm = read_config('imports/imports.config')
         with self.assertRaises(AttributeError):

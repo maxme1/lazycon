@@ -1,6 +1,6 @@
 This repository contains a grammar for config files, as well as a
 parser, a registration system and a manager of resources, and is mainly
-designed for the `deep\_pipe <https://github.com/neuro-ml/deep_pipe>`__
+designed for the `deep_pipe <https://github.com/neuro-ml/deep_pipe>`__
 library.
 
 Grammar overview
@@ -16,14 +16,14 @@ declared using the ``=`` symbol.
 
     file_path = "/some/path"
     num_folds = 5
-    kernel_sizes = [3 3 5]
+    kernel_sizes = [3, 3, 5]
     some_dict = {
-      "a": "my string"
-      "b": ["some" "list" 3]
+      'a': 'my string',
+      'b': ["some", "list", 3]
     }
 
 All python literals (strings, numbers) as well as dicts and lists are
-supported, however the coma (``,``) symbol is optional.
+supported.
 
 Comments
 --------
@@ -81,7 +81,7 @@ Mixins
 
 The grammar also supports multiple inheritance, realized as mixins.
 Importing other configs is similar to other import statements: you can
-use a "starred import" or specify the path to the config. Both relative
+use a “starred import” or specify the path to the config. Both relative
 and absolute paths are allowed.
 
 .. code:: python

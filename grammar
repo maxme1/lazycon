@@ -2,7 +2,7 @@ config = importConfig* import* definition*
 
 importConfig = import_str | import_starred
 importStr = ('from' STRING)? 'import' paths | (PAR_OPEN paths PAR_CLOSE)
-import_starred = 'from' IDENTIFIER? '.' dotted 'import' '*'
+import_starred = 'from' (IDENTIFIER | '.')? '.' dotted 'import' '*'
 paths = (STRING ','?)+
 
 import = importSimple | importFrom

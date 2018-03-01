@@ -15,13 +15,12 @@ class Definition(Structure):
 
 
 class ImportPython(Structure):
-    def __init__(self, root: List[TokenWrapper], values: list, relative: bool, main_token):
+    def __init__(self, root: List[TokenWrapper], values: list, main_token):
         super().__init__(main_token)
         self.from_ = root
         self.root = '.'.join(x.body for x in root)
         self._values = values
         self.values = [('.'.join(x.body for x in value), name) for value, name in values]
-        self.relative = relative
 
     def to_str(self, level):
         result = ''
@@ -37,21 +36,29 @@ class ImportPython(Structure):
 
 
 class ImportStarred(Structure):
-    def __init__(self, root: List[TokenWrapper], relative: bool):
+    def __init__(self, root: List[TokenWrapper], prefix_dots: int):
         super().__init__(root[0])
+        assert 0 <= prefix_dots <= 2
         root = [x.body for x in root]
-        if relative:
+        if prefix_dots > 0:
             self.shortcut = ''
         else:
             self.shortcut = root.pop(0)
         self.root = root
-        self.relative = relative
+        self.prefix_dots = prefix_dots
 
     def get_paths(self):
-        return [(self.shortcut, os.path.join(*self.root) + '.config')]
+        root = self.root
+        if self.prefix_dots > 1:
+            root = [os.pardir] + root
+        return [(self.shortcut, os.path.join(*root) + '.config')]
 
     def to_str(self, level):
-        return 'from ' + self.shortcut + '.' + '.'.join(self.root) + ' import *'
+        if self.prefix_dots > 1:
+            prefix = '.'
+        else:
+            prefix = self.shortcut
+        return 'from ' + prefix + '.' + '.'.join(self.root) + ' import *'
 
 
 class ImportPath(Structure):
@@ -80,18 +87,14 @@ class ImportPath(Structure):
 
 
 class LazyImport(Structure):
-    def __init__(self, from_, what, as_, relative: bool, main_token: TokenWrapper):
+    def __init__(self, from_, what, as_, main_token: TokenWrapper):
         super().__init__(main_token)
         self.from_, self.what, self.as_ = from_, what, as_
-        self.relative = relative
 
     def to_str(self, level):
         result = ''
         if self.from_:
-            result += 'from '
-            if self.relative:
-                result += '.'
-            result += self.from_ + ' '
+            result += 'from ' + self.from_ + ' '
 
         result += 'import %s' % self.what
         if self.as_:

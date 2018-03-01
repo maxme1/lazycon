@@ -128,7 +128,7 @@ class ResourceManager:
                     packages = name.split('.')
                     if len(packages) > 1:
                         name = packages[0]
-                scope.set_resource(name, LazyImport(import_.root, what, as_, import_.relative, import_.main_token))
+                scope.set_resource(name, LazyImport(import_.root, what, as_, import_.main_token))
 
         for definition in definitions:
             scope.set_resource(definition.name.body, definition.value)
@@ -232,7 +232,6 @@ class ResourceManager:
         return {self._render(key): self._render(value) for key, value in node.pairs}
 
     def _render_lazy_import(self, node: LazyImport):
-        assert not node.relative
         if not node.from_:
             result = importlib.import_module(node.what)
             packages = node.what.split('.')

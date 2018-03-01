@@ -156,7 +156,7 @@ class Parser:
         return tuple(value), name
 
     def import_(self):
-        root, relative = [], False
+        root, prefix_dots = [], 0
         if self.ignore(TokenType.FROM):
             # TODO: I guess this should become legacy
             if self.matches(TokenType.STRING):
@@ -167,7 +167,10 @@ class Parser:
                 token = self.require(TokenType.IMPORT)
                 return ImportPath(root, self.paths(0), token)
 
-            relative = self.ignore(TokenType.DOT)
+            if self.ignore(TokenType.DOT):
+                prefix_dots += 1
+            if self.ignore(TokenType.DOT):
+                prefix_dots += 1
             root = self.dotted()
 
         main_token = self.require(TokenType.IMPORT)
@@ -180,9 +183,9 @@ class Parser:
             return ImportPath(root, self.paths(1), main_token)
 
         if self.ignore(TokenType.ASTERISK):
-            return ImportStarred(root, relative)
+            return ImportStarred(root, prefix_dots)
 
-        if relative:
+        if prefix_dots > 0:
             self.throw("Relative imports are only allowed for config files", main_token)
 
         block = self.ignore(TokenType.PAR_OPEN)
@@ -192,7 +195,7 @@ class Parser:
 
         if block:
             self.require(TokenType.PAR_CLOSE)
-        return ImportPython(root, values, relative, main_token)
+        return ImportPython(root, values, main_token)
 
     def paths(self, count):
         block = self.ignore(TokenType.PAR_OPEN)
