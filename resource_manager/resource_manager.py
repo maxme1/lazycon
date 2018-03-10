@@ -1,6 +1,7 @@
 import functools
 import importlib
 import sys
+from typing import Union
 
 from .helpers import Scope
 from .parser import parse_file, parse_string
@@ -110,7 +111,7 @@ class ResourceManager:
         self._imported_configs[absolute_path] = result
         return result
 
-    def _get_resources(self, definitions: List[Definition], parents, imports: List[ImportPython]):
+    def _get_resources(self, definitions: List[Definition], parents, imports: List[Union[ImportPython, ImportPartial]]):
         parent_scope = Scope()
         for parent in parents:
             source_path = parent.main_token.source
@@ -121,14 +122,16 @@ class ResourceManager:
         scope = Scope()
         for import_ in imports:
             for what, as_ in import_.values:
-                if as_ is not None:
-                    name = as_.body
+                name = get_imported_name(what, as_)
+                if type(import_) is ImportPython:
+                    value = LazyImport(import_.root, what, as_, import_.main_token)
                 else:
-                    name = what
-                    packages = name.split('.')
-                    if len(packages) > 1:
-                        name = packages[0]
-                scope.set_resource(name, LazyImport(import_.root, what, as_, import_.main_token))
+                    source_path = import_.main_token.source
+                    shortcut, path = import_.get_paths()[0]
+                    local = self._import(self._resolve_path(path, source_path, shortcut))
+                    value = local._undefined_resources[what]
+
+                scope.set_resource(name, value)
 
         for definition in definitions:
             scope.set_resource(definition.name.body, definition.value)

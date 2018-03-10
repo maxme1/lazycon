@@ -9,18 +9,20 @@ Programming Language :: Python :: 3.6'''
 with open('README.rst', encoding='utf-8') as file:
     long_description = file.read()
 
+version = '0.6.8'
+
 setup(
     name='resource-manager',
     packages=find_packages(exclude=('tests',)),
     include_package_data=True,
-    version='0.6.7',
+    version=version,
     description='A small resource manager for config files',
     long_description=long_description,
     author='maxme1',
     author_email='maxs987@gmail.com',
     license='MIT',
     url='https://github.com/maxme1/resource-manager',
-    download_url='https://github.com/maxme1/resource-manager/archive/0.6.7.tar.gz',
+    download_url='https://github.com/maxme1/resource-manager/archive/%s.tar.gz' % version,
     keywords=[
         'config', 'manager', 'resource'
     ],

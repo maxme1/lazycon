@@ -14,6 +14,16 @@ class Definition(Structure):
         return '{} = {}'.format(self.name.body, self.value.to_str(level))
 
 
+def get_imported_name(what, as_):
+    if as_ is not None:
+        return as_.body
+    name = what
+    packages = name.split('.')
+    if len(packages) > 1:
+        name = packages[0]
+    return name
+
+
 class ImportPython(Structure):
     def __init__(self, root: List[TokenWrapper], values: list, main_token):
         super().__init__(main_token)
@@ -59,6 +69,25 @@ class ImportStarred(Structure):
         else:
             prefix = self.shortcut
         return 'from ' + prefix + '.' + '.'.join(self.root) + ' import *'
+
+
+class ImportPartial(ImportStarred):
+    def __init__(self, root: List[TokenWrapper], prefix_dots: int, values: list):
+        super().__init__(root, prefix_dots)
+        self.values = [('.'.join(x.body for x in value), name) for value, name in values]
+
+    def to_str(self, level):
+        if self.prefix_dots > 1:
+            prefix = '.'
+        else:
+            prefix = self.shortcut
+        what = ''
+        for value, name in self.values:
+            what += value + ' '
+            if name is not None:
+                what += 'as ' + name.body
+            what += ', '
+        return 'from ' + prefix + '.' + '.'.join(self.root) + ' import ' + what[:-2] + '\n'
 
 
 class ImportPath(Structure):

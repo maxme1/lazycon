@@ -26,6 +26,15 @@ class TestResourceManager(unittest.TestCase):
         except BaseException:
             self.fail()
 
+    def test_import_partial(self):
+        rm = read_config('imports/import_from_config.config')
+        self.assertListEqual([1, 2], rm.one)
+
+    def test_import_partial_upper(self):
+        rm = read_config('imports/folder/upper_partial.config')
+        self.assertIsNone(rm.numpy)
+        self.assertEqual(np, rm.np)
+
     def test_cycle_import(self):
         try:
             read_config('imports/cycle_import.config')

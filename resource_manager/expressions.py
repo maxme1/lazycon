@@ -127,7 +127,7 @@ class Array(Structure):
         body = ', '.join(value.to_str(0) for value in self.values)
         if len(body) > MAX_COLUMNS:
             body = ',\n'.join(self.level(level + 1) + value.to_str(level + 1) for value in self.values)
-            body = '\n' + body + self.level(level) + '\n'
+            body = '\n' + body + '\n' + self.level(level)
         return '[' + body + ']'
 
 
@@ -141,5 +141,5 @@ class Dictionary(Structure):
         if len(body) > MAX_COLUMNS:
             body = ',\n'.join(self.level(level + 1) + key.to_str(level + 1) + ': ' + value.to_str(level + 1)
                               for key, value in self.pairs)
-            body = '\n' + body + self.level(level) + '\n'
+            body = '\n' + body + '\n' + self.level(level)
         return '{' + body + '}'

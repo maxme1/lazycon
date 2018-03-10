@@ -185,9 +185,6 @@ class Parser:
         if self.ignore(TokenType.ASTERISK):
             return ImportStarred(root, prefix_dots)
 
-        if prefix_dots > 0:
-            self.throw("Relative imports are only allowed for config files", main_token)
-
         block = self.ignore(TokenType.PAR_OPEN)
         values = [self.import_as(not root)]
         while self.ignore(TokenType.COMA):
@@ -195,6 +192,9 @@ class Parser:
 
         if block:
             self.require(TokenType.PAR_CLOSE)
+
+        if prefix_dots > 0:
+            return ImportPartial(root, prefix_dots, values)
         return ImportPython(root, values, main_token)
 
     def paths(self, count):
@@ -218,7 +218,7 @@ class Parser:
         parents, imports = [], []
         while self.matches(TokenType.IMPORT, TokenType.FROM):
             import_ = self.import_()
-            if type(import_) is ImportPython:
+            if isinstance(import_, (ImportPython, ImportPartial)):
                 imports.append(import_)
             else:
                 if imports:
