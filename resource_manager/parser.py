@@ -41,6 +41,7 @@ class Parser:
         return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1)
 
     def params(self):
+        # TODO: need Argument class
         self.require(TokenType.PAR_OPEN)
         lazy = self.ignore(TokenType.LAZY)
         vararg, args, keyword = [], [], []
@@ -104,7 +105,6 @@ class Parser:
         self.require(TokenType.COLON)
         return key, self.expression()
 
-    # TODO: unify dict and list?
     def dictionary(self):
         dict_begin = self.require(TokenType.DICT_OPEN)
         pairs = []
@@ -158,15 +158,6 @@ class Parser:
     def import_(self):
         root, prefix_dots = [], 0
         if self.ignore(TokenType.FROM):
-            # TODO: I guess this should become legacy
-            if self.matches(TokenType.STRING):
-                root = self.advance()
-                if root.body.count(':') > 1:
-                    raise self.throw('The path cannot contain more than one ":" separator.', root)
-
-                token = self.require(TokenType.IMPORT)
-                return ImportPath(root, self.paths(0), token)
-
             if self.ignore(TokenType.DOT):
                 prefix_dots += 1
             if self.ignore(TokenType.DOT):
@@ -176,14 +167,14 @@ class Parser:
         main_token = self.require(TokenType.IMPORT)
 
         # import by path
-        # TODO: legacy too
-        if self.matches(TokenType.STRING) or self.matches(TokenType.STRING, shift=1):
-            if root:
-                self.throw('If you use import by path, the "from" part must also contain a path', main_token)
-            return ImportPath(root, self.paths(1), main_token)
+        if not root and self.matches(TokenType.STRING):
+            path = self.require(TokenType.STRING)
+            if path.body.count(':') > 1:
+                raise self.throw('The resulting path cannot contain more than one ":" separator.', path)
+            return ImportPath(path, main_token)
 
         if self.ignore(TokenType.ASTERISK):
-            return ImportStarred(root, prefix_dots)
+            return ImportStarred(root, prefix_dots, main_token)
 
         block = self.ignore(TokenType.PAR_OPEN)
         values = [self.import_as(not root)]
@@ -193,32 +184,13 @@ class Parser:
         if block:
             self.require(TokenType.PAR_CLOSE)
 
-        if prefix_dots > 0:
-            return ImportPartial(root, prefix_dots, values)
-        return ImportPython(root, values, main_token)
-
-    def paths(self, count):
-        block = self.ignore(TokenType.PAR_OPEN)
-
-        paths = [self.require(TokenType.STRING)]
-        self.ignore(TokenType.COMA)
-        while self.matches(TokenType.STRING):
-            paths.append(self.advance())
-            self.ignore(TokenType.COMA)
-
-        for path in paths:
-            if path.body.count(':') > count:
-                raise self.throw('The resulting path cannot contain more than one ":" separator.', path)
-
-        if block:
-            self.require(TokenType.PAR_CLOSE)
-        return paths
+        return UnifiedImport(root, values, prefix_dots, main_token)
 
     def parse(self):
         parents, imports = [], []
         while self.matches(TokenType.IMPORT, TokenType.FROM):
             import_ = self.import_()
-            if isinstance(import_, (ImportPython, ImportPartial)):
+            if isinstance(import_, UnifiedImport):
                 imports.append(import_)
             else:
                 if imports:

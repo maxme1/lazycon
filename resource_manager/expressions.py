@@ -84,8 +84,8 @@ class Call(Structure):
             body.append(prefix + arg.to_str(level + 1))
 
         for param in self.params:
-            # TODO: there should be no space before and after `=`
-            body.append('    ' * (level + 1) + param.to_str(level + 1))
+            param_str = param.name.body, param.value.to_str(level + 1)
+            body.append('    ' * (level + 1) + '%s=%s' % param_str)
 
         body = lazy + ',\n'.join(body)
         if body:

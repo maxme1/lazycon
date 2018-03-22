@@ -111,26 +111,29 @@ class ResourceManager:
         self._imported_configs[absolute_path] = result
         return result
 
-    def _get_resources(self, definitions: List[Definition], parents, imports: List[Union[ImportPython, ImportPartial]]):
+    def _get_resources(self, definitions: List[Definition], parents: List[Union[ImportPath, ImportStarred]],
+                       imports: List[UnifiedImport]):
         parent_scope = Scope()
         for parent in parents:
             source_path = parent.main_token.source
-            for shortcut, path in parent.get_paths():
-                path = self._resolve_path(path, source_path, shortcut)
-                parent_scope.overwrite(self._import(path))
+            shortcut, path = parent.get_path()
+            path = self._resolve_path(path, source_path, shortcut)
+            parent_scope.overwrite(self._import(path))
 
         scope = Scope()
         for import_ in imports:
-            for what, as_ in import_.values:
-                name = get_imported_name(what, as_)
-                if type(import_) is ImportPython:
-                    value = LazyImport(import_.root, what, as_, import_.main_token)
-                else:
+            for what, as_ in import_.iterate_values():
+                if import_.is_config_import(self._shortcuts):
                     source_path = import_.main_token.source
-                    shortcut, path = import_.get_paths()[0]
+                    shortcut, path = import_.get_path()
+                    # TODO: should warn about ambiguous shortcut names:
+                    # importlib.util.find_spec(shortcut)
                     local = self._import(self._resolve_path(path, source_path, shortcut))
                     value = local._undefined_resources[what]
+                else:
+                    value = LazyImport(import_.get_root(), what, as_, import_.main_token)
 
+                name = get_imported_name(what, as_)
                 scope.set_resource(name, value)
 
         for definition in definitions:
