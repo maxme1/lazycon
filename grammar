@@ -1,9 +1,8 @@
 config = importWholeConfig* partialImport* definition*
 
 importWholeConfig = importStr | importStarred
-importStr = ('from' STRING)? 'import' paths | (PAR_OPEN paths PAR_CLOSE)
+importStr = 'import' STRING
 importStarred = 'from' (IDENTIFIER | '.')? '.' dotted 'import' '*'
-paths = (STRING ','?)+
 
 partialImport = importSimple | importFrom | importFromConfig
 importSimple = 'import' dotted_import_as (',' dotted_import_as)*
@@ -20,24 +19,23 @@ definition = IDENTIFIER '=' expression
 expression = data (getAttribute | call | getItem)*
 getItem = '[' expression (',' expression)* ','? ']'
 getAttribute = '.' IDENTIFIER
-call = PAR_OPEN params PAR_CLOSE
+call = '(' params ')'
 params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
 positional = '*'? expression (',' '*'? expression)*
 keyword = definition (',' definition)*
 
-data = lambda | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
+data = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = expression ':' expression
 array = '[' (expression (',' expression)* ','?)? ']'
+tuple = '(' (expression (',' expression)* ','?)? ')'
 # TODO: add varargs and kwargs
 lambda = 'lambda' (IDENTIFIER (',' IDENTIFIER)*)? ':' expression
+
+LAZY = '#\s*lazy\s*$'
 
 // this is an approximate regex. the true one is simply imported from `tokenize`
 STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1'''
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
-
 IDENTIFIER = r'[^\d\W]\w*'
-PAR_OPEN = '('
-PAR_CLOSE = ')'
-LAZY = '#\s*lazy\s*$'
 COMMENT = r'#.*$'

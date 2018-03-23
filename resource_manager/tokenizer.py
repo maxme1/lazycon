@@ -1,13 +1,12 @@
-from tokenize import tokenize as _tokenize, TokenError
 from token import tok_name
-from io import BytesIO
+from tokenize import tokenize as _tokenize, TokenError
 
 from .token import LAZY, TokenWrapper, RESERVED, TokenType, EXCLUDE
 
 
-def tokenize(source: str, source_path: str):
+def tokenize(readline, source_path: str):
     tokens = []
-    for token in list(_tokenize(BytesIO(source.encode('utf-8')).readline)):
+    for token in _tokenize(readline):
         name = tok_name[token.type]
         if name == 'ERRORTOKEN':
             raise TokenError('Unrecognized token starting', token.start)

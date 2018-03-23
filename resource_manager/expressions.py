@@ -84,8 +84,8 @@ class Call(Structure):
             body.append(prefix + arg.to_str(level + 1))
 
         for param in self.params:
-            # TODO: there should be no space before and after `=`
-            body.append('    ' * (level + 1) + param.to_str(level + 1))
+            param_str = param.name.body, param.value.to_str(level + 1)
+            body.append('    ' * (level + 1) + '%s=%s' % param_str)
 
         body = lazy + ',\n'.join(body)
         if body:
@@ -118,6 +118,8 @@ class Number(Literal):
         return result + super().to_str(0)
 
 
+# TODO: unify inlines
+
 class Array(Structure):
     def __init__(self, values: list, main_token):
         super().__init__(main_token)
@@ -129,6 +131,23 @@ class Array(Structure):
             body = ',\n'.join(self.level(level + 1) + value.to_str(level + 1) for value in self.values)
             body = '\n' + body + '\n' + self.level(level)
         return '[' + body + ']'
+
+
+class Tuple(Structure):
+    def __init__(self, values: list, main_token):
+        super().__init__(main_token)
+        self.values = values
+
+    def to_str(self, level):
+        body = ', '.join(value.to_str(0) for value in self.values)
+        if len(self.values) == 1:
+            body += ','
+        if len(body) > MAX_COLUMNS:
+            body = ',\n'.join(self.level(level + 1) + value.to_str(level + 1) for value in self.values)
+            if len(self.values) == 1:
+                body += ','
+            body = '\n' + body + '\n' + self.level(level)
+        return '(' + body + ')'
 
 
 class Dictionary(Structure):

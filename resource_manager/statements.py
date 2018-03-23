@@ -24,95 +24,82 @@ def get_imported_name(what, as_):
     return name
 
 
-class ImportPython(Structure):
-    def __init__(self, root: List[TokenWrapper], values: list, main_token):
+def make_dotted(ids):
+    return '.'.join(ids)
+
+
+class BaseImport(Structure):
+    def __init__(self, root: List[TokenWrapper], prefix_dots: int, main_token):
         super().__init__(main_token)
-        self.from_ = root
-        self.root = '.'.join(x.body for x in root)
-        self._values = values
-        self.values = [('.'.join(x.body for x in value), name) for value, name in values]
+        self._from = tuple(x.body for x in root)
+        self._prefix_dots = prefix_dots
+
+    def get_path(self):
+        if self._prefix_dots == 0:
+            shortcut, *root = self._from
+        else:
+            shortcut, root = '', self._from
+        if self._prefix_dots > 1:
+            root = (os.pardir,) + root
+
+        return shortcut, os.path.join(*root) + '.config'
 
     def to_str(self, level):
         result = ''
-        if self.root:
-            result += 'from %s ' % self.root
-        result += 'import '
-        for value, name in self.values:
-            result += value + ' '
+        if self._from:
+            result = 'from ' + '.' * self._prefix_dots + '%s ' % make_dotted(self._from)
+        return result + 'import '
+
+
+class UnifiedImport(BaseImport):
+    def __init__(self, root: List[TokenWrapper], values: list, prefix_dots: int, main_token):
+        super().__init__(root, prefix_dots, main_token)
+        self._what = tuple((x.body for x in value) for value, name in values)
+        self._as = tuple(name for value, name in values)
+
+    def is_config_import(self, shortcuts):
+        return self._from and (self._prefix_dots > 0 or self._from[0] in shortcuts)
+
+    def iterate_values(self):
+        for value, name in zip(self._what, self._as):
+            yield make_dotted(value), name
+
+    def get_root(self):
+        return make_dotted(self._from)
+
+    def to_str(self, level):
+        result = super().to_str(level)
+        for value, name in self.iterate_values():
+            result += value
             if name is not None:
-                result += 'as ' + name.body
+                result += ' as ' + name.body
             result += ', '
+
         return result[:-2] + '\n'
 
 
-class ImportStarred(Structure):
-    def __init__(self, root: List[TokenWrapper], prefix_dots: int):
-        super().__init__(root[0])
-        assert 0 <= prefix_dots <= 2
-        root = [x.body for x in root]
-        if prefix_dots > 0:
-            self.shortcut = ''
-        else:
-            self.shortcut = root.pop(0)
-        self.root = root
-        self.prefix_dots = prefix_dots
-
-    def get_paths(self):
-        root = self.root
-        if self.prefix_dots > 1:
-            root = [os.pardir] + root
-        return [(self.shortcut, os.path.join(*root) + '.config')]
-
+class ImportStarred(BaseImport):
     def to_str(self, level):
-        if self.prefix_dots > 1:
-            prefix = '.'
-        else:
-            prefix = self.shortcut
-        return 'from ' + prefix + '.' + '.'.join(self.root) + ' import *'
-
-
-class ImportPartial(ImportStarred):
-    def __init__(self, root: List[TokenWrapper], prefix_dots: int, values: list):
-        super().__init__(root, prefix_dots)
-        self.values = [('.'.join(x.body for x in value), name) for value, name in values]
-
-    def to_str(self, level):
-        if self.prefix_dots > 1:
-            prefix = '.'
-        else:
-            prefix = self.shortcut
-        what = ''
-        for value, name in self.values:
-            what += value + ' '
-            if name is not None:
-                what += 'as ' + name.body
-            what += ', '
-        return 'from ' + prefix + '.' + '.'.join(self.root) + ' import ' + what[:-2] + '\n'
+        return super().to_str(level) + '*\n'
 
 
 class ImportPath(Structure):
-    def __init__(self, root, paths, main_token):
+    def __init__(self, path, main_token):
         super().__init__(main_token)
-        self.from_ = root
-        self.paths = [x.body for x in paths]
+        self.path = path.body
 
-        root = eval(root.body) if root else ''
-        parts = root.split(':', 1)
-        assert len(parts) <= 2
+        parts = eval(path.body).split(':', 1)
         if len(parts) == 2:
             self.shortcut = parts.pop(0)
         else:
             self.shortcut = ''
         self.root = parts[0]
 
-    def get_paths(self):
-        return [(self.shortcut, os.path.join(self.root, path)) for path in map(eval, self.paths)]
+    def get_path(self):
+        return self.shortcut, self.root
 
     def to_str(self, level):
-        result = ''
-        if self.from_:
-            result = 'from ' + self.from_.body
-        return result + 'import ' + ','.join(self.paths)
+        return 'import %s \n' % self.path
 
 
 class LazyImport(Structure):
