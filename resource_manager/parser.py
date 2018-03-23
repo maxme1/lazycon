@@ -1,5 +1,7 @@
 from tokenize import TokenError
 
+from io import BytesIO
+
 from .tokenizer import tokenize
 from .token import TokenType
 from .structures import *
@@ -15,6 +17,8 @@ class Parser:
             return Resource(self.advance())
         if self.matches(TokenType.BRACKET_OPEN):
             return self.array()
+        if self.matches(TokenType.PAR_OPEN):
+            return self.tuple()
         if self.matches(TokenType.DICT_OPEN):
             return self.dictionary()
         if self.matches(TokenType.LAMBDA):
@@ -100,44 +104,33 @@ class Parser:
         self.require(TokenType.EQUALS)
         return Definition(name, self.expression())
 
+    def inline_structure(self, begin, end, constructor, get_data):
+        structure_begin = self.require(begin)
+        data, comas = [], 0
+        if not self.ignore(end):
+            data.append(get_data())
+            while self.ignore(TokenType.COMA):
+                comas += 1
+                if self.matches(end):
+                    break
+                data.append(get_data())
+            self.require(end)
+
+        return constructor(data, structure_begin), comas
+
+    def dictionary(self):
+        return self.inline_structure(TokenType.DICT_OPEN, TokenType.DICT_CLOSE, Dictionary, self.pair)[0]
+
+    def array(self):
+        return self.inline_structure(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE, Array, self.expression)[0]
+
+    def tuple(self):
+        return self.inline_structure(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, Tuple, self.expression)[0]
+
     def pair(self):
         key = self.expression()
         self.require(TokenType.COLON)
         return key, self.expression()
-
-    def dictionary(self):
-        dict_begin = self.require(TokenType.DICT_OPEN)
-        pairs = []
-        # empty dict
-        if self.ignore(TokenType.DICT_CLOSE):
-            return Dictionary(pairs, dict_begin)
-
-        pairs.append(self.pair())
-
-        while self.ignore(TokenType.COMA):
-            if self.matches(TokenType.DICT_CLOSE):
-                break
-            pairs.append(self.pair())
-
-        self.require(TokenType.DICT_CLOSE)
-        return Dictionary(pairs, dict_begin)
-
-    def array(self):
-        array_begin = self.require(TokenType.BRACKET_OPEN)
-        values = []
-        # empty array
-        if self.ignore(TokenType.BRACKET_CLOSE):
-            return Array(values, array_begin)
-
-        values.append(self.expression())
-
-        while self.ignore(TokenType.COMA):
-            if self.matches(TokenType.BRACKET_CLOSE):
-                break
-            values.append(self.expression())
-
-        self.require(TokenType.BRACKET_CLOSE)
-        return Array(values, array_begin)
 
     def dotted(self):
         result = [self.require(TokenType.IDENTIFIER)]
@@ -243,9 +236,9 @@ class Parser:
         return False
 
 
-def parse(source, source_path):
+def parse(readline, source_path):
     try:
-        tokens = tokenize(source, source_path)
+        tokens = tokenize(readline, source_path)
     except TokenError as e:
         source_path = source_path or '<string input>'
         raise SyntaxError(e.args[0] + ' at %d:%d in %s' % (e.args[1] + (source_path,))) from None
@@ -253,9 +246,9 @@ def parse(source, source_path):
 
 
 def parse_file(config_path):
-    with open(config_path) as file:
-        return parse(file.read(), config_path)
+    with open(config_path, 'rb') as file:
+        return parse(file.readline, config_path)
 
 
 def parse_string(source):
-    return parse(source, '')
+    return parse(BytesIO(source.encode()).readline, '')

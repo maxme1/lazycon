@@ -234,6 +234,9 @@ class ResourceManager:
     def _render_array(self, node: Array):
         return [self._render(x) for x in node.values]
 
+    def _render_tuple(self, node: Tuple):
+        return tuple(self._render(x) for x in node.values)
+
     def _render_dictionary(self, node: Dictionary):
         return {self._render(key): self._render(value) for key, value in node.pairs}
 

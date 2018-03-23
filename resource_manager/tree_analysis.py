@@ -85,6 +85,10 @@ class SyntaxTree:
         for x in node.values:
             x.render(self)
 
+    def _render_tuple(self, node: Array):
+        for x in node.values:
+            x.render(self)
+
     def _render_dictionary(self, node: Dictionary):
         for key, value in node.pairs:
             key.render(self)

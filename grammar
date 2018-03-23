@@ -24,10 +24,11 @@ params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
 positional = '*'? expression (',' '*'? expression)*
 keyword = definition (',' definition)*
 
-data = lambda | dictionary | array | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
+data = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = expression ':' expression
 array = '[' (expression (',' expression)* ','?)? ']'
+tuple = '(' (expression (',' expression)* ','?)? ')'
 # TODO: add varargs and kwargs
 lambda = 'lambda' (IDENTIFIER (',' IDENTIFIER)*)? ':' expression
 
