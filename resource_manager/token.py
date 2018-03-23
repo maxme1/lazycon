@@ -38,7 +38,7 @@ RESERVED = {
 }
 
 LAZY = re.compile(r'^#\s*lazy\s*$')
-EXCLUDE = {'NEWLINE', 'NL', 'INDENT', 'DEDENT', 'ENDMARKER', 'ENCODING'}
+EXCLUDE = {'NEWLINE', 'NL', 'INDENT', 'DEDENT', 'ENDMARKER', 'ENCODING', 'BACKQUOTE'}
 
 
 class TokenWrapper:
