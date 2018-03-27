@@ -125,7 +125,11 @@ class Parser:
         return self.inline_structure(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE, Array, self.expression)[0]
 
     def tuple(self):
-        return self.inline_structure(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, Tuple, self.expression)[0]
+        data, comas = self.inline_structure(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, Tuple, self.expression)
+        if comas == 0 and data.values:
+            assert len(data.values) == 1
+            return Parenthesis(data.values[0])
+        return data
 
     def pair(self):
         key = self.expression()

@@ -78,6 +78,7 @@ class SyntaxTree:
         node.target.render(self)
         for arg in node.args:
             arg.render(self)
+        #     TODO: params must have different names
         for param in node.params:
             param.value.render(self)
 
@@ -93,6 +94,9 @@ class SyntaxTree:
         for key, value in node.pairs:
             key.render(self)
             value.render(self)
+
+    def _render_parenthesis(self, node: Parenthesis):
+        node.expression.render(self)
 
     def _render_lambda(self, node: Lambda):
         names = {x.body for x in node.params}

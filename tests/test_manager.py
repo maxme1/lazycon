@@ -96,8 +96,14 @@ class TestResourceManager(unittest.TestCase):
             rm.two
             rm.three
             rm.four
+            rm.five
+            rm.six
         except BaseException:
             self.fail()
+
+        rm = read_config('expressions/other_cases.config')
+        self.assertEqual(1, rm.parenthesis)
+        self.assertEqual(tuple(), rm.empty_tuple)
 
     def test_build_config(self):
         rm = read_config('imports/config_import.config', shortcuts={'expressions': 'expressions'})

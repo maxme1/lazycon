@@ -240,6 +240,9 @@ class ResourceManager:
     def _render_dictionary(self, node: Dictionary):
         return {self._render(key): self._render(value) for key, value in node.pairs}
 
+    def _render_parenthesis(self, node: Parenthesis):
+        return self._render(node.expression)
+
     def _render_lazy_import(self, node: LazyImport):
         if not node.from_:
             result = importlib.import_module(node.what)

@@ -23,6 +23,15 @@ class Resource(Structure):
         return self.name.body
 
 
+class Parenthesis(Structure):
+    def __init__(self, expression: Structure):
+        super().__init__(expression.main_token)
+        self.expression = expression
+
+    def to_str(self, level):
+        return '(' + self.expression.to_str(level + 1) + ')'
+
+
 class GetAttribute(Structure):
     def __init__(self, target: Structure, name: TokenWrapper):
         super().__init__(name)
