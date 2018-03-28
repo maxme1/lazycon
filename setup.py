@@ -9,7 +9,7 @@ Programming Language :: Python :: 3.6'''
 with open('README.rst', encoding='utf-8') as file:
     long_description = file.read()
 
-version = '0.6.9'
+version = '0.7.0'
 
 setup(
     name='resource-manager',

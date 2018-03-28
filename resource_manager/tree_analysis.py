@@ -78,7 +78,6 @@ class SyntaxTree:
         node.target.render(self)
         for arg in node.args:
             arg.render(self)
-        #     TODO: params must have different names
         for param in node.params:
             param.value.render(self)
 
