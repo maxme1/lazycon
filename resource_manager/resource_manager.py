@@ -160,12 +160,17 @@ class ResourceManager:
         except BaseException as e:
             if not self._definitions_stack:
                 raise
-            # TODO: should all the traceback be printed?
-            definition = self._definitions_stack[0]
-            self._definitions_stack = []
 
-            raise RuntimeError('An exception occurred while ' + definition.error_message() +
-                               '\n    at %d:%d in %s' % definition.position()) from e
+            message = ''
+            for definition in self._definitions_stack:
+                line = definition.line()
+                if line[-1] == '\n':
+                    line = line[:-1]
+                message += '\n  at %d:%d in %s\n    ' % definition.position() + line
+
+            definition = self._definitions_stack[-1]
+            self._definitions_stack = []
+            raise RuntimeError('An exception occurred while ' + definition.error_message() + message) from e
         self._definitions_stack.pop()
         return value
 

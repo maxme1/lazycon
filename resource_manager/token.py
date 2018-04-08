@@ -52,3 +52,4 @@ class TokenWrapper:
         self.line, self.column = token.start
         self.column += 1
         self.source = source
+        self.token_line = token.line
