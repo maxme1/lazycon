@@ -161,8 +161,13 @@ class ResourceManager:
             if not self._definitions_stack:
                 raise
 
-            message = ''
+            raise NotImplementedError
+            definitions = []
             for definition in self._definitions_stack:
+                definitions.append(definition)
+
+            message = ''
+            for definition in definitions:
                 line = definition.line()
                 if line[-1] == '\n':
                     line = line[:-1]

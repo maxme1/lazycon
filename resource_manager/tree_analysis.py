@@ -8,9 +8,7 @@ class SyntaxTree:
     def __init__(self, resources: dict):
         self.resources = resources
         self._request_stack = []
-        self.cycles = defaultdict(set)
-        self.undefined = defaultdict(set)
-        self.duplicate = defaultdict(list)
+        self.messages = defaultdict(lambda: defaultdict(set))
 
         self._scopes = []
         self._global = {x: False for x in resources}
@@ -18,7 +16,11 @@ class SyntaxTree:
         for name, node in resources.items():
             self._analyze_tree(name)
 
-    def _format(self, message, elements):
+    def add_message(self, message, node, content):
+        self.messages[message][node.source()].add(content)
+
+    @staticmethod
+    def format(message, elements):
         message += ':\n'
         for source, item in elements.items():
             message += '  in %s\n    ' % source
@@ -30,12 +32,8 @@ class SyntaxTree:
     def analyze(scope: Scope):
         tree = SyntaxTree(scope._undefined_resources)
         message = ''
-        if tree.cycles:
-            message += tree._format('Cyclic dependencies found', tree.cycles)
-        if tree.undefined:
-            message += tree._format('Undefined resources found', tree.undefined)
-        if tree.duplicate:
-            message += tree._format('Duplicate arguments in lambda definition', tree.duplicate)
+        for msg, elements in tree.messages.items():
+            message += tree.format(msg, elements)
         if message:
             raise RuntimeError(message)
 
@@ -52,15 +50,14 @@ class SyntaxTree:
             if name in scope:
                 return
 
-        source = node.source()
         # undefined variable:
         if name not in self._global:
-            self.undefined[source].add(name)
+            self.add_message('Undefined resources found', node, name)
             return
         # cycle
         if name in self._request_stack:
             prefix = " -> ".join(self._request_stack)
-            self.cycles[source].add('{} -> {}'.format(prefix, name))
+            self.add_message('Cyclic dependencies found', node, '{} -> {}'.format(prefix, name))
             return
 
         if not self._global[name]:
@@ -75,6 +72,10 @@ class SyntaxTree:
             arg.render(self)
 
     def _render_call(self, node: Call):
+        names = set(param.name.body for param in node.params)
+        if len(names) < len(node.params):
+            self.add_message('Duplicate keyword arguments', node, 'at %d:%d' % node.position()[:2])
+
         node.target.render(self)
         for arg in node.args:
             arg.render(self)
@@ -93,7 +94,7 @@ class SyntaxTree:
     def _render_lambda(self, node: Lambda):
         names = {x.body for x in node.params}
         if len(names) != len(node.params):
-            self.duplicate[node.source()].append('at %d:%d' % node.position()[:2])
+            self.add_message('Duplicate arguments in lambda definition', node, 'at %d:%d' % node.position()[:2])
         self._scopes.append(names)
         node.expression.render(self)
         self._scopes.pop()
