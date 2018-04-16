@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from resource_manager.token import TokenType
+
 from resource_manager.helpers import Scope
 from .structures import *
 
@@ -103,7 +105,9 @@ class SyntaxTree:
         pass
 
     def _render_literal(self, node: Literal):
-        pass
+        # TODO: cover other cases
+        if node.value.type(TokenType.STRING) and node.value.body.startswith('f'):
+            self.add_message('Inline string formatting is not supported', node, 'at %d:%d' % node.position()[:2])
 
     def _render_number(self, node: Number):
         pass

@@ -98,7 +98,7 @@ class Call(Structure):
 
 
 class Literal(Structure):
-    def __init__(self, value):
+    def __init__(self, value: TokenWrapper):
         super().__init__(value)
         self.value = value
 

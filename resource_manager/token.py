@@ -53,3 +53,6 @@ class TokenWrapper:
         self.column += 1
         self.source = source
         self.token_line = token.line
+
+    def type(self, token_type):
+        return self.exact_type == token_type.value

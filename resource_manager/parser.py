@@ -250,7 +250,7 @@ class Parser:
             return False
 
         for tokenType in types:
-            if temp.exact_type == tokenType.value:
+            if temp.type(tokenType):
                 return True
 
         return False
