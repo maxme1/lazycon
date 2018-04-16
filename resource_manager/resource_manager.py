@@ -161,17 +161,19 @@ class ResourceManager:
             if not self._definitions_stack:
                 raise
 
-            raise NotImplementedError
-            definitions = []
-            for definition in self._definitions_stack:
-                definitions.append(definition)
+            stack = []
+            last_position = None
+            for definition in reversed(self._definitions_stack):
+                position = definition.position()
+                position = position[0], position[2]
 
-            message = ''
-            for definition in definitions:
-                line = definition.line()
-                if line[-1] == '\n':
-                    line = line[:-1]
-                message += '\n  at %d:%d in %s\n    ' % definition.position() + line
+                if position != last_position:
+                    line = definition.line()
+                    if line[-1] == '\n':
+                        line = line[:-1]
+                    stack.append('\n  at %d:%d in %s\n    ' % definition.position() + line)
+                last_position = position
+            message = ''.join(reversed(stack))
 
             definition = self._definitions_stack[-1]
             self._definitions_stack = []
