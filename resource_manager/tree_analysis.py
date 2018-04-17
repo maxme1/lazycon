@@ -1,8 +1,7 @@
 from collections import defaultdict
 
-from resource_manager.token import TokenType, INVALID_STRING_PREFIXES
-
-from resource_manager.helpers import Scope
+from .token import TokenType, INVALID_STRING_PREFIXES
+from .helpers import Scope
 from .structures import *
 
 
@@ -51,7 +50,6 @@ class SyntaxTree:
         for scope in reversed(self._scopes):
             if name in scope:
                 return
-
         # undefined variable:
         if name not in self._global:
             self.add_message('Undefined resources found', node, name)

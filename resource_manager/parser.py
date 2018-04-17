@@ -46,7 +46,6 @@ class Parser:
 
     def params(self):
         # TODO: need Argument class
-        self.require(TokenType.PAR_OPEN)
         lazy = self.ignore(TokenType.LAZY)
         vararg, args, keyword = [], [], []
         if self.matches(TokenType.PAR_CLOSE):
