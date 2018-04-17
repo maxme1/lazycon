@@ -1,7 +1,7 @@
 import re
 import token
 from enum import Enum, unique
-from tokenize import TokenInfo
+from tokenize import TokenInfo, _all_string_prefixes
 
 
 @unique
@@ -39,6 +39,7 @@ RESERVED = {
 
 LAZY = re.compile(r'^#\s*lazy\s*$')
 EXCLUDE = {'NEWLINE', 'NL', 'INDENT', 'DEDENT', 'ENDMARKER', 'ENCODING', 'BACKQUOTE'}
+INVALID_STRING_PREFIXES = tuple(x for x in _all_string_prefixes() if 'f' in x.lower())
 
 
 class TokenWrapper:
@@ -52,3 +53,7 @@ class TokenWrapper:
         self.line, self.column = token.start
         self.column += 1
         self.source = source
+        self.token_line = token.line
+
+    def type(self, token_type):
+        return self.exact_type == token_type.value

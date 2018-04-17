@@ -32,6 +32,9 @@ class Structure:
     def source(self):
         return self.main_token.source or '<string input>'
 
+    def line(self):
+        return self.main_token.token_line
+
     def level(self, level):
         return '    ' * level
 

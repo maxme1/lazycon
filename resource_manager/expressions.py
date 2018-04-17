@@ -71,8 +71,8 @@ class GetItem(Structure):
 
 
 class Call(Structure):
-    def __init__(self, target: Structure, args: list, vararg: list, params: list, lazy: bool):
-        super().__init__(target.main_token)
+    def __init__(self, target: Structure, args: list, vararg: list, params: list, lazy: bool, main_token):
+        super().__init__(main_token)
         self.target = target
         self.args = args
         self.varargs = vararg
@@ -107,7 +107,7 @@ class Call(Structure):
 
 
 class Literal(Structure):
-    def __init__(self, value):
+    def __init__(self, value: TokenWrapper):
         super().__init__(value)
         self.value = value
 

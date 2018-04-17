@@ -49,7 +49,7 @@ class Parser:
         self.require(TokenType.PAR_OPEN)
         lazy = self.ignore(TokenType.LAZY)
         vararg, args, keyword = [], [], []
-        if self.ignore(TokenType.PAR_CLOSE):
+        if self.matches(TokenType.PAR_CLOSE):
             return args, vararg, keyword, lazy
 
         # if has positional
@@ -72,7 +72,6 @@ class Parser:
                     break
                 keyword.append(self.definition())
 
-        self.require(TokenType.PAR_CLOSE)
         return args, vararg, keyword, lazy
 
     def expression(self):
@@ -95,7 +94,10 @@ class Parser:
                 self.require(TokenType.BRACKET_CLOSE)
                 data = GetItem(data, args, coma)
             else:
-                data = Call(data, *self.params())
+                main_token = self.require(TokenType.PAR_OPEN)
+                params = self.params()
+                self.require(TokenType.PAR_CLOSE)
+                data = Call(data, *params, main_token=main_token)
 
         return data
 
@@ -218,7 +220,7 @@ class Parser:
             return False
 
         for tokenType in types:
-            if temp.exact_type == tokenType.value:
+            if temp.type(tokenType):
                 return True
 
         return False
