@@ -105,6 +105,29 @@ class TestResourceManager(unittest.TestCase):
         self.assertEqual(1, rm.parenthesis)
         self.assertEqual(tuple(), rm.empty_tuple)
 
+    def test_operators(self):
+        rm = read_config('expressions/operators.config')
+        self.assertListEqual(rm.arithmetic, [
+            2 + 3,
+            2 * 3,
+            2 / 3,
+            2 // 3,
+            5 % 3,
+            np.array([1, 2, 3]) @ np.array([1, 1, 1]),
+
+            ~2, -5, +5, not [],
+
+            44 | 55,
+            44 & 55,
+            44 ^ 55,
+
+            3 and 5, 3 or 5,
+
+            1 < 2, 1 > 2, 1 == 2, 1 >= 2, 1 <= 2, 1 != 2,
+            2 in [1, 3], 2 not in [1, 3], type(1) is float, type(1) is not float,
+        ])
+        self.assertEqual(1 + 2 * 3 ** 4 + 1, rm.priority)
+
     def test_build_config(self):
         rm = read_config('imports/config_import.config', shortcuts={'expressions': 'expressions'})
         with open('imports/built.config') as built:

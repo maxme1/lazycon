@@ -110,8 +110,12 @@ class SyntaxTree:
         pass
 
     def _render_literal(self, node: Literal):
-        if node.value.type(TokenType.STRING) and node.value.body.startswith(INVALID_STRING_PREFIXES):
+        if node.value.type == TokenType.STRING and node.value.body.startswith(INVALID_STRING_PREFIXES):
             self.add_message('Inline string formatting is not supported', node, 'at %d:%d' % node.position()[:2])
 
-    def _render_number(self, node: Number):
-        pass
+    def _render_binary(self, node: Binary):
+        node.left.render(self)
+        node.right.render(self)
+
+    def _render_unary(self, node: Unary):
+        node.argument.render(self)

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from .structures import Structure, MAX_COLUMNS
 from .token import TokenWrapper
@@ -12,6 +12,36 @@ class Lambda(Structure):
 
     def to_str(self, level):
         return 'lambda ' + ','.join(x.body for x in self.params) + ': ' + self.expression.to_str(level + 1)
+
+
+class Binary(Structure):
+    def __init__(self, left: Structure, right: Structure, operation: Union[TokenWrapper, tuple]):
+        super().__init__(operation)
+        self.operation = operation
+        self.left = left
+        self.right = right
+        if type(operation) is tuple:
+            self.key = tuple(x.type for x in operation)
+        else:
+            self.key = operation.type
+
+    def to_str(self, level):
+        if type(self.operation) is tuple:
+            operation = ' '.join(x.body for x in self.operation)
+        else:
+            operation = self.operation.body
+        return '%s %s %s' % (self.left.to_str(level), operation, self.right.to_str(0))
+
+
+class Unary(Structure):
+    def __init__(self, argument: Structure, operation: TokenWrapper):
+        super().__init__(operation)
+        self.operation = operation
+        self.argument = argument
+        self.key = operation.type
+
+    def to_str(self, level):
+        return '%s %s' % (self.operation.body, self.argument.to_str(0))
 
 
 class Resource(Structure):
@@ -113,18 +143,6 @@ class Literal(Structure):
 
     def to_str(self, level):
         return self.value.body
-
-
-class Number(Literal):
-    def __init__(self, value, minus):
-        super().__init__(value)
-        self.minus = minus
-
-    def to_str(self, level):
-        result = ''
-        if self.minus:
-            result = '-'
-        return result + super().to_str(0)
 
 
 # TODO: unify inlines

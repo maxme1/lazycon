@@ -1,8 +1,8 @@
 import functools
 import importlib
 import sys
-from typing import Union
 
+from resource_manager.token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
 from .helpers import Scope
 from .parser import parse_file, parse_string
 from .structures import *
@@ -52,11 +52,13 @@ class ResourceManager:
         path = self._resolve_path(path, '', '')
         result = self._import(path)
         self._update_resources(result)
+        return self
 
     def string_input(self, source: str):
         """Interpret the `source`."""
         result = self._get_resources(*parse_string(source))
         self._update_resources(result)
+        return self
 
     def render_config(self) -> str:
         """
@@ -87,6 +89,9 @@ class ResourceManager:
             file.write(self.render_config())
 
     def __getattr__(self, item):
+        return self.get_resource(item)
+
+    def __getitem__(self, item):
         return self.get_resource(item)
 
     def get_resource(self, name: str):
@@ -237,11 +242,18 @@ class ResourceManager:
     def _render_literal(self, node: Literal):
         return eval(node.value.body)
 
-    def _render_number(self, node: Number):
-        num = eval(node.value.body)
-        if node.minus:
-            num = -num
-        return num
+    def _render_binary(self, node: Binary):
+        left = self._render(node.left)
+        # shortcut logic
+        if node.key == TokenType.AND:
+            return left and self._render(node.right)
+        if node.key == TokenType.OR:
+            return left or self._render(node.right)
+
+        return BINARY_OPERATORS[node.key](left, self._render(node.right))
+
+    def _render_unary(self, node: Unary):
+        return UNARY_OPERATORS[node.key](self._render(node.argument))
 
     def _render_array(self, node: Array):
         return [self._render(x) for x in node.values]

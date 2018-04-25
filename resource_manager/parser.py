@@ -12,7 +12,7 @@ class Parser:
         self.tokens = tokens
         self.position = 0
 
-    def data(self):
+    def primary(self):
         if self.matches(TokenType.IDENTIFIER):
             return Resource(self.advance())
         if self.matches(TokenType.BRACKET_OPEN):
@@ -23,13 +23,7 @@ class Parser:
             return self.dictionary()
         if self.matches(TokenType.LAMBDA):
             return self.lambda_()
-        if self.matches(TokenType.MINUS, TokenType.NUMBER):
-            return self.number()
-        return Literal(self.require(TokenType.STRING, TokenType.LITERAL))
-
-    def number(self):
-        minus = self.ignore(TokenType.MINUS)
-        return Number(self.require(TokenType.NUMBER), minus)
+        return Literal(self.require(TokenType.STRING, TokenType.LITERAL, TokenType.NUMBER))
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
@@ -74,7 +68,77 @@ class Parser:
         return args, vararg, keyword, lazy
 
     def expression(self):
-        data = self.data()
+        return self.or_exp()
+
+    def binary(self, get_data, *operations):
+        data = get_data()
+        while self.matches(*operations):
+            operation = self.advance()
+            data = Binary(data, get_data(), operation)
+        return data
+
+    def unary(self, get_data, *operations):
+        if self.matches(*operations):
+            operation = self.advance()
+            return Unary(get_data(), operation)
+        return get_data()
+
+    def or_exp(self):
+        return self.binary(self.and_exp, TokenType.OR)
+
+    def and_exp(self):
+        return self.binary(self.not_exp, TokenType.AND)
+
+    def not_exp(self):
+        return self.unary(self.comparison, TokenType.NOT)
+
+    def comparison(self):
+        data = self.bitwise_or()
+        while self.matches(TokenType.LESS, TokenType.GREATER, TokenType.LESS_EQUAL, TokenType.GREATER_EQUAL,
+                           TokenType.IS_EQUAL, TokenType.NOT_EQUAL, TokenType.IS, TokenType.NOT, TokenType.IN):
+            if self.matches(TokenType.NOT):
+                operation = self.advance()
+                operation = (operation, self.require(TokenType.IN))
+            elif self.matches(TokenType.IS):
+                operation = self.advance()
+                if self.matches(TokenType.NOT):
+                    operation = (operation, self.advance())
+            else:
+                operation = self.advance()
+            data = Binary(data, self.bitwise_or(), operation)
+        return data
+
+    def bitwise_or(self):
+        return self.binary(self.bitwise_xor, TokenType.BIT_OR)
+
+    def bitwise_xor(self):
+        return self.binary(self.bitwise_and, TokenType.BIT_XOR)
+
+    def bitwise_and(self):
+        return self.binary(self.shift, TokenType.BIT_AND)
+
+    def shift(self):
+        return self.binary(self.arithmetic, TokenType.SHIFT_LEFT, TokenType.SHIFT_RIGHT)
+
+    def arithmetic(self):
+        return self.binary(self.term, TokenType.PLUS, TokenType.MINUS)
+
+    def term(self):
+        return self.binary(self.factor, TokenType.ASTERISK, TokenType.MATMUL,
+                           TokenType.DIVIDE, TokenType.FLOOR_DIVIDE, TokenType.MOD)
+
+    def factor(self):
+        return self.unary(self.power, TokenType.PLUS, TokenType.MINUS, TokenType.TILDE)
+
+    def power(self):
+        data = self.tailed()
+        if self.matches(TokenType.DOUBLE_ASTERISK):
+            operation = self.advance()
+            data = Binary(data, self.factor(), operation)
+        return data
+
+    def tailed(self):
+        data = self.primary()
         while self.matches(TokenType.DOT, TokenType.PAR_OPEN, TokenType.BRACKET_OPEN):
             if self.matches(TokenType.DOT):
                 self.advance()
@@ -219,7 +283,7 @@ class Parser:
             return False
 
         for tokenType in types:
-            if temp.type(tokenType):
+            if temp.type == tokenType:
                 return True
 
         return False

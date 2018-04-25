@@ -14,9 +14,26 @@ import_as = IDENTIFIER (as IDENTIFIER)?
 many_import_as = import_as (',' import_as)*
 dotted_import_as = dotted (as IDENTIFIER)?
 
-definition = IDENTIFIER '=' expression
+definition = IDENTIFIER '=' inlineIf
+inlineIf = expression ('if' expression 'else' inlineIf)
 
-expression = data (getAttribute | call | getItem)*
+expression = orExp
+orExp = andExp ('or' andExp)*
+andExp = notExp ('and' notExp)*
+notExp = 'not'? comparison
+comparison = orBitExp (compOperator orBitExp)*
+compOperator = '<' | '>' | '==' | '>=' | '<=' | '!=' | 'in' | ('not' 'in') | 'is' | ('is' 'not')
+
+orBitExp = xorBitExp ('|' xorBitExp)*
+xorBitExp = andBitExp ('^' andBitExp)*
+andBitExp = shiftExp ('&' shiftExp)*
+shiftExp = arithmetic ( '<<' | '>>' arithmetic)*
+arithmetic = term ( '+' | '-' term)*
+term = factor ( '*' | '@' | '/' | '%' | '//' factor)*
+factor = ( '+' | '-' | '~' )? power
+power: tailed ('**' factor)?
+
+tailed = primary (getAttribute | call | getItem)*
 getItem = '[' expression (',' expression)* ','? ']'
 getAttribute = '.' IDENTIFIER
 call = '(' params ')'
@@ -24,7 +41,8 @@ params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
 positional = '*'? expression (',' '*'? expression)*
 keyword = definition (',' definition)*
 
-data = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
+primary = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
+    | '(' expression ')'
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = expression ':' expression
 array = '[' (expression (',' expression)* ','?)? ']'
