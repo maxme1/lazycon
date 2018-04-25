@@ -47,7 +47,7 @@ class TokenType(Enum):
     NOT_EQUAL = token.NOTEQUAL
 
     # names
-    IS, IN, AND, OR, NOT, IMPORT, LAMBDA, FROM, AS, LITERAL, LAZY, *_ = range(-100, 0)
+    IF, ELSE, IS, IN, AND, OR, NOT, IMPORT, LAMBDA, FROM, AS, LITERAL, LAZY, *_ = range(-100, 0)
 
 
 RESERVED = {
@@ -63,6 +63,8 @@ RESERVED = {
     'is': TokenType.IS,
     'or': TokenType.OR,
     'and': TokenType.AND,
+    'if': TokenType.IF,
+    'else': TokenType.ELSE,
 }
 
 LAZY = re.compile(r'^#\s*lazy\s*$')

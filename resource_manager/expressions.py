@@ -14,6 +14,17 @@ class Lambda(Structure):
         return 'lambda ' + ','.join(x.body for x in self.params) + ': ' + self.expression.to_str(level + 1)
 
 
+class InlineIf(Structure):
+    def __init__(self, condition: Structure, left: Structure, right: Structure, main_token: TokenWrapper):
+        super().__init__(main_token)
+        self.right = right
+        self.left = left
+        self.condition = condition
+
+    def to_str(self, level):
+        return '%s if %s else %s' % (self.left.to_str(level), self.condition.to_str(level), self.right.to_str(level))
+
+
 class Binary(Structure):
     def __init__(self, left: Structure, right: Structure, operation: Union[TokenWrapper, tuple]):
         super().__init__(operation)

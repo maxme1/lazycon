@@ -67,6 +67,15 @@ class Parser:
 
         return args, vararg, keyword, lazy
 
+    def inline_if(self):
+        data = self.expression()
+        if self.matches(TokenType.IF):
+            token = self.advance()
+            condition = self.expression()
+            self.require(TokenType.ELSE)
+            return InlineIf(condition, data, self.inline_if(), token)
+        return data
+
     def expression(self):
         return self.or_exp()
 
@@ -167,7 +176,7 @@ class Parser:
     def definition(self):
         name = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.EQUALS)
-        return Definition(name, self.expression())
+        return Definition(name, self.inline_if())
 
     def inline_structure(self, begin, end, constructor, get_data):
         structure_begin = self.require(begin)

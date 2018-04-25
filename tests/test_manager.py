@@ -128,6 +128,10 @@ class TestResourceManager(unittest.TestCase):
         ])
         self.assertEqual(1 + 2 * 3 ** 4 + 1, rm.priority)
 
+    def test_if(self):
+        rm = read_config('expressions/if_.config')
+        self.assertListEqual([1, 1, 1], rm.results)
+
     def test_build_config(self):
         rm = read_config('imports/config_import.config', shortcuts={'expressions': 'expressions'})
         with open('imports/built.config') as built:

@@ -119,3 +119,8 @@ class SyntaxTree:
 
     def _render_unary(self, node: Unary):
         node.argument.render(self)
+
+    def _render_inline_if(self, node: InlineIf):
+        node.condition.render(self)
+        node.left.render(self)
+        node.right.render(self)

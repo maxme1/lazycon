@@ -255,6 +255,11 @@ class ResourceManager:
     def _render_unary(self, node: Unary):
         return UNARY_OPERATORS[node.key](self._render(node.argument))
 
+    def _render_inline_if(self, node: InlineIf):
+        if self._render(node.condition):
+            return self._render(node.left)
+        return self._render(node.right)
+
     def _render_array(self, node: Array):
         return [self._render(x) for x in node.values]
 
