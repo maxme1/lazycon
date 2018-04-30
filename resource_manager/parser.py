@@ -202,19 +202,27 @@ class Parser:
         return self.inline_structure(TokenType.DICT_OPEN, TokenType.DICT_CLOSE, Dictionary, self.pair)[0]
 
     def array(self):
-        return self.inline_structure(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE, Array, self.expression)[0]
+        return self.inline_structure(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE, Array, self.starred_or_if)[0]
 
     def tuple(self):
-        data, comas = self.inline_structure(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, Tuple, self.expression)
+        data, comas = self.inline_structure(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, Tuple, self.starred_or_if)
         if comas == 0 and data.values:
             assert len(data.values) == 1
+            if type(data.values[0]) is Starred:
+                self.throw('Cannot use starred expression here', data.main_token)
             return Parenthesis(data.values[0])
         return data
 
     def pair(self):
-        key = self.expression()
+        key = self.inline_if()
         self.require(TokenType.COLON)
-        return key, self.expression()
+        return key, self.inline_if()
+
+    def starred_or_if(self):
+        if self.matches(TokenType.ASTERISK):
+            star = self.require(TokenType.ASTERISK)
+            return Starred(self.bitwise_or(), star)
+        return self.inline_if()
 
     def dotted(self):
         result = [self.require(TokenType.IDENTIFIER)]

@@ -102,6 +102,8 @@ class TestResourceManager(unittest.TestCase):
             rm.six
         except BaseException:
             self.fail()
+        self.assertListEqual(list(range(1, 7)), rm.starred_array)
+        self.assertTupleEqual(tuple(range(1, 7)), rm.starred_tuple)
 
         rm = read_config('expressions/other_cases.config')
         self.assertEqual(1, rm.parenthesis)

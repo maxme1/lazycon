@@ -172,6 +172,15 @@ class Literal(Structure):
         return self.value.body
 
 
+class Starred(Structure):
+    def __init__(self, expression: Structure, main_token: TokenWrapper):
+        super().__init__(main_token)
+        self.expression = expression
+
+    def to_str(self, level):
+        return '*' + self.expression.to_str(level)
+
+
 # TODO: unify inlines
 
 class Array(Structure):

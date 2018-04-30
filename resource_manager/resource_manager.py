@@ -268,10 +268,16 @@ class ResourceManager:
         return self._render(node.right)
 
     def _render_array(self, node: Array):
-        return [self._render(x) for x in node.values]
+        result = []
+        for value in node.values:
+            if type(value) is Starred:
+                result.extend(list(self._render(value.expression)))
+            else:
+                result.append(self._render(value))
+        return result
 
     def _render_tuple(self, node: Tuple):
-        return tuple(self._render(x) for x in node.values)
+        return tuple(self._render_array(node))
 
     def _render_dictionary(self, node: Dictionary):
         return {self._render(key): self._render(value) for key, value in node.pairs}

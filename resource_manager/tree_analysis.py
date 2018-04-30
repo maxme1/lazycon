@@ -82,6 +82,9 @@ class SyntaxTree:
         for param in node.params:
             param.value.render(self)
 
+    def _render_starred(self, node: Starred):
+        node.expression.render(self)
+
     def _render_array(self, node: Array):
         for x in node.values:
             x.render(self)

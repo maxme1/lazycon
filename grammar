@@ -44,9 +44,10 @@ keyword = definition (',' definition)*
 primary = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
     | '(' expression ')'
 dictionary = '{' (pair (',' pair)* ','?)? '}'
-pair = expression ':' expression
-array = '[' (expression (',' expression)* ','?)? ']'
-tuple = '(' (expression (',' expression)* ','?)? ')'
+pair = inlineIf ':' inlineIf
+array = '[' (starredOrInline (',' starredOrInline)* ','?)? ']'
+tuple = '(' (starredOrInline (',' starredOrInline)* ','?)? ')'
+starredOrInline = inlineIf | ('*' orBitExp)
 # TODO: add kwargs
 lambda = 'lambda' ((argsDef (',' varargDef)?) | varargDef)? ':' expression
 argsDef = (IDENTIFIER (',' IDENTIFIER)*)?
