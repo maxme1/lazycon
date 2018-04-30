@@ -5,13 +5,29 @@ from .token import TokenWrapper
 
 
 class Lambda(Structure):
-    def __init__(self, params: List[TokenWrapper], expression: Structure, main_token):
+    def __init__(self, params: List[TokenWrapper], last_vararg: bool, expression: Structure, main_token):
         super().__init__(main_token)
         self.expression = expression
-        self.params = params
+
+        if last_vararg:
+            assert params
+            params, vararg = params[:-1], params[-1]
+        else:
+            vararg = None
+
+        self.params = tuple(params)
+        self.vararg = vararg
 
     def to_str(self, level):
-        return 'lambda ' + ','.join(x.body for x in self.params) + ': ' + self.expression.to_str(level + 1)
+        params = ','.join(x.body for x in self.params)
+        if self.vararg:
+            if params:
+                params += ', '
+            params += '*' + self.vararg.body
+
+        if params:
+            params = ' ' + params
+        return 'lambda' + params + ': ' + self.expression.to_str(level + 1)
 
 
 class InlineIf(Structure):

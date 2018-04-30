@@ -27,13 +27,19 @@ class Parser:
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
-        params = []
-        if self.matches(TokenType.IDENTIFIER):
-            params = [self.advance()]
-            while self.ignore(TokenType.COMA):
-                params.append(self.require(TokenType.IDENTIFIER))
+        vararg, params = self.ignore(TokenType.ASTERISK), []
+        if vararg:
+            params = [self.require(TokenType.IDENTIFIER)]
+        else:
+            if self.matches(TokenType.IDENTIFIER):
+                params = [self.advance()]
+                while self.ignore(TokenType.COMA):
+                    vararg = self.ignore(TokenType.ASTERISK)
+                    params.append(self.require(TokenType.IDENTIFIER))
+                    if vararg:
+                        break
         self.require(TokenType.COLON)
-        return Lambda(params, self.expression(), token)
+        return Lambda(params, vararg, self.expression(), token)
 
     def is_keyword(self):
         return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1)

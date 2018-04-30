@@ -192,13 +192,20 @@ class ResourceManager:
     def _render_lambda(self, node: Lambda):
         assert self._scopes
         upper_scope = self._scopes[-1]
+        err = 'Function requires %s%d argument(s), but %d provided'
 
         def f(*args):
             if len(args) != len(node.params):
-                raise ValueError('Function requires %d argument(s), but %d provided' % (len(node.params), len(args)))
+                if not node.vararg:
+                    raise ValueError(err % (' ', len(node.params), len(args)))
+                elif len(args) < len(node.params):
+                    raise ValueError(err % ('at least ', len(node.params), len(args)))
+
             scope = Scope()
             for x, y in zip(node.params, args):
                 scope.define_resource(x.body, y)
+            if node.vararg:
+                scope.define_resource(node.vararg.body, args[len(node.params):])
             scope.set_upper(upper_scope)
 
             self._scopes.append(scope)

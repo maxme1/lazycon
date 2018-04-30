@@ -47,8 +47,10 @@ dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = expression ':' expression
 array = '[' (expression (',' expression)* ','?)? ']'
 tuple = '(' (expression (',' expression)* ','?)? ')'
-# TODO: add varargs and kwargs
-lambda = 'lambda' (IDENTIFIER (',' IDENTIFIER)*)? ':' expression
+# TODO: add kwargs
+lambda = 'lambda' ((argsDef (',' varargDef)?) | varargDef)? ':' expression
+argsDef = (IDENTIFIER (',' IDENTIFIER)*)?
+varargDef = '*' IDENTIFIER
 
 LAZY = '#\s*lazy\s*$'
 

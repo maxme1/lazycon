@@ -83,6 +83,8 @@ class TestResourceManager(unittest.TestCase):
         self.assertListEqual([1, 2], rm.d(1)(2))
         self.assertEqual(8, rm.e())
         self.assertListEqual([1, 8, 32], rm.test)
+        self.assertTupleEqual((2, 3), rm.vararg(1, 2, 3))
+        self.assertTupleEqual((1,), rm.only_vararg(1))
 
     def test_lambda_args(self):
         rm = read_config('expressions/lambda_.config')
@@ -108,23 +110,8 @@ class TestResourceManager(unittest.TestCase):
     def test_operators(self):
         rm = read_config('expressions/operators.config')
         self.assertListEqual(rm.arithmetic, [
-            2 + 3,
-            2 * 3,
-            2 / 3,
-            2 // 3,
-            5 % 3,
-            np.array([1, 2, 3]) @ np.array([1, 1, 1]),
-
-            ~2, -5, +5, not [],
-
-            44 | 55,
-            44 & 55,
-            44 ^ 55,
-
-            3 and 5, 3 or 5,
-
-            1 < 2, 1 > 2, 1 == 2, 1 >= 2, 1 <= 2, 1 != 2,
-            2 in [1, 3], 2 not in [1, 3], type(1) is float, type(1) is not float,
+            5, 6, 0.75, 0, 2, 6, -3, -5, 5, True, 63, 36, 27, 5, 3,
+            True, False, False, False, True, True, False, True, False, True
         ])
         self.assertEqual(1 + 2 * 3 ** 4 + 1, rm.priority)
 
