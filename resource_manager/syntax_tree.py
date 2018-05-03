@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from .token import TokenType, INVALID_STRING_PREFIXES
-from .helpers import Scope
+from .scopes import GlobalScope
 from .structures import *
 
 
@@ -30,7 +30,7 @@ class SyntaxTree:
         return message
 
     @staticmethod
-    def analyze(scope: Scope):
+    def analyze(scope: GlobalScope):
         tree = SyntaxTree(scope._undefined_resources)
         message = ''
         for msg, elements in tree.messages.items():

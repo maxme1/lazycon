@@ -1,23 +1,20 @@
 from collections import OrderedDict
 
+from resource_manager.renderer import Renderer
 from .structures import Structure
 
 
-class Scope:
+class GlobalScope:
     def __init__(self):
         self._defined_resources = OrderedDict()
         self._undefined_resources = OrderedDict()
-        self._upper = None
-
-    def set_upper(self, upper):
-        assert self._upper is None
-        self._upper = upper
 
     def overwrite(self, scope):
         assert not self._defined_resources and not scope._defined_resources
         for name, value in scope._undefined_resources.items():
             self._undefined_resources[name] = value
 
+    # TODO: better names
     def set_resource(self, name: str, value: Structure):
         if name in self._undefined_resources:
             raise SyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source()))
@@ -28,16 +25,30 @@ class Scope:
             raise SyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source()))
         self._defined_resources[name] = value
 
-    def get_resource(self, name: str, renderer):
+    def get_resource(self, name: str):
         if name in self._defined_resources:
             return self._defined_resources[name]
 
         if name not in self._undefined_resources:
-            if self._upper is None:
-                raise AttributeError('Resource "{}" is not defined'.format(name))
-            return self._upper.get_resource(name, renderer)
+            raise AttributeError('Resource "{}" is not defined'.format(name))
 
         node = self._undefined_resources[name]
-        resource = renderer(node)
+        resource = Renderer.render(node, self)
         self._defined_resources[name] = resource
         return resource
+
+
+class LocalScope:
+    def __init__(self, upper_scope):
+        self._defined_resources = {}
+        self._upper = upper_scope
+
+    def define_resource(self, name: str, value):
+        assert name not in self._defined_resources
+        self._defined_resources[name] = value
+
+    def get_resource(self, name: str):
+        if name in self._defined_resources:
+            return self._defined_resources[name]
+
+        return self._upper.get_resource(name)
