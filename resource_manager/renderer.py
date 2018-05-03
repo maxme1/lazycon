@@ -56,9 +56,9 @@ class Renderer:
 
             scope = scopes.LocalScope(self.scope)
             for x, y in zip(node.params, args):
-                scope.define_resource(x.body, y)
+                scope.set_resource(x.body, y)
             if node.vararg:
-                scope.define_resource(node.vararg.body, args[len(node.params):])
+                scope.set_resource(node.vararg.body, args[len(node.params):])
 
             return Renderer.render(node.expression, scope)
 

@@ -88,7 +88,6 @@ class ResourceManager:
         return self._scope.get_resource(name)
 
     def _update_resources(self, scope):
-        # TODO: what if some of the resources were already rendered?
         self._scope.overwrite(scope)
         SyntaxTree.analyze(self._scope)
 
@@ -125,10 +124,10 @@ class ResourceManager:
                     value = LazyImport(import_.get_root(), what, as_, import_.main_token)
 
                 name = get_imported_name(what, as_)
-                scope.set_resource(name, value)
+                scope.set_node(name, value)
 
         for definition in definitions:
-            scope.set_resource(definition.name.body, definition.value)
+            scope.set_node(definition.name.body, definition.value)
 
         parent_scope.overwrite(scope)
         return parent_scope

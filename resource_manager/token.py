@@ -35,7 +35,6 @@ class TokenType(Enum):
     DIVIDE = token.SLASH
     FLOOR_DIVIDE = token.DOUBLESLASH
     MOD = token.PERCENT
-    # TODO: not supported in 3.4
     MATMUL = token.AT
     TILDE = token.TILDE
 
