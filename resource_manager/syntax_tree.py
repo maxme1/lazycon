@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Iterable
 
 from .token import TokenType, INVALID_STRING_PREFIXES
 from .scopes import GlobalScope
@@ -6,12 +7,13 @@ from .structures import *
 
 
 class SyntaxTree:
-    def __init__(self, resources: dict):
+    def __init__(self, resources: dict, builtins: Iterable):
         self.resources = resources
         self._request_stack = []
         self.messages = defaultdict(lambda: defaultdict(set))
 
         self._scopes = []
+        self._builtins = builtins
         self._global = {x: False for x in resources}
         self._structure_types = []
         for name, node in resources.items():
@@ -31,7 +33,7 @@ class SyntaxTree:
 
     @staticmethod
     def analyze(scope: GlobalScope):
-        tree = SyntaxTree(scope._undefined_resources)
+        tree = SyntaxTree(scope._undefined_resources, scope.builtins)
         message = ''
         for msg, elements in tree.messages.items():
             message += tree.format(msg, elements)
@@ -52,7 +54,8 @@ class SyntaxTree:
                 return
         # undefined variable:
         if name not in self._global:
-            self.add_message('Undefined resources found', node, name)
+            if name not in self._builtins:
+                self.add_message('Undefined resources found', node, name)
             return
         # cycle
         if name in self._request_stack:

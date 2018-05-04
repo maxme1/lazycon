@@ -1,3 +1,4 @@
+import builtins
 from collections import OrderedDict
 from threading import Lock
 
@@ -10,6 +11,7 @@ class GlobalScope:
         self._defined_resources = OrderedDict()
         self._undefined_resources = OrderedDict()
         self._local_locks = {}
+        self.builtins = {x: getattr(builtins, x) for x in dir(builtins) if not x.startswith('_')}
 
     def overwrite(self, scope):
         if self._defined_resources and scope._undefined_resources:
@@ -32,7 +34,9 @@ class GlobalScope:
 
     def get_resource(self, name: str):
         if name not in self._undefined_resources:
-            raise AttributeError('Resource "{}" is not defined'.format(name))
+            if name not in self.builtins:
+                raise AttributeError('Resource "{}" is not defined'.format(name))
+            return self.builtins[name]
 
         with self._local_locks[name]:
             if name in self._defined_resources:

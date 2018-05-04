@@ -9,7 +9,6 @@ class TestResourceManager(unittest.TestCase):
     def test_string_input(self):
         rm = ResourceManager()
         rm.string_input('''
-        from builtins import sum
         a = [1,2,3]
         b = sum(a)
         ''')
@@ -143,9 +142,7 @@ class TestResourceManager(unittest.TestCase):
             read_config('misc/duplicate.config')
 
     def test_exc_handling(self):
-        rm = ResourceManager()
-        rm.string_input('''
-        from builtins import sum
+        rm = ResourceManager().string_input('''
         a = sum(1)
         ''')
         with self.assertRaises(RuntimeError):

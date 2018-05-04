@@ -93,7 +93,7 @@ class Renderer:
         return target(*args, **kwargs)
 
     def _render_literal(self, node: Literal):
-        return eval(node.value.body)
+        return eval(node.value.body, {}, {})
 
     def _render_binary(self, node: Binary):
         left = self._render(node.left)
