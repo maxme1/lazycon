@@ -71,6 +71,9 @@ class Renderer:
         data = self._render(node.target)
         return getattr(data, node.name.body)
 
+    def _render_slice(self, node: Slice):
+        return slice(*(x if x is None else self._render(x) for x in node.args))
+
     def _render_get_item(self, node: GetItem):
         target = self._render(node.target)
         args = tuple(self._render(arg) for arg in node.args)

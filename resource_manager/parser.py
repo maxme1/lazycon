@@ -162,12 +162,12 @@ class Parser:
             elif self.matches(TokenType.BRACKET_OPEN):
                 self.advance()
 
-                args, coma = [self.expression()], False
+                args, coma = [self.slice_or_if()], False
                 while self.ignore(TokenType.COMA):
                     coma = True
                     if self.matches(TokenType.BRACKET_CLOSE):
                         break
-                    args.append(self.expression())
+                    args.append(self.slice_or_if())
 
                 self.require(TokenType.BRACKET_CLOSE)
                 data = GetItem(data, args, coma)
@@ -178,6 +178,39 @@ class Parser:
                 data = Call(data, *params, main_token=main_token)
 
         return data
+
+    def slice(self, start):
+        token = self.require(TokenType.COLON)
+        args = [start]
+        if self.matches(TokenType.COLON, TokenType.COMA, TokenType.BRACKET_OPEN):
+            # start: ?
+            args.append(None)
+        else:
+            # start:stop ?
+            args.append(self.inline_if())
+
+        if self.ignore(TokenType.COLON):
+            if self.matches(TokenType.COMA, TokenType.BRACKET_OPEN):
+                # start:?:
+                args.append(None)
+            else:
+                # start:?:step
+                args.append(self.inline_if())
+        else:
+            # start::
+            args.append(None)
+
+        return Slice(*args, token)
+
+    def slice_or_if(self):
+        if self.matches(TokenType.COLON):
+            return self.slice(None)
+
+        start = self.inline_if()
+        if self.matches(TokenType.COLON):
+            return self.slice(start)
+
+        return start
 
     def definition(self):
         name = self.require(TokenType.IDENTIFIER)

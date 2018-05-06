@@ -69,6 +69,11 @@ class SyntaxTree:
     def _render_get_attribute(self, node: GetAttribute):
         node.target.render(self)
 
+    def _render_slice(self, node: Slice):
+        for arg in node.args:
+            if arg is not None:
+                arg.render(self)
+
     def _render_get_item(self, node: GetItem):
         node.target.render(self)
         for arg in node.args:

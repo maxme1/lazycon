@@ -127,6 +127,27 @@ class GetItem(Structure):
         return 'getting item from the resource %s' % self.target.to_str(0)
 
 
+class Slice(Structure):
+    def __init__(self, start: Structure, stop: Structure, step: Structure, main_token: TokenWrapper):
+        super().__init__(main_token)
+        self.step = step
+        self.stop = stop
+        self.start = start
+        self.args = [start, stop, step]
+
+    def to_str(self, level):
+        result = ''
+        if self.start is not None:
+            result += self.start.to_str(level)
+        result += ':'
+        if self.stop:
+            result += self.stop.to_str(level)
+        if self.step:
+            result += ':' + self.step.to_str(level)
+
+        return result
+
+
 class Call(Structure):
     def __init__(self, target: Structure, args: list, vararg: list, params: list, lazy: bool, main_token):
         super().__init__(main_token)

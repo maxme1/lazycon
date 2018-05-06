@@ -120,6 +120,10 @@ class TestResourceManager(unittest.TestCase):
         rm = read_config('expressions/if_.config')
         self.assertListEqual([1, 1, 1], rm.results)
 
+    def test_slice(self):
+        rm = read_config('expressions/slices.config')
+        self.assertTupleEqual(rm.correct_slices, rm.slices)
+
     def test_build_config(self):
         rm = read_config('imports/config_import.config', shortcuts={'expressions': 'expressions'})
         with open('imports/built.config') as built:
