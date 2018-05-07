@@ -23,7 +23,7 @@ class Parser:
             return self.dictionary()
         if self.matches(TokenType.LAMBDA):
             return self.lambda_()
-        return Literal(self.require(TokenType.STRING, TokenType.LITERAL, TokenType.NUMBER))
+        return Literal(self.require(TokenType.STRING, TokenType.LITERAL, TokenType.NUMBER, TokenType.ELLIPSIS))
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
@@ -39,7 +39,7 @@ class Parser:
                     if vararg:
                         break
         self.require(TokenType.COLON)
-        return Lambda(params, vararg, self.expression(), token)
+        return Lambda(params, vararg, self.inline_if(), token)
 
     def is_keyword(self):
         return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1)
@@ -54,13 +54,13 @@ class Parser:
         # if has positional
         if not self.is_keyword():
             vararg.append(self.ignore(TokenType.ASTERISK))
-            args.append(self.expression())
+            args.append(self.inline_if())
 
             while self.ignore(TokenType.COMA):
                 if self.is_keyword() or self.matches(TokenType.PAR_CLOSE):
                     break
                 vararg.append(self.ignore(TokenType.ASTERISK))
-                args.append(self.expression())
+                args.append(self.inline_if())
 
         # keyword
         if self.matches(TokenType.IDENTIFIER):

@@ -10,6 +10,7 @@ class TokenType(Enum):
     STRING = token.STRING
     NUMBER = token.NUMBER
     IDENTIFIER = token.NAME
+    ELLIPSIS = token.ELLIPSIS
 
     COLON = token.COLON
     COMA = token.COMMA
@@ -64,6 +65,7 @@ RESERVED = {
     'and': TokenType.AND,
     'if': TokenType.IF,
     'else': TokenType.ELSE,
+    '...': TokenType.ELLIPSIS,
 }
 
 LAZY = re.compile(r'^#\s*lazy\s*$')

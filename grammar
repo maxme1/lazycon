@@ -34,22 +34,24 @@ factor = ( '+' | '-' | '~' )? power
 power: tailed ('**' factor)?
 
 tailed = primary (getAttribute | call | getItem)*
-getItem = '[' expression (',' expression)* ','? ']'
 getAttribute = '.' IDENTIFIER
+getItem = '[' sliceOrIf (',' sliceOrIf)* ','? ']'
 call = '(' params ')'
+
+sliceOrIf =  inlineIf | ( inlineIf? ':' inlineIf? (':' inlineIf?)? )
 params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
-positional = '*'? expression (',' '*'? expression)*
+positional = '*'? inlineIf (',' '*'? inlineIf)*
 keyword = definition (',' definition)*
 
-primary = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True'
-    | '(' expression ')'
+primary = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True' | '...'
+    | '(' inlineIf ')'
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = inlineIf ':' inlineIf
 array = '[' (starredOrInline (',' starredOrInline)* ','?)? ']'
 tuple = '(' (starredOrInline (',' starredOrInline)* ','?)? ')'
 starredOrInline = inlineIf | ('*' orBitExp)
 # TODO: add kwargs
-lambda = 'lambda' ((argsDef (',' varargDef)?) | varargDef)? ':' expression
+lambda = 'lambda' ((argsDef (',' varargDef)?) | varargDef)? ':' inlineIf
 argsDef = (IDENTIFIER (',' IDENTIFIER)*)?
 varargDef = '*' IDENTIFIER
 
