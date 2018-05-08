@@ -55,7 +55,7 @@ class SyntaxTree:
         # undefined variable:
         if name not in self._global:
             if name not in self._builtins:
-                self.add_message('Undefined resources found', node, name)
+                self.add_message('Undefined resources found, but are required', node, name)
             return
         # cycle
         if name in self._request_stack:
