@@ -1,6 +1,7 @@
 import functools
 import importlib
 import sys
+from contextlib import contextmanager
 
 from .structures import *
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
@@ -9,6 +10,18 @@ from . import scopes
 IGNORE_IN_TRACEBACK = (
     Binary, Unary, Parenthesis, Slice, Starred, Array, Tuple, Dictionary
 )
+
+
+@contextmanager
+def ignore_traceback():
+    def custom_handler(cls, instance, traceback):
+        instance.__traceback__ = None
+        default_handler(cls, instance, traceback)
+
+    default_handler = sys.excepthook
+    sys.excepthook = custom_handler
+    yield
+    sys.excepthook = default_handler
 
 
 class Renderer:
@@ -45,7 +58,8 @@ class Renderer:
 
             definition = self._definitions_stack[-1]
             self._definitions_stack = []
-            raise RuntimeError('An exception occurred while ' + definition.error_message() + message) from e
+            with ignore_traceback():
+                raise RuntimeError('An exception occurred while ' + definition.error_message() + message) from e
         self._definitions_stack.pop()
         return value
 
