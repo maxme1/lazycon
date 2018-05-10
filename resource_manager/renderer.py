@@ -14,9 +14,14 @@ IGNORE_IN_TRACEBACK = (
 
 @contextmanager
 def ignore_traceback():
-    def custom_handler(cls, instance, traceback):
-        instance.__traceback__ = None
-        default_handler(cls, instance, traceback)
+    def custom_handler(cls, instance: Exception, traceback):
+        cause = instance
+        while cause:
+            if hasattr(cause, '__render_error__'):
+                cause.__traceback__ = None
+            cause = cause.__cause__
+
+        return default_handler(cls, instance, traceback)
 
     default_handler = sys.excepthook
     sys.excepthook = custom_handler
@@ -58,8 +63,12 @@ class Renderer:
 
             definition = self._definitions_stack[-1]
             self._definitions_stack = []
+
+            # TODO: this is really bad
+            exp = RuntimeError('An exception occurred while ' + definition.error_message() + message)
+            exp.__render_error__ = True
             with ignore_traceback():
-                raise RuntimeError('An exception occurred while ' + definition.error_message() + message) from e
+                raise exp from e
         self._definitions_stack.pop()
         return value
 
