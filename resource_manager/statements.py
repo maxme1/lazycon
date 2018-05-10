@@ -40,7 +40,7 @@ class BaseImport(Structure):
         else:
             shortcut, root = '', self._from
         if self._prefix_dots > 1:
-            root = (os.pardir,) + root
+            root = (os.pardir,) * (self._prefix_dots - 1) + root
 
         return shortcut, os.path.join(*root) + '.config'
 

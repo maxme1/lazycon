@@ -276,10 +276,11 @@ class Parser:
     def import_(self):
         root, prefix_dots = [], 0
         if self.ignore(TokenType.FROM):
-            if self.ignore(TokenType.DOT):
+            while self.matches(TokenType.DOT, TokenType.ELLIPSIS):
+                if self.matches(TokenType.ELLIPSIS):
+                    prefix_dots += 2
                 prefix_dots += 1
-            if self.ignore(TokenType.DOT):
-                prefix_dots += 1
+                self.advance()
             root = self.dotted()
 
         main_token = self.require(TokenType.IMPORT)

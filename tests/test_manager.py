@@ -33,6 +33,8 @@ class TestResourceManager(unittest.TestCase):
         rm = read_config('imports/folder/upper_partial.config')
         self.assertIsNone(rm.numpy)
         self.assertEqual(np, rm.np)
+        rm = read_config('imports/folder/child/third.config')
+        self.assertEqual(1, rm.one)
 
     def test_cycle_import(self):
         try:

@@ -2,7 +2,7 @@ config = importWholeConfig* partialImport* definition*
 
 importWholeConfig = importStr | importStarred
 importStr = 'import' STRING
-importStarred = 'from' (IDENTIFIER | '.')? '.' dotted 'import' '*'
+importStarred = 'from' '.'* dotted 'import' '*'
 
 partialImport = importSimple | importFrom | importFromConfig
 importSimple = 'import' dotted_import_as (',' dotted_import_as)*
