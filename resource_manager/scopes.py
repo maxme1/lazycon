@@ -1,5 +1,6 @@
 import builtins
 from collections import OrderedDict
+from contextlib import suppress
 from threading import Lock
 
 from .renderer import Renderer
@@ -14,6 +15,7 @@ class GlobalScope:
         self.builtins = {x: getattr(builtins, x) for x in dir(builtins) if not x.startswith('_')}
 
     def overwrite(self, scope):
+        # TODO: check if really something will be overwritten. (thread-safe)
         if self._defined_resources and scope._undefined_resources:
             raise RuntimeError("The resource manager's scope already contains rendered resources. "
                                "Overwriting them may lead to undefined behaviour.")
@@ -32,22 +34,25 @@ class GlobalScope:
         assert name not in self._defined_resources and name in self._undefined_resources
         self._defined_resources[name] = value
 
-    def get_resource(self, name: str):
-        if name in self._defined_resources:
+    def get_resource(self, name: str, renderer=None):
+        with suppress(KeyError):
             return self._defined_resources[name]
+        with suppress(KeyError):
+            return self.builtins[name]
 
         if name not in self._undefined_resources:
-            if name not in self.builtins:
-                raise AttributeError('Resource "{}" is not defined'.format(name))
-            return self.builtins[name]
+            raise AttributeError('Resource "{}" is not defined'.format(name))
 
         # render the resource
         with self._local_locks[name]:
-            if name in self._defined_resources:
+            with suppress(KeyError):
                 return self._defined_resources[name]
 
             node = self._undefined_resources[name]
-            resource = Renderer.render(node, self)
+            if renderer is None:
+                resource = Renderer.render(node, self)
+            else:
+                resource = renderer(node)
             self._defined_resources[name] = resource
             return resource
 
@@ -61,8 +66,7 @@ class LocalScope:
         assert name not in self._defined_resources
         self._defined_resources[name] = value
 
-    def get_resource(self, name: str):
-        try:
+    def get_resource(self, name: str, renderer=None):
+        with suppress(KeyError):
             return self._defined_resources[name]
-        except KeyError:
-            return self._upper.get_resource(name)
+        return self._upper.get_resource(name, renderer)

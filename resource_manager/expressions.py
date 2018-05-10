@@ -52,12 +52,17 @@ class Binary(Structure):
         else:
             self.key = operation.type
 
-    def to_str(self, level):
+    def _operation_body(self):
         if type(self.operation) is tuple:
-            operation = ' '.join(x.body for x in self.operation)
+            return ' '.join(x.body for x in self.operation)
         else:
-            operation = self.operation.body
-        return '%s %s %s' % (self.left.to_str(level), operation, self.right.to_str(0))
+            return self.operation.body
+
+    def to_str(self, level):
+        return '%s %s %s' % (self.left.to_str(level), self._operation_body(), self.right.to_str(0))
+
+    def error_message(self):
+        return 'applying the "%s" operator' % self._operation_body()
 
 
 class Unary(Structure):
@@ -69,6 +74,9 @@ class Unary(Structure):
 
     def to_str(self, level):
         return '%s %s' % (self.operation.body, self.argument.to_str(0))
+
+    def error_message(self):
+        return 'applying the "unary %s" operator' % self.operation.body
 
 
 class Resource(Structure):

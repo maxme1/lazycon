@@ -6,6 +6,10 @@ from .structures import *
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
 from . import scopes
 
+IGNORE_IN_TRACEBACK = (
+    Binary, Unary, Parenthesis, Slice, Starred, Array, Tuple, Dictionary
+)
+
 
 class Renderer:
     def __init__(self, scope):
@@ -30,7 +34,8 @@ class Renderer:
                 position = definition.position()
                 position = position[0], position[2]
 
-                if position != last_position:
+                if last_position is None or (
+                        position != last_position and not isinstance(definition, IGNORE_IN_TRACEBACK)):
                     line = definition.line()
                     if line[-1] == '\n':
                         line = line[:-1]
@@ -65,7 +70,7 @@ class Renderer:
         return f
 
     def _render_resource(self, node: Resource):
-        return self.scope.get_resource(node.name.body)
+        return self.scope.get_resource(node.name.body, renderer=self._render)
 
     def _render_get_attribute(self, node: GetAttribute):
         data = self._render(node.target)
