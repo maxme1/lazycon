@@ -15,10 +15,11 @@ class GlobalScope:
         self.builtins = {x: getattr(builtins, x) for x in dir(builtins) if not x.startswith('_')}
 
     def overwrite(self, scope):
-        # TODO: check if really something will be overwritten. (thread-safe)
-        if self._defined_resources and scope._undefined_resources:
-            raise RuntimeError("The resource manager's scope already contains rendered resources. "
-                               "Overwriting them may lead to undefined behaviour.")
+        for name in scope._undefined_resources.keys():
+            if (name in self._local_locks and self._local_locks[name].locked()) or name in self._defined_resources:
+                raise RuntimeError('The resource "%s" is already rendered. '
+                                   "Overwriting it may lead to undefined behaviour." % name)
+
         for name, value in scope._undefined_resources.items():
             self._undefined_resources[name] = value
             if name not in self._local_locks:

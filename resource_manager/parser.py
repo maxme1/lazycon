@@ -182,7 +182,7 @@ class Parser:
     def slice(self, start):
         token = self.require(TokenType.COLON)
         args = [start]
-        if self.matches(TokenType.COLON, TokenType.COMA, TokenType.BRACKET_OPEN):
+        if self.matches(TokenType.COLON, TokenType.COMA, TokenType.BRACKET_CLOSE):
             # start: ?
             args.append(None)
         else:
@@ -190,7 +190,7 @@ class Parser:
             args.append(self.inline_if())
 
         if self.ignore(TokenType.COLON):
-            if self.matches(TokenType.COMA, TokenType.BRACKET_OPEN):
+            if self.matches(TokenType.COMA, TokenType.BRACKET_CLOSE):
                 # start:?:
                 args.append(None)
             else:
