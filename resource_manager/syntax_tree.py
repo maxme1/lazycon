@@ -110,12 +110,8 @@ class SyntaxTree:
         node.expression.render(self)
 
     def _render_lambda(self, node: Lambda):
-        params = node.params
-        if node.vararg:
-            params = params + (node.vararg,)
-
-        names = {x.body for x in params}
-        if len(names) != len(params):
+        names = {x.name.body for x in node.arguments}
+        if len(names) != len(node.arguments):
             self.add_message('Duplicate arguments in lambda definition', node, 'at %d:%d' % node.position()[:2])
         self._scopes.append(names)
         node.expression.render(self)

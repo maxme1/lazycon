@@ -64,10 +64,14 @@ class LocalScope:
         self._upper = upper_scope
 
     def set_resource(self, name: str, value):
-        assert name not in self._defined_resources
+        if name in self._defined_resources:
+            raise ValueError('Duplicate argument: ' + name)
         self._defined_resources[name] = value
 
     def get_resource(self, name: str, renderer=None):
         with suppress(KeyError):
             return self._defined_resources[name]
         return self._upper.get_resource(name, renderer)
+
+    def __contains__(self, item):
+        return item in self._defined_resources

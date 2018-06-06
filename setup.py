@@ -3,6 +3,7 @@ from setuptools import find_packages
 from resource_manager import __version__
 
 classifiers = '''Development Status :: 5 - Production/Stable
+Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
 Programming Language :: Python :: 3.6'''
 

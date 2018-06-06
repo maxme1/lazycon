@@ -73,24 +73,43 @@ class Renderer:
         return value
 
     def _render_lambda(self, node: Lambda):
-        err = 'Function requires %s%d argument(s), but %d provided'
+        for argument in node.arguments:
+            if argument.has_default_value:
+                argument.set_default_value(self._render(argument.default_exp))
 
-        def f(*args):
-            if len(args) != len(node.params):
-                if not node.vararg:
-                    raise ValueError(err % (' ', len(node.params), len(args)))
-                elif len(args) < len(node.params):
-                    raise ValueError(err % ('at least ', len(node.params), len(args)))
-
+        def lambda_(*args, **kwargs):
             scope = scopes.LocalScope(self.scope)
-            for x, y in zip(node.params, args):
-                scope.set_resource(x.body, y)
             if node.vararg:
-                scope.set_resource(node.vararg.body, args[len(node.params):])
+                scope.set_resource(node.vararg.name.body, args[len(node.positional):])
+            else:
+                if len(node.arguments) < len(args):
+                    raise ValueError('Function requires %d argument(s), but %d provided' %
+                                     (len(node.arguments), len(args)))
+
+            for name, arg in zip(node.positional, args):
+                scope.set_resource(name, arg)
+
+            for name, arg in kwargs.items():
+                if name not in node.keyword:
+                    raise ValueError("Function doesn't take argument: " + name)
+                scope.set_resource(name, arg)
+
+            not_defined = []
+            for argument in node.arguments:
+                name = argument.name.body
+                if name not in scope:
+                    if argument.has_default_value:
+                        scope.set_resource(name, argument.default_value)
+                    else:
+                        not_defined.append(name)
+
+            if not_defined:
+                raise ValueError('Undefined argument(s): ' + ','.join(not_defined))
 
             return Renderer.render(node.expression, scope)
 
-        return f
+        lambda_.__qualname__ = lambda_.__name__ = '<lambda>'
+        return lambda_
 
     def _render_resource(self, node: Resource):
         return self.scope.get_resource(node.name.body, renderer=self._render)

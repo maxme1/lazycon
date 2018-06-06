@@ -1,33 +1,46 @@
 from typing import List, Union
 
+from resource_manager.arguments import Parameter
 from .structures import Structure, MAX_COLUMNS
 from .token import TokenWrapper
 
 
 class Lambda(Structure):
-    def __init__(self, params: List[TokenWrapper], last_vararg: bool, expression: Structure, main_token):
+    def __init__(self, arguments: List[Parameter], expression: Structure, main_token):
         super().__init__(main_token)
         self.expression = expression
+        self.arguments = arguments
+        positional, self.vararg, i = [], None, 0
+        for i, argument in enumerate(arguments):
+            if argument.vararg:
+                self.vararg = argument
+                break
+            positional.append(argument)
 
-        if last_vararg:
-            assert params
-            params, vararg = params[:-1], params[-1]
-        else:
-            vararg = None
+        def get_names(arr):
+            return tuple(x.name.body for x in arr)
 
-        self.params = tuple(params)
-        self.vararg = vararg
+        self.positional = get_names(positional)
+        self.keyword = self.positional + get_names(arguments[i + 1:])
 
     def to_str(self, level):
-        params = ','.join(x.body for x in self.params)
-        if self.vararg:
-            if params:
-                params += ', '
-            params += '*' + self.vararg.body
+        result = 'lambda '
+        for argument in self.arguments:
+            if argument.vararg:
+                result += '*'
+                if argument.keyword:
+                    result += '*'
 
-        if params:
-            params = ' ' + params
-        return 'lambda' + params + ': ' + self.expression.to_str(level + 1)
+            result += argument.name.body
+            if argument.has_default_value:
+                result += '=' + argument.default_exp.to_str(level)
+            result += ', '
+
+        result = result[:-1]
+        if self.arguments:
+            result = result[:-1]
+
+        return result + ': ' + self.expression.to_str(level + 1)
 
 
 class InlineIf(Structure):

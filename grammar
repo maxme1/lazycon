@@ -50,10 +50,9 @@ pair = inlineIf ':' inlineIf
 array = '[' (starredOrInline (',' starredOrInline)* ','?)? ']'
 tuple = '(' (starredOrInline (',' starredOrInline)* ','?)? ')'
 starredOrInline = inlineIf | ('*' orBitExp)
-# TODO: add kwargs
-lambda = 'lambda' ((argsDef (',' varargDef)?) | varargDef)? ':' inlineIf
-argsDef = (IDENTIFIER (',' IDENTIFIER)*)?
-varargDef = '*' IDENTIFIER
+// this part is not a valid grammar, but i'm too lazy
+lambda = 'lambda' (arg* ('*' IDENTIFIER)? arg*) ':' inlineIf
+arg = IDENTIFIER ('=' inlineIf)?
 
 LAZY = '#\s*lazy\s*$'
 

@@ -2,6 +2,7 @@ from tokenize import TokenError
 
 from io import BytesIO
 
+from .arguments import NoDefaultValue
 from .tokenizer import tokenize
 from .token import TokenType
 from .structures import *
@@ -27,19 +28,25 @@ class Parser:
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
-        vararg, params = self.ignore(TokenType.ASTERISK), []
-        if vararg:
-            params = [self.require(TokenType.IDENTIFIER)]
-        else:
-            if self.matches(TokenType.IDENTIFIER):
-                params = [self.advance()]
-                while self.ignore(TokenType.COMA):
-                    vararg = self.ignore(TokenType.ASTERISK)
-                    params.append(self.require(TokenType.IDENTIFIER))
-                    if vararg:
-                        break
+        params, keyword = [], True
+        while not self.matches(TokenType.COLON):
+            if params:
+                self.require(TokenType.COMA)
+
+            vararg = False
+            if keyword:
+                vararg = self.ignore(TokenType.ASTERISK)
+                if vararg:
+                    keyword = False
+
+            name = self.require(TokenType.IDENTIFIER)
+            default = NoDefaultValue
+            if not vararg and self.ignore(TokenType.EQUALS):
+                default = self.inline_if()
+            params.append(Parameter(name, vararg, keyword=keyword, default=default))
+
         self.require(TokenType.COLON)
-        return Lambda(params, vararg, self.inline_if(), token)
+        return Lambda(params, self.inline_if(), token)
 
     def is_keyword(self):
         return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1)

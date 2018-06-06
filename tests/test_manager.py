@@ -91,6 +91,10 @@ class TestResourceManager(unittest.TestCase):
         rm = read_config('expressions/lambda_.config')
         with self.assertRaises(ValueError):
             rm.b(1, 2)
+        try:
+            rm.vararg(x=1)
+        except BaseException:
+            self.fail()
 
     def test_types(self):
         rm = read_config('expressions/types.config')
