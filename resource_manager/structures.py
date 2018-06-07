@@ -41,3 +41,7 @@ class Structure:
 
 from .expressions import *
 from .statements import *
+
+IGNORE_IN_TRACEBACK = (
+    Binary, Unary, Parenthesis, Slice, Starred, Array, Tuple, Dictionary
+)

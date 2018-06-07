@@ -1,32 +1,11 @@
 import functools
 import importlib
 import sys
-from contextlib import contextmanager
 
-from .structures import *
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
 from . import scopes
-
-IGNORE_IN_TRACEBACK = (
-    Binary, Unary, Parenthesis, Slice, Starred, Array, Tuple, Dictionary
-)
-
-
-@contextmanager
-def ignore_traceback():
-    def custom_handler(cls, instance: Exception, traceback):
-        cause = instance
-        while cause:
-            if hasattr(cause, '__render_error__'):
-                cause.__traceback__ = None
-            cause = cause.__cause__
-
-        return default_handler(cls, instance, traceback)
-
-    default_handler = sys.excepthook
-    sys.excepthook = custom_handler
-    yield
-    sys.excepthook = default_handler
+from .structures import *
+from .exceptions import RenderError, ignore_traceback
 
 
 class Renderer:
@@ -42,33 +21,19 @@ class Renderer:
         self._definitions_stack.append(node)
         try:
             value = node.render(self)
+        except RenderError as e:
+            definitions, self._definitions_stack = self._definitions_stack, []
+            if definitions:
+                e.append_definitions(definitions)
+            raise
         except BaseException as e:
             if not self._definitions_stack:
                 raise
 
-            stack = []
-            last_position = None
-            for definition in reversed(self._definitions_stack):
-                position = definition.position()
-                position = position[0], position[2]
-
-                if last_position is None or (
-                        position != last_position and not isinstance(definition, IGNORE_IN_TRACEBACK)):
-                    line = definition.line()
-                    if line[-1] == '\n':
-                        line = line[:-1]
-                    stack.append('\n  at %d:%d in %s\n    ' % definition.position() + line)
-                last_position = position
-            message = ''.join(reversed(stack))
-
-            definition = self._definitions_stack[-1]
-            self._definitions_stack = []
-
-            # TODO: this is really bad
-            exp = RuntimeError('An exception occurred while ' + definition.error_message() + message)
-            exp.__render_error__ = True
+            definitions, self._definitions_stack = self._definitions_stack, []
             with ignore_traceback():
-                raise exp from e
+                raise RenderError(definitions) from e
+
         self._definitions_stack.pop()
         return value
 
@@ -104,7 +69,7 @@ class Renderer:
                         not_defined.append(name)
 
             if not_defined:
-                raise ValueError('Undefined argument(s): ' + ','.join(not_defined))
+                raise ValueError('Undefined argument(s): ' + ', '.join(not_defined))
 
             return Renderer.render(node.expression, scope)
 
