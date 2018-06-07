@@ -21,15 +21,9 @@ class Renderer:
         self._definitions_stack.append(node)
         try:
             value = node.render(self)
-        except RenderError as e:
-            definitions, self._definitions_stack = self._definitions_stack, []
-            if definitions:
-                e.append_definitions(definitions)
-            raise
         except BaseException as e:
             if not self._definitions_stack:
                 raise
-
             definitions, self._definitions_stack = self._definitions_stack, []
             with ignore_traceback():
                 raise RenderError(definitions) from e
