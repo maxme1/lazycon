@@ -5,7 +5,7 @@ import sys
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
 from . import scopes
 from .structures import *
-from .exceptions import RenderError, ignore_traceback
+from .exceptions import RenderError, modify_traceback, join_traceback
 
 
 class Renderer:
@@ -13,9 +13,9 @@ class Renderer:
         self.scope = scope
         self._definitions_stack = []
 
-    @classmethod
-    def render(cls, node: Structure, scope):
-        return cls(scope)._render(node)
+    @staticmethod
+    def render(node: Structure, scope):
+        return Renderer(scope)._render(node)
 
     def _render(self, node: Structure):
         self._definitions_stack.append(node)
@@ -25,7 +25,7 @@ class Renderer:
             if not self._definitions_stack:
                 raise
             definitions, self._definitions_stack = self._definitions_stack, []
-            with ignore_traceback():
+            with modify_traceback(join_traceback):
                 raise RenderError(definitions) from e
 
         self._definitions_stack.pop()

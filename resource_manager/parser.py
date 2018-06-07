@@ -2,10 +2,11 @@ from tokenize import TokenError
 
 from io import BytesIO
 
-from .arguments import NoDefaultValue
 from .tokenizer import tokenize
 from .token import TokenType
 from .structures import *
+from .arguments import NoDefaultValue, Parameter
+from .exceptions import modify_traceback, remove_traceback, BadSyntaxError
 
 
 class Parser:
@@ -28,22 +29,22 @@ class Parser:
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
-        params, keyword = [], True
+        params, both = [], True
         while not self.matches(TokenType.COLON):
             if params:
                 self.require(TokenType.COMA)
 
             vararg = False
-            if keyword:
+            if both:
                 vararg = self.ignore(TokenType.ASTERISK)
                 if vararg:
-                    keyword = False
+                    both = False
 
             name = self.require(TokenType.IDENTIFIER)
             default = NoDefaultValue
             if not vararg and self.ignore(TokenType.EQUALS):
                 default = self.inline_if()
-            params.append(Parameter(name, vararg, keyword=keyword, default=default))
+            params.append(Parameter(name, vararg, keyword=not vararg, default=default))
 
         self.require(TokenType.COLON)
         return Lambda(params, self.inline_if(), token)
@@ -355,7 +356,9 @@ class Parser:
     @staticmethod
     def throw(message, token):
         source = token.source or '<string input>'
-        raise SyntaxError(message + '\n  at %d:%d in %s' % (token.line, token.column, source))
+        with modify_traceback(remove_traceback):
+            raise BadSyntaxError(message + '\n  at %d:%d in %s\n    %s' %
+                                 (token.line, token.column, source, token.token_line.rstrip()))
 
     def require(self, *types) -> TokenWrapper:
         if not self.matches(*types):
@@ -374,7 +377,8 @@ def parse(readline, source_path):
         tokens = tokenize(readline, source_path)
     except TokenError as e:
         source_path = source_path or '<string input>'
-        raise SyntaxError(e.args[0] + ' at %d:%d in %s' % (e.args[1] + (source_path,))) from None
+        with modify_traceback(remove_traceback):
+            raise BadSyntaxError(e.args[0] + ' at %d:%d in %s' % (e.args[1] + (source_path,))) from None
     return Parser(tokens).parse()
 
 
