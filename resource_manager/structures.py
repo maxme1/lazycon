@@ -33,8 +33,9 @@ class Structure:
         return self.main_token.source or '<string input>'
 
     def line(self):
-        return self.main_token.token_line
+        return self.main_token.token_line.rstrip()
 
+    # TODO: do i need this?
     def level(self, level):
         return '    ' * level
 

@@ -9,6 +9,7 @@ def tokenize(readline, source_path: str):
     for token in _tokenize(readline):
         name = tok_name[token.type]
         if name == 'ERRORTOKEN':
+            # TODO: move token logic into one place
             raise TokenError('Unrecognized token starting', token.start)
         if name in EXCLUDE:
             continue

@@ -8,10 +8,29 @@ IGNORE_IN_TRACEBACK = (
 )
 
 
+class NoCause:
+    pass
+
+
+def custom_raise(exception, cause=NoCause):
+    with modify_traceback():
+        if cause is NoCause:
+            raise exception
+        else:
+            raise exception from cause
+
+
 @contextmanager
-def modify_traceback(change_exception):
-    def custom_handler(cls, exception, traceback):
-        return default_handler(cls, change_exception(exception), traceback)
+def modify_traceback():
+    def custom_handler(cls, exception: Exception, traceback):
+        current = exception
+        while current:
+            if isinstance(current, ModifiedException):
+                current.__traceback__ = None
+                current.update_self()
+            current = current.__cause__
+
+        return default_handler(cls, exception, traceback)
 
     default_handler = sys.excepthook
     sys.excepthook = custom_handler
@@ -19,56 +38,24 @@ def modify_traceback(change_exception):
     sys.excepthook = default_handler
 
 
-def join_traceback(exception: Exception):
-    current = exception
-    while current:
-        if type(current) is RenderError:
-            current.__traceback__ = None
-
-            while type(current.__cause__) is RenderError:
-                cause = current.__cause__
-                current.update_definitions(cause.definitions)
-                current.__cause__ = cause.__cause__
-
-        current = current.__cause__
-
-    return exception
+class ModifiedException(Exception):
+    def update_self(self):
+        pass
 
 
-def replace(exception: Exception, from_type, to_type):
-    current = exception
-    previous = None
-    while current:
-        if type(current) is from_type:
-            temp = to_type(*current.args)
-            temp.__cause__ = current.__cause__
-            current = temp
-            if previous is None:
-                exception = temp
-            else:
-                previous.__cause__ = temp
-            temp.__traceback__ = None
-
-        previous = current
-        current = current.__cause__
-
-    return exception
-
-
-def remove_traceback(exception: Exception):
-    current = exception
-    while current:
-        if type(current) is BadSyntaxError:
-            current.__traceback__ = None
-        current = current.__cause__
-    return exception
-
-
-class BadSyntaxError(RuntimeError):
+class BadSyntaxError(ModifiedException):
     pass
 
 
-class RenderError(RuntimeError):
+class LambdaArgumentsError(ModifiedException):
+    pass
+
+
+class BuildConfigError(ModifiedException):
+    pass
+
+
+class RenderError(ModifiedException):
     def __init__(self, definitions):
         self.definitions = tuple(definitions)
         super().__init__(self.get_str())
@@ -86,9 +73,14 @@ class RenderError(RuntimeError):
 
             if last_position is None or (
                     position != last_position and not isinstance(definition, IGNORE_IN_TRACEBACK)):
-                line = definition.line().rstrip()
-                stack.append('\n  at %d:%d in %s\n    ' % definition.position() + line)
+                stack.append('\n  at %d:%d in %s\n    ' % definition.position() + definition.line())
             last_position = position
 
         definition = self.definitions[-1]
         return 'An exception occurred while ' + definition.error_message() + ''.join(reversed(stack))
+
+    def update_self(self):
+        while type(self.__cause__) is RenderError:
+            cause = self.__cause__
+            self.update_definitions(cause.definitions)
+            self.__cause__ = cause.__cause__

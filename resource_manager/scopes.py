@@ -3,6 +3,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from threading import Lock
 
+from resource_manager.exceptions import custom_raise, BuildConfigError, BadSyntaxError, LambdaArgumentsError
 from .renderer import Renderer
 from .structures import Structure
 
@@ -15,10 +16,11 @@ class GlobalScope:
         self.builtins = {x: getattr(builtins, x) for x in dir(builtins) if not x.startswith('_')}
 
     def overwrite(self, scope):
+        # TODO: reformat these exceptions
         for name in scope._undefined_resources.keys():
             if (name in self._local_locks and self._local_locks[name].locked()) or name in self._defined_resources:
-                raise RuntimeError('The resource "%s" is already rendered. '
-                                   "Overwriting it may lead to undefined behaviour." % name)
+                custom_raise(BuildConfigError('The resource "%s" is already rendered. '
+                                              "Overwriting it may lead to undefined behaviour." % name))
 
         for name, value in scope._undefined_resources.items():
             self._undefined_resources[name] = value
@@ -27,7 +29,7 @@ class GlobalScope:
 
     def set_node(self, name: str, value: Structure):
         if name in self._undefined_resources:
-            raise SyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source()))
+            custom_raise(BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source())))
         self._undefined_resources[name] = value
         self._local_locks[name] = Lock()
 
@@ -65,7 +67,7 @@ class LocalScope:
 
     def set_resource(self, name: str, value):
         if name in self._defined_resources:
-            raise ValueError('Duplicate argument: ' + name)
+            custom_raise(LambdaArgumentsError('Duplicate argument: ' + name))
         self._defined_resources[name] = value
 
     def get_resource(self, name: str, renderer=None):

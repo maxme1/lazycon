@@ -5,7 +5,7 @@ import sys
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
 from . import scopes
 from .structures import *
-from .exceptions import RenderError, modify_traceback, join_traceback
+from .exceptions import RenderError, custom_raise, LambdaArgumentsError
 
 
 class Renderer:
@@ -25,16 +25,15 @@ class Renderer:
             if not self._definitions_stack:
                 raise
             definitions, self._definitions_stack = self._definitions_stack, []
-            with modify_traceback(join_traceback):
-                raise RenderError(definitions) from e
+            custom_raise(RenderError(definitions), e)
 
         self._definitions_stack.pop()
         return value
 
     def _render_lambda(self, node: Lambda):
-        for argument in node.arguments:
-            if argument.has_default_value:
-                argument.set_default_value(self._render(argument.default_exp))
+        for _argument in node.arguments:
+            if _argument.has_default_value:
+                _argument.set_default_value(self._render(_argument.default_exp))
 
         def lambda_(*args, **kwargs):
             scope = scopes.LocalScope(self.scope)
@@ -42,15 +41,15 @@ class Renderer:
                 scope.set_resource(node.vararg.name.body, args[len(node.positional):])
             else:
                 if len(node.arguments) < len(args):
-                    raise ValueError('Function requires %d argument(s), but %d provided' %
-                                     (len(node.arguments), len(args)))
+                    custom_raise(LambdaArgumentsError('Function requires %d argument(s), but %d provided' %
+                                                      (len(node.arguments), len(args))))
 
             for name, arg in zip(node.positional, args):
                 scope.set_resource(name, arg)
 
             for name, arg in kwargs.items():
                 if name not in node.keyword:
-                    raise ValueError("Function doesn't take argument: " + name)
+                    custom_raise(LambdaArgumentsError("Function doesn't take argument: " + name))
                 scope.set_resource(name, arg)
 
             not_defined = []
@@ -63,7 +62,7 @@ class Renderer:
                         not_defined.append(name)
 
             if not_defined:
-                raise ValueError('Undefined argument(s): ' + ', '.join(not_defined))
+                custom_raise(LambdaArgumentsError('Undefined argument(s): ' + ', '.join(not_defined)))
 
             return Renderer.render(node.expression, scope)
 

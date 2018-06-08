@@ -6,7 +6,7 @@ from .tokenizer import tokenize
 from .token import TokenType
 from .structures import *
 from .arguments import NoDefaultValue, Parameter
-from .exceptions import modify_traceback, remove_traceback, BadSyntaxError
+from .exceptions import BadSyntaxError, custom_raise
 
 
 class Parser:
@@ -208,7 +208,7 @@ class Parser:
             # start::
             args.append(None)
 
-        return Slice(*args, token)
+        return Slice(args[0], args[1], args[2], token)
 
     def slice_or_if(self):
         if self.matches(TokenType.COLON):
@@ -297,7 +297,7 @@ class Parser:
         if not root and self.matches(TokenType.STRING):
             path = self.require(TokenType.STRING)
             if path.body.count(':') > 1:
-                raise self.throw('The resulting path cannot contain more than one ":" separator.', path)
+                self.throw('The resulting path cannot contain more than one ":" separator.', path)
             return ImportPath(path, main_token)
 
         if self.ignore(TokenType.ASTERISK):
@@ -338,9 +338,11 @@ class Parser:
     @property
     def current(self):
         if self.position >= len(self.tokens):
-            raise SyntaxError('Unexpected end of source')
+            # TODO: add source path
+            custom_raise(BadSyntaxError('Unexpected end of source'))
         return self.tokens[self.position]
 
+    # TODO: remove the shift?
     def matches(self, *types, shift=0):
         try:
             temp = self.tokens[self.position + shift]
@@ -356,9 +358,8 @@ class Parser:
     @staticmethod
     def throw(message, token):
         source = token.source or '<string input>'
-        with modify_traceback(remove_traceback):
-            raise BadSyntaxError(message + '\n  at %d:%d in %s\n    %s' %
-                                 (token.line, token.column, source, token.token_line.rstrip()))
+        custom_raise(BadSyntaxError(message + '\n  at %d:%d in %s\n    %s' %
+                                    (token.line, token.column, source, token.token_line.rstrip())))
 
     def require(self, *types) -> TokenWrapper:
         if not self.matches(*types):
@@ -374,12 +375,11 @@ class Parser:
 
 def parse(readline, source_path):
     try:
-        tokens = tokenize(readline, source_path)
+        return Parser(tokenize(readline, source_path)).parse()
     except TokenError as e:
         source_path = source_path or '<string input>'
-        with modify_traceback(remove_traceback):
-            raise BadSyntaxError(e.args[0] + ' at %d:%d in %s' % (e.args[1] + (source_path,))) from None
-    return Parser(tokens).parse()
+        line, col = e.args[1]
+        custom_raise(BadSyntaxError(e.args[0] + ' at %d:%d in %s' % (line, col, source_path)), None)
 
 
 def parse_file(config_path):

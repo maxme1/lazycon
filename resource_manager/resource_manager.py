@@ -1,3 +1,4 @@
+from resource_manager.exceptions import custom_raise, BuildConfigError
 from .scopes import GlobalScope
 from .parser import parse_file, parse_string
 from .structures import *
@@ -35,9 +36,7 @@ class ResourceManager:
         -------
         resource_manager: ResourceManager
         """
-        rm = cls(shortcuts)
-        rm.import_config(source_path)
-        return rm
+        return cls(shortcuts).import_config(source_path)
 
     def import_config(self, path: str):
         """Import the config located at `path`."""
@@ -60,6 +59,7 @@ class ResourceManager:
         -------
         config: str
         """
+        # TODO: move to scope
         result = ''
         for name, value in self._scope._undefined_resources.items():
             if type(value) is LazyImport:
@@ -138,7 +138,7 @@ class ResourceManager:
                 message = 'Shortcut "%s" is not recognized' % shortcut
                 if source:
                     message = 'Error while processing %s:\n ' % source + message
-                raise ValueError(message)
+                custom_raise(BuildConfigError(message))
             path = os.path.join(self._shortcuts[shortcut], path)
         else:
             path = os.path.join(os.path.dirname(source), path)

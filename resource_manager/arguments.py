@@ -5,6 +5,7 @@ class NoDefaultValue:
 class Parameter:
     def __init__(self, name, vararg=False, positional=True, keyword=True, default=NoDefaultValue):
         self.default_exp = default
+        self.default_value = NoDefaultValue
         self.vararg = vararg
         self.keyword = keyword
         self.positional = positional
@@ -13,5 +14,5 @@ class Parameter:
         assert not (vararg and self.has_default_value)
 
     def set_default_value(self, value):
-        assert not hasattr(self, 'default_value')
+        assert self.default_value is NoDefaultValue
         self.default_value = value

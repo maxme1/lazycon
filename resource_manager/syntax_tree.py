@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Iterable
 
+from resource_manager.exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
 from .scopes import GlobalScope
 from .structures import *
@@ -38,7 +39,7 @@ class SyntaxTree:
         for msg, elements in tree.messages.items():
             message += tree.format(msg, elements)
         if message:
-            raise RuntimeError(message)
+            custom_raise(BuildConfigError(message))
 
     def _analyze_tree(self, name):
         self._request_stack.append(name)

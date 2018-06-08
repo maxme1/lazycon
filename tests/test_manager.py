@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from resource_manager.exceptions import BuildConfigError, RenderError, LambdaArgumentsError, BadSyntaxError
 from resource_manager.resource_manager import ResourceManager, read_config
 
 
@@ -89,7 +90,7 @@ class TestResourceManager(unittest.TestCase):
 
     def test_lambda_args(self):
         rm = read_config('expressions/lambda_.config')
-        with self.assertRaises(ValueError):
+        with self.assertRaises(LambdaArgumentsError):
             rm.b(1, 2)
         try:
             rm.vararg(x=1)
@@ -140,20 +141,20 @@ class TestResourceManager(unittest.TestCase):
         self.assertEqual(1, rm.x)
 
     def test_cycles(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(BuildConfigError):
             read_config('misc/cycles.config')
 
     def test_undefined(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(BuildConfigError):
             read_config('misc/static_undefined.config')
 
     def test_duplicates(self):
-        with self.assertRaises(SyntaxError):
+        with self.assertRaises(BadSyntaxError):
             read_config('misc/duplicate.config')
 
     def test_exc_handling(self):
         rm = ResourceManager().string_input('''
         a = sum(1)
         ''')
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(RenderError):
             rm.a
