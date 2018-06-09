@@ -3,9 +3,9 @@ from collections import OrderedDict
 from contextlib import suppress
 from threading import Lock
 
-from resource_manager.exceptions import custom_raise, BuildConfigError, BadSyntaxError, LambdaArgumentsError
+from .exceptions import custom_raise, BuildConfigError, BadSyntaxError, LambdaArgumentsError
 from .renderer import Renderer
-from .structures import Structure
+from .structures import Structure, LazyImport
 
 
 class GlobalScope:
@@ -15,8 +15,21 @@ class GlobalScope:
         self._local_locks = {}
         self.builtins = {x: getattr(builtins, x) for x in dir(builtins) if not x.startswith('_')}
 
+    def render_config(self):
+        result = ''
+        for name, value in self._undefined_resources.items():
+            if type(value) is LazyImport:
+                result += value.to_str(0)
+        if result:
+            result += '\n'
+
+        for name, value in self._undefined_resources.items():
+            if type(value) is not LazyImport:
+                result += '{} = {}\n\n'.format(name, value.to_str(0))
+
+        return result[:-1]
+
     def overwrite(self, scope):
-        # TODO: reformat these exceptions
         for name in scope._undefined_resources.keys():
             if (name in self._local_locks and self._local_locks[name].locked()) or name in self._defined_resources:
                 custom_raise(BuildConfigError('The resource "%s" is already rendered. '

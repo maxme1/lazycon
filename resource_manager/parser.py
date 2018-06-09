@@ -5,7 +5,7 @@ from io import BytesIO
 from .tokenizer import tokenize
 from .token import TokenType
 from .structures import *
-from .arguments import NoDefaultValue, Parameter
+from .arguments import NoDefaultValue, Parameter, PositionalArgument, KeywordArgument
 from .exceptions import BadSyntaxError, custom_raise
 
 
@@ -42,7 +42,7 @@ class Parser:
 
             name = self.require(TokenType.IDENTIFIER)
             default = NoDefaultValue
-            if not vararg and self.ignore(TokenType.EQUALS):
+            if not vararg and self.ignore(TokenType.EQUAL):
                 default = self.inline_if()
             params.append(Parameter(name, vararg, keyword=not vararg, default=default))
 
@@ -50,36 +50,33 @@ class Parser:
         return Lambda(params, self.inline_if(), token)
 
     def is_keyword(self):
-        return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUALS, shift=1)
+        return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUAL, shift=1)
 
-    def params(self):
-        # TODO: need Argument class
+    def arguments(self):
         lazy = self.ignore(TokenType.LAZY)
-        vararg, args, keyword = [], [], []
-        if self.matches(TokenType.PAR_CLOSE):
-            return args, vararg, keyword, lazy
 
-        # if has positional
-        if not self.is_keyword():
-            vararg.append(self.ignore(TokenType.ASTERISK))
-            args.append(self.inline_if())
-
-            while self.ignore(TokenType.COMA):
-                if self.is_keyword() or self.matches(TokenType.PAR_CLOSE):
-                    break
-                vararg.append(self.ignore(TokenType.ASTERISK))
-                args.append(self.inline_if())
-
-        # keyword
-        if self.matches(TokenType.IDENTIFIER):
-            keyword.append(self.definition())
-
-            while self.ignore(TokenType.COMA):
+        args, kwargs, positional = [], [], True
+        while not self.matches(TokenType.PAR_CLOSE):
+            if args or kwargs:
+                self.require(TokenType.COMA)
+                # trailing coma
                 if self.matches(TokenType.PAR_CLOSE):
                     break
-                keyword.append(self.definition())
 
-        return args, vararg, keyword, lazy
+            if not positional:
+                name = self.require(TokenType.IDENTIFIER)
+                self.require(TokenType.EQUAL)
+                kwargs.append(KeywordArgument(name, self.inline_if()))
+            else:
+                vararg = self.ignore(TokenType.ASTERISK)
+                data = self.inline_if()
+                if not vararg and type(data) is Resource and self.ignore(TokenType.EQUAL):
+                    positional = False
+                    kwargs.append(KeywordArgument(data.main_token, self.inline_if()))
+                else:
+                    args.append(PositionalArgument(vararg, data))
+
+        return tuple(args), tuple(kwargs), lazy
 
     def inline_if(self):
         data = self.expression()
@@ -181,9 +178,9 @@ class Parser:
                 data = GetItem(data, args, coma)
             else:
                 main_token = self.require(TokenType.PAR_OPEN)
-                params = self.params()
+                args, kwargs, lazy = self.arguments()
                 self.require(TokenType.PAR_CLOSE)
-                data = Call(data, *params, main_token=main_token)
+                data = Call(data, args, kwargs, lazy, main_token)
 
         return data
 
@@ -222,7 +219,7 @@ class Parser:
 
     def definition(self):
         name = self.require(TokenType.IDENTIFIER)
-        self.require(TokenType.EQUALS)
+        self.require(TokenType.EQUAL)
         return Definition(name, self.inline_if())
 
     def inline_structure(self, begin, end, constructor, get_data):
@@ -338,14 +335,15 @@ class Parser:
     @property
     def current(self):
         if self.position >= len(self.tokens):
-            # TODO: add source path
-            custom_raise(BadSyntaxError('Unexpected end of source'))
+            message = 'Unexpected end of source'
+            if self.tokens and self.tokens[0].source:
+                message += ' in ' + self.tokens[0].source
+            custom_raise(BadSyntaxError(message))
         return self.tokens[self.position]
 
-    # TODO: remove the shift?
-    def matches(self, *types, shift=0):
+    def matches(self, *types):
         try:
-            temp = self.tokens[self.position + shift]
+            temp = self.tokens[self.position]
         except IndexError:
             return False
 
@@ -363,7 +361,8 @@ class Parser:
 
     def require(self, *types) -> TokenWrapper:
         if not self.matches(*types):
-            self.throw('Unexpected token: "%s"' % self.current.body, self.current)
+            current = self.current
+            self.throw('Unexpected token: "%s"' % current.body, current)
         return self.advance()
 
     def ignore(self, *types):

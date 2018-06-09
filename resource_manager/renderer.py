@@ -89,13 +89,13 @@ class Renderer:
     def _render_call(self, node: Call):
         target = self._render(node.target)
         args = []
-        for vararg, arg in zip(node.varargs, node.args):
-            temp = self._render(arg)
-            if vararg:
+        for arg in node.args:
+            temp = self._render(arg.value)
+            if arg.vararg:
                 args.extend(temp)
             else:
                 args.append(temp)
-        kwargs = {param.name.body: self._render(param.value) for param in node.params}
+        kwargs = {arg.name.body: self._render(arg.value) for arg in node.kwargs}
         if node.lazy:
             return functools.partial(target, *args, **kwargs)
         return target(*args, **kwargs)

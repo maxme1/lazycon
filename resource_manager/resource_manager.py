@@ -52,26 +52,8 @@ class ResourceManager:
         return self
 
     def render_config(self) -> str:
-        """
-        Generate a string containing definitions of all the resources in the current scope.
-
-        Returns
-        -------
-        config: str
-        """
-        # TODO: move to scope
-        result = ''
-        for name, value in self._scope._undefined_resources.items():
-            if type(value) is LazyImport:
-                result += value.to_str(0)
-        if result:
-            result += '\n'
-
-        for name, value in self._scope._undefined_resources.items():
-            if type(value) is not LazyImport:
-                result += '{} = {}\n\n'.format(name, value.to_str(0))
-
-        return result[:-1]
+        """Generate a string containing definitions of all the resources in the current scope."""
+        return self._scope.render_config()
 
     def save_config(self, path: str):
         """Render the config and save it to `path`."""

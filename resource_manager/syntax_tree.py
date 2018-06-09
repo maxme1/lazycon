@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Iterable
 
+from resource_manager.arguments import KeywordArgument
 from resource_manager.exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
 from .scopes import GlobalScope
@@ -81,14 +82,12 @@ class SyntaxTree:
             arg.render(self)
 
     def _render_call(self, node: Call):
-        names = set(param.name.body for param in node.params)
-        if len(names) < len(node.params):
+        names = set(arg.name.body for arg in node.kwargs)
+        if len(names) < len(node.kwargs):
             self.add_message('Duplicate keyword arguments', node, 'at %d:%d' % node.position()[:2])
 
         node.target.render(self)
-        for arg in node.args:
-            arg.render(self)
-        for param in node.params:
+        for param in node.args + node.kwargs:
             param.value.render(self)
 
     def _render_starred(self, node: Starred):

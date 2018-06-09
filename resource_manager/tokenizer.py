@@ -9,16 +9,18 @@ def tokenize(readline, source_path: str):
     for token in _tokenize(readline):
         name = tok_name[token.type]
         if name == 'ERRORTOKEN':
-            # TODO: move token logic into one place
             raise TokenError('Unrecognized token starting', token.start)
         if name in EXCLUDE:
             continue
+
         if name == 'COMMENT':
             if not LAZY.match(token.string.strip()):
                 continue
             token_type = TokenType.LAZY
         else:
             token_type = RESERVED.get(token.string)
+            if token_type is None:
+                token_type = TokenType(token.exact_type)
         tokens.append(TokenWrapper(token, source_path, token_type))
 
     return tokens

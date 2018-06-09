@@ -14,7 +14,7 @@ class TokenType(Enum):
 
     COLON = token.COLON
     COMA = token.COMMA
-    EQUALS = token.EQUAL
+    EQUAL = token.EQUAL
     DOT = token.DOT
     ASTERISK = token.STAR
     DOUBLE_ASTERISK = token.DOUBLESTAR
@@ -107,15 +107,11 @@ BINARY_OPERATORS = {
 
 
 class TokenWrapper:
-    def __init__(self, token: TokenInfo, source, token_type):
+    def __init__(self, token: TokenInfo, source_path, token_type):
         self._token = token
         self.body = token.string
-        if token_type is not None:
-            self.exact_type = token_type.value
-        else:
-            self.exact_type = token.exact_type
+        self.type = token_type
         self.line, self.column = token.start
         self.column += 1
-        self.source = source
-        self.token_line = token.line
-        self.type = TokenType(self.exact_type)
+        self.source = source_path
+        self.token_line = token.line.rstrip()
