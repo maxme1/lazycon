@@ -211,47 +211,48 @@ class Starred(Structure):
         return '*' + self.expression.to_str(level)
 
 
-# TODO: unify inlines
-
-class Array(Structure):
-    def __init__(self, values: list, main_token):
+class InlineContainer(Structure):
+    def __init__(self, entries: list, main_token):
         super().__init__(main_token)
-        self.values = values
+        self.entries = entries
+
+    def draw_entry(self, entry, level):
+        return entry.to_str(level)
+
+    def draw_body(self, level, separator):
+        return separator.join('    ' * level + self.draw_entry(entry, level) for entry in self.entries)
 
     def to_str(self, level):
-        body = ', '.join(value.to_str(0) for value in self.values)
+        body = self.draw_body(0, ', ')
         if len(body) > MAX_COLUMNS:
-            body = ',\n'.join(self.level(level + 1) + value.to_str(level + 1) for value in self.values)
-            body = '\n' + body + '\n' + self.level(level)
-        return '[' + body + ']'
+            body = self.draw_body(level + 1, ',\n')
+            body = '\n' + body + '\n' + '    ' * level
+        return self.begin + body + self.end
 
 
-class Tuple(Structure):
-    def __init__(self, values: list, main_token):
-        super().__init__(main_token)
-        self.values = values
+class Array(InlineContainer):
+    begin, end = '[]'
 
-    def to_str(self, level):
-        body = ', '.join(value.to_str(0) for value in self.values)
-        if len(self.values) == 1:
+
+class Set(InlineContainer):
+    begin, end = '{}'
+
+
+class Tuple(InlineContainer):
+    begin, end = '()'
+
+    def draw_body(self, level, separator):
+        body = super().draw_body(level, separator)
+        if len(self.entries) == 1:
             body += ','
-        if len(body) > MAX_COLUMNS:
-            body = ',\n'.join(self.level(level + 1) + value.to_str(level + 1) for value in self.values)
-            if len(self.values) == 1:
-                body += ','
-            body = '\n' + body + '\n' + self.level(level)
-        return '(' + body + ')'
+        return body
 
 
-class Dictionary(Structure):
+class Dictionary(InlineContainer):
+    begin, end = '{}'
+
     def __init__(self, pairs: list, main_token):
-        super().__init__(main_token)
-        self.pairs = pairs
+        super().__init__(pairs, main_token)
 
-    def to_str(self, level):
-        body = ', '.join(key.to_str(0) + ': ' + value.to_str(0) for key, value in self.pairs)
-        if len(body) > MAX_COLUMNS:
-            body = ',\n'.join(self.level(level + 1) + key.to_str(level + 1) + ': ' + value.to_str(level + 1)
-                              for key, value in self.pairs)
-            body = '\n' + body + '\n' + self.level(level)
-        return '{' + body + '}'
+    def draw_entry(self, entry, level):
+        return entry[0].to_str(level) + ': ' + entry[1].to_str(level)

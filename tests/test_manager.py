@@ -90,6 +90,8 @@ class TestResourceManager(unittest.TestCase):
 
     def test_lambda_args(self):
         rm = read_config('expressions/lambda_.config')
+        self.assertTupleEqual((1, 2), rm.with_default())
+        self.assertTupleEqual(((), 1), rm.keyword(y=1))
         with self.assertRaises(LambdaArgumentsError):
             rm.b(1, 2)
         try:

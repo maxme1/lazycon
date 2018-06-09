@@ -43,11 +43,12 @@ params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
 positional = '*'? inlineIf (',' '*'? inlineIf)*
 keyword = definition (',' definition)*
 
-primary = lambda | dictionary | array | tuple | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True' | '...'
+primary = lambda | dictionary | array | tuple | set | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True' | '...'
     | '(' inlineIf ')'
 dictionary = '{' (pair (',' pair)* ','?)? '}'
 pair = inlineIf ':' inlineIf
 array = '[' (starredOrInline (',' starredOrInline)* ','?)? ']'
+set = '{' (starredOrInline (',' starredOrInline)* ','?)? '}'
 tuple = '(' (starredOrInline (',' starredOrInline)* ','?)? ')'
 starredOrInline = inlineIf | ('*' orBitExp)
 // this part is not a valid grammar, but i'm too lazy
@@ -56,7 +57,7 @@ arg = IDENTIFIER ('=' inlineIf)?
 
 LAZY = '#\s*lazy\s*$'
 
-// this is an approximate regex. the true one is simply imported from `tokenize`
+// this isn't an approximate regex. the true one is simply imported from `tokenize`
 STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1'''
 NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
 IDENTIFIER = r'[^\d\W]\w*'

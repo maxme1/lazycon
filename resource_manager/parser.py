@@ -20,25 +20,25 @@ class Parser:
         if self.matches(TokenType.BRACKET_OPEN):
             return self.array()
         if self.matches(TokenType.PAR_OPEN):
-            return self.tuple()
+            return self.tuple_or_parenthesis()
         if self.matches(TokenType.DICT_OPEN):
-            return self.dictionary()
+            return self.dictionary_or_set()
         if self.matches(TokenType.LAMBDA):
             return self.lambda_()
         return Literal(self.require(TokenType.STRING, TokenType.LITERAL, TokenType.NUMBER, TokenType.ELLIPSIS))
 
     def lambda_(self):
         token = self.require(TokenType.LAMBDA)
-        params, both = [], True
+        params, positional = [], True
         while not self.matches(TokenType.COLON):
             if params:
                 self.require(TokenType.COMA)
 
             vararg = False
-            if both:
+            if positional:
                 vararg = self.ignore(TokenType.ASTERISK)
                 if vararg:
-                    both = False
+                    positional = False
 
             name = self.require(TokenType.IDENTIFIER)
             default = NoDefaultValue
@@ -48,9 +48,6 @@ class Parser:
 
         self.require(TokenType.COLON)
         return Lambda(params, self.inline_if(), token)
-
-    def is_keyword(self):
-        return self.matches(TokenType.IDENTIFIER) and self.matches(TokenType.EQUAL, shift=1)
 
     def arguments(self):
         lazy = self.ignore(TokenType.LAZY)
@@ -222,7 +219,7 @@ class Parser:
         self.require(TokenType.EQUAL)
         return Definition(name, self.inline_if())
 
-    def inline_structure(self, begin, end, constructor, get_data):
+    def inline_container(self, begin, end, get_data) -> (InlineContainer, int):
         structure_begin = self.require(begin)
         data, comas = [], 0
         if not self.ignore(end):
@@ -234,24 +231,27 @@ class Parser:
                 data.append(get_data())
             self.require(end)
 
-        return constructor(data, structure_begin), comas
+        return data, structure_begin, comas
 
-    def dictionary(self):
-        return self.inline_structure(TokenType.DICT_OPEN, TokenType.DICT_CLOSE, Dictionary, self.pair)[0]
+    def dictionary_or_set(self):
+        # TODO: set
+        data, main_token, _ = self.inline_container(TokenType.DICT_OPEN, TokenType.DICT_CLOSE, self.pair_or_value)
+        return Dictionary(data, main_token)
 
     def array(self):
-        return self.inline_structure(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE, Array, self.starred_or_if)[0]
+        data, main_token, _ = self.inline_container(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE, self.starred_or_if)
+        return Array(data, main_token)
 
-    def tuple(self):
-        data, comas = self.inline_structure(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, Tuple, self.starred_or_if)
-        if comas == 0 and data.values:
-            assert len(data.values) == 1
-            if type(data.values[0]) is Starred:
-                self.throw('Cannot use starred expression here', data.main_token)
-            return Parenthesis(data.values[0])
-        return data
+    def tuple_or_parenthesis(self):
+        data, main_token, comas = self.inline_container(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, self.starred_or_if)
+        if comas == 0 and data:
+            assert len(data) == 1
+            if type(data[0]) is Starred:
+                self.throw('Cannot use starred expression here', main_token)
+            return Parenthesis(data[0])
+        return Tuple(data, main_token)
 
-    def pair(self):
+    def pair_or_value(self):
         key = self.inline_if()
         self.require(TokenType.COLON)
         return key, self.inline_if()

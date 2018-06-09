@@ -123,18 +123,21 @@ class Renderer:
 
     def _render_array(self, node: Array):
         result = []
-        for value in node.values:
+        for value in node.entries:
             if type(value) is Starred:
                 result.extend(list(self._render(value.expression)))
             else:
                 result.append(self._render(value))
         return result
 
-    def _render_tuple(self, node: Tuple):
+    def _render_tuple(self, node):
         return tuple(self._render_array(node))
 
+    def _render_set(self, node):
+        return set(self._render_array(node))
+
     def _render_dictionary(self, node: Dictionary):
-        return {self._render(key): self._render(value) for key, value in node.pairs}
+        return {self._render(key): self._render(value) for key, value in node.entries}
 
     def _render_parenthesis(self, node: Parenthesis):
         return self._render(node.expression)

@@ -48,6 +48,10 @@ class SyntaxTree:
         self._global[name] = True
         self._request_stack.pop()
 
+    def _render_sequence(self, sequence):
+        for item in sequence:
+            item.render(self)
+
     def _render_resource(self, node: Resource):
         name = node.name.body
         # is it an argument?
@@ -78,8 +82,7 @@ class SyntaxTree:
 
     def _render_get_item(self, node: GetItem):
         node.target.render(self)
-        for arg in node.args:
-            arg.render(self)
+        self._render_sequence(node.args)
 
     def _render_call(self, node: Call):
         names = set(arg.name.body for arg in node.kwargs)
@@ -94,15 +97,16 @@ class SyntaxTree:
         node.expression.render(self)
 
     def _render_array(self, node: Array):
-        for x in node.values:
-            x.render(self)
+        self._render_sequence(node.entries)
 
-    def _render_tuple(self, node: Array):
-        for x in node.values:
-            x.render(self)
+    def _render_tuple(self, node):
+        self._render_array(node)
+
+    def _render_set(self, node):
+        self._render_array(node)
 
     def _render_dictionary(self, node: Dictionary):
-        for key, value in node.pairs:
+        for key, value in node.entries:
             key.render(self)
             value.render(self)
 
@@ -132,6 +136,4 @@ class SyntaxTree:
         node.argument.render(self)
 
     def _render_inline_if(self, node: InlineIf):
-        node.condition.render(self)
-        node.left.render(self)
-        node.right.render(self)
+        self._render_sequence([node.condition, node.left, node.right])
