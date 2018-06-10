@@ -234,9 +234,13 @@ class Parser:
         return data, structure_begin, comas
 
     def dictionary_or_set(self):
-        # TODO: set
         data, main_token, _ = self.inline_container(TokenType.DICT_OPEN, TokenType.DICT_CLOSE, self.pair_or_value)
-        return Dictionary(data, main_token)
+        types = [type(x) is tuple for x in data]
+        if all(types):
+            return Dictionary(data, main_token)
+        if any(types):
+            self.throw('Inline structure contains both set and dict elements', main_token)
+        return Set(data, main_token)
 
     def array(self):
         data, main_token, _ = self.inline_container(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE, self.starred_or_if)
@@ -252,9 +256,10 @@ class Parser:
         return Tuple(data, main_token)
 
     def pair_or_value(self):
-        key = self.inline_if()
-        self.require(TokenType.COLON)
-        return key, self.inline_if()
+        key = self.starred_or_if()
+        if type(key) is not Starred and self.ignore(TokenType.COLON):
+            return key, self.inline_if()
+        return key
 
     def starred_or_if(self):
         if self.matches(TokenType.ASTERISK):

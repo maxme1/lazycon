@@ -251,8 +251,5 @@ class Tuple(InlineContainer):
 class Dictionary(InlineContainer):
     begin, end = '{}'
 
-    def __init__(self, pairs: list, main_token):
-        super().__init__(pairs, main_token)
-
     def draw_entry(self, entry, level):
         return entry[0].to_str(level) + ': ' + entry[1].to_str(level)

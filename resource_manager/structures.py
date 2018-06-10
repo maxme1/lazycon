@@ -3,13 +3,7 @@ import re
 from .token import TokenWrapper
 
 first_cap = re.compile('(.)([A-Z][a-z]+)')
-all_cap = re.compile('([a-z0-9])([A-Z])')
 MAX_COLUMNS = 60
-
-
-def snake_case(name):
-    name = first_cap.sub(r'\1_\2', name)
-    return all_cap.sub(r'\1_\2', name).lower()
 
 
 class Structure:
@@ -17,7 +11,7 @@ class Structure:
         self.main_token = main_token
 
     def render(self, walker):
-        name = snake_case(self.__class__.__name__)
+        name = first_cap.sub(r'\1_\2', self.__class__.__name__).lower()
         return getattr(walker, '_render_' + name)(self)
 
     def to_str(self, level):
@@ -33,11 +27,7 @@ class Structure:
         return self.main_token.source or '<string input>'
 
     def line(self):
-        return self.main_token.token_line.rstrip()
-
-    # TODO: do i need this?
-    def level(self, level):
-        return '    ' * level
+        return self.main_token.token_line
 
 
 from .expressions import *
