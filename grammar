@@ -7,7 +7,7 @@ importStarred = 'from' '.'* dotted 'import' '*'
 partialImport = importSimple | importFrom | importFromConfig
 importSimple = 'import' dotted_import_as (',' dotted_import_as)*
 importFrom = 'from' dotted 'import' many_import_as
-importFromConfig = 'from' ('.')? '.' dotted 'import' many_import_as
+importFromConfig = 'from' '.'* dotted 'import' many_import_as
 
 dotted = IDENTIFIER ('.' IDENTIFIER)*
 import_as = IDENTIFIER (as IDENTIFIER)?
@@ -56,9 +56,3 @@ lambda = 'lambda' (arg* ('*' IDENTIFIER)? arg*) ':' inlineIf
 arg = IDENTIFIER ('=' inlineIf)?
 
 LAZY = '#\s*lazy\s*$'
-
-// this isn't an approximate regex. the true one is simply imported from `tokenize`
-STRING = r'''(\"\"\"|\'\'\'|\"|\')((?<!\\)(\\\\)*\\\1]|.)*?\1'''
-NUMBER = r'-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
-IDENTIFIER = r'[^\d\W]\w*'
-COMMENT = r'#.*$'

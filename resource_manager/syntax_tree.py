@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Iterable
 
-from resource_manager.arguments import KeywordArgument
 from resource_manager.exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
 from .scopes import GlobalScope

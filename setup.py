@@ -23,7 +23,7 @@ setup(
     url='https://github.com/maxme1/resource-manager',
     download_url='https://github.com/maxme1/resource-manager/archive/%s.tar.gz' % __version__,
     keywords=[
-        'config', 'manager', 'resource'
+        'config', 'lazy', 'interpreter'
     ],
     classifiers=classifiers.splitlines(),
     install_requires=[]
