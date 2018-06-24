@@ -36,7 +36,9 @@ class ResourceManager:
         -------
         resource_manager: ResourceManager
         """
-        return cls(shortcuts).import_config(source_path)
+        rm = cls(shortcuts)
+        rm._scope.builtins['__file__'] = rm._resolve_path(source_path, '', '')
+        return rm.import_config(source_path)
 
     def import_config(self, path: str):
         """Import the config located at `path`."""
