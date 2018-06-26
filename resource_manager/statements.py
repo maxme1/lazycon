@@ -11,7 +11,7 @@ class Definition(Structure):
         self.value = value
 
     def to_str(self, level):
-        return '{} = {}'.format(self.name.body, self.value.to_str(level))
+        return '    ' * level + '%s = %s' % (self.name.body, self.value.to_str(level))
 
 
 def get_imported_name(what, as_):

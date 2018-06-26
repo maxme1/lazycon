@@ -78,6 +78,19 @@ class TestResourceManager(unittest.TestCase):
         np.testing.assert_array_almost_equal(rm.std(), [0.81, 0.81], decimal=2)
         self.assertEqual(rm.random.shape, (1, 1, 2, 2))
 
+    def test_bindings_clash(self):
+        with self.assertRaises(BuildConfigError):
+            ResourceManager().string_input('''
+            def f(x):
+                x = 1
+                return 2
+            ''')
+
+    def test_func_def(self):
+        rm = read_config('statements/funcdef.config')
+        self.assertEqual(1, rm.f())
+        self.assertTupleEqual((2, 1, 1), rm.inc_first(['a', 'b', 'c']))
+
     def test_lambda(self):
         rm = read_config('expressions/lambda_.config')
         self.assertEqual(8, rm.b(2))

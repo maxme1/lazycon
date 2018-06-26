@@ -27,10 +27,9 @@ class Parser:
             return self.lambda_()
         return Literal(self.require(TokenType.STRING, TokenType.LITERAL, TokenType.NUMBER, TokenType.ELLIPSIS))
 
-    def lambda_(self):
-        token = self.require(TokenType.LAMBDA)
+    def params(self, end):
         params, positional = [], True
-        while not self.matches(TokenType.COLON):
+        while not self.matches(end):
             if params:
                 self.require(TokenType.COMA)
 
@@ -45,9 +44,27 @@ class Parser:
             if not vararg and self.ignore(TokenType.EQUAL):
                 default = self.inline_if()
             params.append(Parameter(name, vararg, keyword=not vararg, default=default))
+        self.require(end)
+        return params
 
-        self.require(TokenType.COLON)
+    def lambda_(self):
+        token = self.require(TokenType.LAMBDA)
+        params = self.params(TokenType.COLON)
         return Lambda(params, self.inline_if(), token)
+
+    def func_def(self):
+        token = self.require(TokenType.DEF)
+        name = self.require(TokenType.IDENTIFIER)
+        self.require(TokenType.PAR_OPEN)
+        params = self.params(TokenType.PAR_CLOSE)
+        self.require(TokenType.COLON)
+
+        bindings = []
+        while self.matches(TokenType.IDENTIFIER):
+            bindings.append(self.definition())
+
+        self.require(TokenType.RETURN)
+        return FuncDef(params, bindings, self.inline_if(), name.body, token)
 
     def arguments(self):
         lazy = self.ignore(TokenType.LAZY)
@@ -328,7 +345,11 @@ class Parser:
 
         definitions = []
         while self.position < len(self.tokens):
-            definitions.append(self.definition())
+            if self.matches(TokenType.DEF):
+                val = self.func_def()
+            else:
+                val = self.definition()
+            definitions.append(val)
 
         return definitions, parents, imports
 

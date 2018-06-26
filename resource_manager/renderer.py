@@ -30,12 +30,11 @@ class Renderer:
         self._definitions_stack.pop()
         return value
 
-    def _render_lambda(self, node: Lambda):
-        for _argument in node.arguments:
-            if _argument.has_default_value:
-                _argument.set_default_value(self._render(_argument.default_exp))
+    def _render_lambda(self, node):
+        return self._render_func_def(node)
 
-        def lambda_(*args, **kwargs):
+    def _render_func_def(self, node: FuncDef):
+        def function_(*args, **kwargs):
             scope = scopes.LocalScope(self.scope)
             if node.vararg:
                 scope.set_resource(node.vararg.name.body, args[len(node.positional):])
@@ -57,17 +56,20 @@ class Renderer:
                 name = argument.name.body
                 if name not in scope:
                     if argument.has_default_value:
-                        scope.set_resource(name, argument.default_value)
+                        scope.set_resource(name, argument.default_value(self._render))
                     else:
                         not_defined.append(name)
 
             if not_defined:
                 custom_raise(LambdaArgumentsError('Undefined argument(s): ' + ', '.join(not_defined)))
 
+            for binding in node.bindings:
+                scope.set_node(binding.name.body, binding.value)
+
             return Renderer.render(node.expression, scope)
 
-        lambda_.__qualname__ = lambda_.__name__ = '<lambda>'
-        return lambda_
+        function_.__qualname__ = function_.__name__ = node.name
+        return function_
 
     def _render_resource(self, node: Resource):
         return self.scope.get_resource(node.name.body, renderer=self._render)

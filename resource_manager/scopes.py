@@ -73,10 +73,19 @@ class GlobalScope:
             return resource
 
 
+# TODO: code duplication
 class LocalScope:
     def __init__(self, upper_scope):
         self._defined_resources = {}
+        self._undefined_resources = {}
         self._upper = upper_scope
+        self._local_locks = {}
+
+    def set_node(self, name: str, value: Structure):
+        if name in self._undefined_resources:
+            custom_raise(BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source())))
+        self._undefined_resources[name] = value
+        self._local_locks[name] = Lock()
 
     def set_resource(self, name: str, value):
         if name in self._defined_resources:
@@ -86,7 +95,21 @@ class LocalScope:
     def get_resource(self, name: str, renderer=None):
         with suppress(KeyError):
             return self._defined_resources[name]
-        return self._upper.get_resource(name, renderer)
+        if name not in self._undefined_resources:
+            return self._upper.get_resource(name, renderer)
+
+        # render the resource
+        with self._local_locks[name]:
+            with suppress(KeyError):
+                return self._defined_resources[name]
+
+            node = self._undefined_resources[name]
+            if renderer is None:
+                resource = Renderer.render(node, self)
+            else:
+                resource = renderer(node)
+            self._defined_resources[name] = resource
+            return resource
 
     def __contains__(self, item):
         return item in self._defined_resources

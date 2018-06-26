@@ -7,18 +7,18 @@ class NoDefaultValue:
 
 class Parameter:
     def __init__(self, name, vararg=False, positional=True, keyword=True, default=NoDefaultValue):
-        self.default_exp = default
-        self.default_value = NoDefaultValue
-        self.vararg = vararg
+        self.default_expression = default
         self.keyword = keyword
         self.positional = positional
         self.name = name
         self.has_default_value = default is not NoDefaultValue
+        self.vararg = vararg
         assert not (vararg and self.has_default_value)
 
-    def set_default_value(self, value):
-        assert self.default_value is NoDefaultValue
-        self.default_value = value
+    def default_value(self, renderer):
+        if not hasattr(self, '_default_value'):
+            self._default_value = renderer(self.default_expression)
+        return self._default_value
 
 
 class PositionalArgument(namedtuple('PA', ['vararg', 'value'])):

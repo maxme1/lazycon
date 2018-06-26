@@ -2,12 +2,15 @@ from typing import List, Union
 
 from resource_manager.arguments import Parameter
 from .structures import Structure, MAX_COLUMNS
+from .statements import Definition
 from .token import TokenWrapper
 
 
-class Lambda(Structure):
-    def __init__(self, arguments: List[Parameter], expression: Structure, main_token):
+class Function(Structure):
+    def __init__(self, arguments: List[Parameter], bindings: List[Definition], expression: Structure, name, main_token):
         super().__init__(main_token)
+        self.name = name
+        self.bindings = bindings
         self.expression = expression
         self.arguments = arguments
         positional, self.vararg, i = [], None, 0
@@ -23,8 +26,8 @@ class Lambda(Structure):
         self.positional = get_names(positional)
         self.keyword = self.positional + get_names(arguments[i + 1:])
 
-    def to_str(self, level):
-        result = 'lambda '
+    def draw_params(self, level):
+        result = ''
         for argument in self.arguments:
             if argument.vararg:
                 result += '*'
@@ -33,14 +36,29 @@ class Lambda(Structure):
 
             result += argument.name.body
             if argument.has_default_value:
-                result += '=' + argument.default_exp.to_str(level)
+                result += '=' + argument.default_expression.to_str(level)
             result += ', '
 
         result = result[:-1]
         if self.arguments:
             result = result[:-1]
+        return result
 
-        return result + ': ' + self.expression.to_str(level + 1)
+
+class Lambda(Function):
+    def __init__(self, arguments: List[Parameter], expression: Structure, main_token):
+        super().__init__(arguments, [], expression, '<lambda>', main_token)
+
+    def to_str(self, level):
+        return 'lambda ' + self.draw_params(level) + ': ' + self.expression.to_str(level)
+
+
+class FuncDef(Function):
+    def to_str(self, level):
+        result = 'def %s(' % self.name + self.draw_params(level) + '):\n'
+        for binding in self.bindings:
+            result += binding.to_str(level + 1) + '\n'
+        return result + 'return ' + self.expression.to_str(level + 1)
 
 
 class InlineIf(Structure):

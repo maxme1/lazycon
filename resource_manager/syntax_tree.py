@@ -112,10 +112,24 @@ class SyntaxTree:
     def _render_parenthesis(self, node: Parenthesis):
         node.expression.render(self)
 
-    def _render_lambda(self, node: Lambda):
+    def _render_lambda(self, node):
+        self._render_func_def(node)
+
+    def _render_func_def(self, node: FuncDef):
+        # TODO: code duplication
         names = {x.name.body for x in node.arguments}
         if len(names) != len(node.arguments):
             self.add_message('Duplicate arguments in lambda definition', node, 'at %d:%d' % node.position()[:2])
+
+        bindings = {x.name.body for x in node.bindings}
+        if len(bindings) != len(node.bindings):
+            self.add_message('Duplicate binding names in function definition', node, 'at %d:%d' % node.position()[:2])
+
+        if set(names) & set(bindings):
+            self.add_message('Binding names clash with argument names in function definition',
+                             node, 'at %d:%d' % node.position()[:2])
+
+        names.update(bindings)
         self._scopes.append(names)
         node.expression.render(self)
         self._scopes.pop()

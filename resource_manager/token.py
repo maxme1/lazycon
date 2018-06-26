@@ -47,7 +47,7 @@ class TokenType(Enum):
     NOT_EQUAL = token.NOTEQUAL
 
     # names
-    IF, ELSE, IS, IN, AND, OR, NOT, IMPORT, LAMBDA, FROM, AS, LITERAL, LAZY, *_ = range(-100, 0)
+    IF, ELSE, IS, IN, AND, OR, NOT, IMPORT, RETURN, DEF, LAMBDA, FROM, AS, LITERAL, LAZY, *_ = range(-100, 0)
 
 
 RESERVED = {
@@ -55,6 +55,8 @@ RESERVED = {
     'as': TokenType.AS,
     'from': TokenType.FROM,
     'lambda': TokenType.LAMBDA,
+    'def': TokenType.DEF,
+    'return': TokenType.RETURN,
     'None': TokenType.LITERAL,
     'True': TokenType.LITERAL,
     'False': TokenType.LITERAL,

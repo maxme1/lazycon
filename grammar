@@ -1,4 +1,4 @@
-config = importWholeConfig* partialImport* definition*
+config = importWholeConfig* partialImport* (definition | funcDef)*
 
 importWholeConfig = importStr | importStarred
 importStr = 'import' STRING
@@ -13,6 +13,8 @@ dotted = IDENTIFIER ('.' IDENTIFIER)*
 import_as = IDENTIFIER (as IDENTIFIER)?
 many_import_as = import_as (',' import_as)*
 dotted_import_as = dotted (as IDENTIFIER)?
+
+funcDef = 'def' IDENTIFIER '(' params ')' ':' definition* 'return' inlineIf
 
 definition = IDENTIFIER '=' inlineIf
 inlineIf = expression ('if' expression 'else' inlineIf)
@@ -36,10 +38,10 @@ power: tailed ('**' factor)?
 tailed = primary (getAttribute | call | getItem)*
 getAttribute = '.' IDENTIFIER
 getItem = '[' sliceOrIf (',' sliceOrIf)* ','? ']'
-call = '(' params ')'
+call = '(' arguments ')'
 
 sliceOrIf =  inlineIf | ( inlineIf? ':' inlineIf? (':' inlineIf?)? )
-params = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
+arguments = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
 positional = '*'? inlineIf (',' '*'? inlineIf)*
 keyword = definition (',' definition)*
 
@@ -52,7 +54,8 @@ set = '{' (starredOrInline (',' starredOrInline)* ','?)? '}'
 tuple = '(' (starredOrInline (',' starredOrInline)* ','?)? ')'
 starredOrInline = inlineIf | ('*' orBitExp)
 // this part is not a valid grammar, but i'm too lazy
-lambda = 'lambda' (arg* ('*' IDENTIFIER)? arg*) ':' inlineIf
+lambda = 'lambda' params ':' inlineIf
+params = (arg* ('*' IDENTIFIER)? arg*)
 arg = IDENTIFIER ('=' inlineIf)?
 
 LAZY = '#\s*lazy\s*$'

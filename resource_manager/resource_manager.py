@@ -37,7 +37,7 @@ class ResourceManager:
         resource_manager: ResourceManager
         """
         rm = cls(shortcuts)
-        rm._scope.builtins['__file__'] = rm._resolve_path(source_path, '', '')
+        # rm._scope.builtins['__file__'] = rm._resolve_path(source_path, '', '')
         return rm.import_config(source_path)
 
     def import_config(self, path: str):
@@ -85,8 +85,8 @@ class ResourceManager:
         self._imported_configs[absolute_path] = result
         return result
 
-    def _get_resources(self, definitions: List[Definition], parents: List[Union[ImportPath, ImportStarred]],
-                       imports: List[UnifiedImport]):
+    def _get_resources(self, definitions: List[Union[Definition, FuncDef]],
+                       parents: List[Union[ImportPath, ImportStarred]], imports: List[UnifiedImport]):
         parent_scope = GlobalScope()
         for parent in parents:
             source_path = parent.main_token.source
@@ -111,7 +111,11 @@ class ResourceManager:
                 scope.set_node(name, value)
 
         for definition in definitions:
-            scope.set_node(definition.name.body, definition.value)
+            if isinstance(definition, FuncDef):
+                name, value = definition.name, definition
+            else:
+                name, value = definition.name.body, definition.value
+            scope.set_node(name, value)
 
         parent_scope.overwrite(scope)
         return parent_scope
