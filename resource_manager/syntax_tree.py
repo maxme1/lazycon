@@ -14,11 +14,10 @@ class SyntaxTree:
         self.messages = defaultdict(lambda: defaultdict(set))
 
         self._scopes = []
+        self._add_scope(resources)
         self._builtins = builtins
-        self._global = {x: False for x in resources}
-        self._structure_types = []
         for name, node in resources.items():
-            self._analyze_tree(name)
+            self._analyze_definition(name)
 
     def add_message(self, message, node, content):
         self.messages[message][node.source()].add(content)
@@ -41,10 +40,24 @@ class SyntaxTree:
         if message:
             custom_raise(BuildConfigError(message))
 
-    def _analyze_tree(self, name):
+    def _add_scope(self, names, visited=()):
+        scope = {name: False for name in names}
+        for name in visited:
+            scope[name] = True
+        self._scopes.append(scope)
+
+    def _delete_scope(self):
+        self._scopes.pop()
+
+    def _visited(self, name):
+        scope = self._scopes[-1]
+        assert name in scope
+        scope[name] = True
+
+    def _analyze_definition(self, name):
         self._request_stack.append(name)
         self.resources[name].render(self)
-        self._global[name] = True
+        self._visited(name)
         self._request_stack.pop()
 
     def _render_sequence(self, sequence):
@@ -69,7 +82,7 @@ class SyntaxTree:
             return
 
         if not self._global[name]:
-            self._analyze_tree(name)
+            self._analyze_definition(name)
 
     def _render_get_attribute(self, node: GetAttribute):
         node.target.render(self)
@@ -116,7 +129,6 @@ class SyntaxTree:
         self._render_func_def(node)
 
     def _render_func_def(self, node: FuncDef):
-        # TODO: code duplication
         names = {x.name.body for x in node.arguments}
         if len(names) != len(node.arguments):
             self.add_message('Duplicate arguments in lambda definition', node, 'at %d:%d' % node.position()[:2])
@@ -131,6 +143,8 @@ class SyntaxTree:
 
         names.update(bindings)
         self._scopes.append(names)
+        for binding in node.bindings:
+            binding.value.render(self)
         node.expression.render(self)
         self._scopes.pop()
 
