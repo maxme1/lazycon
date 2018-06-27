@@ -64,10 +64,6 @@ class GlobalScope(Scope):
             if name not in self._local_locks:
                 self._local_locks[name] = Lock()
 
-    def set_resource(self, name: str, value):
-        assert name not in self._defined_resources and name in self._undefined_resources
-        self._defined_resources[name] = value
-
     def get_resource(self, name: str, renderer=None):
         with suppress(KeyError):
             return self._defined_resources[name]

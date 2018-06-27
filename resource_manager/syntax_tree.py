@@ -46,28 +46,25 @@ class SyntaxTree:
     def leave_scope(self):
         self._scopes.pop()
 
-    def is_visited(self, value):
-        return value[1]
-
     def not_visited(self, value):
         return value[1] is None
 
     def entered(self, value):
         return value[1] is False
 
-    def visit(self, value, level):
+    def visit(self, value):
         assert value[1] is None
-        n = len(self._scopes) - level
-        self._scopes, tail = self._scopes[:n], self._scopes[n:]
+        # n = len(self._scopes) - level
+        # self._scopes, tail = self._scopes[:n], self._scopes[n:]
         value[1] = False
         value[0].render(self)
         value[1] = True
-        self._scopes.extend(tail)
+        # self._scopes.extend(tail)
 
     def visit_current_scope(self):
         for value in self._scopes[-1].values():
             if self.not_visited(value):
-                self.visit(value, 0)
+                self.visit(value)
 
     def _render_sequence(self, sequence):
         for item in sequence:
@@ -77,20 +74,15 @@ class SyntaxTree:
         name = node.name.body
         for level, scope in enumerate(reversed(self._scopes)):
             if name in scope:
-                node.set_level(level)
-                value = scope[name]
-
-                if self.is_visited(value):
-                    return
-                if self.not_visited(value):
-                    return self.visit(value, level)
-                if self.entered(value):
+                if self.entered(scope[name]):
                     # TODO: rewrite
                     return self.add_message('Resources are referenced before being completely defined',
                                             node, '"' + name + '" at %d:%d' % node.position()[:2])
+                node.set_level(level)
+                return
 
         if name in self._builtins:
-            return node.set_level(-1)
+            return node.set_level(len(self._scopes) - 1)
 
         # undefined resource:
         self.add_message('Undefined resources found, but are required', node, name)

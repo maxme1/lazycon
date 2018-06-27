@@ -1,6 +1,5 @@
 import functools
 import importlib
-import builtins
 import sys
 
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
@@ -35,8 +34,10 @@ class Renderer:
         return self._render_func_def(node)
 
     def _render_func_def(self, node: FuncDef):
+        upper_scope = self.scope
+
         def function_(*args, **kwargs):
-            scope = scopes.LocalScope(self.scope)
+            scope = scopes.LocalScope(upper_scope)
             if node.vararg:
                 scope.set_resource(node.vararg.name.body, args[len(node.positional):])
             else:
@@ -73,14 +74,11 @@ class Renderer:
         return function_
 
     def _render_resource(self, node: Resource):
-        name = node.name.body
-        if node.n_levels == -1:
-            return getattr(builtins, name)
-
         scope = self.scope
         for _ in range(node.n_levels):
             scope = scope._upper
-        return scope.get_resource(name, renderer=self._render)
+        # TODO: make dynamic scopes for renderer?
+        return scope.get_resource(node.name.body)
 
     def _render_get_attribute(self, node: GetAttribute):
         data = self._render(node.target)
