@@ -114,9 +114,14 @@ class Resource(Structure):
     def __init__(self, name: TokenWrapper):
         super().__init__(name)
         self.name = name
+        self.n_levels = None
 
     def to_str(self, level):
         return self.name.body
+
+    def set_level(self, level):
+        assert self.n_levels is None
+        self.n_levels = level
 
 
 class Parenthesis(Structure):

@@ -1,5 +1,6 @@
 import functools
 import importlib
+import builtins
 import sys
 
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
@@ -72,7 +73,14 @@ class Renderer:
         return function_
 
     def _render_resource(self, node: Resource):
-        return self.scope.get_resource(node.name.body, renderer=self._render)
+        name = node.name.body
+        if node.n_levels == -1:
+            return getattr(builtins, name)
+
+        scope = self.scope
+        for _ in range(node.n_levels):
+            scope = scope._upper
+        return scope.get_resource(name, renderer=self._render)
 
     def _render_get_attribute(self, node: GetAttribute):
         data = self._render(node.target)

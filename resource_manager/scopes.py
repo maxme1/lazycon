@@ -93,9 +93,6 @@ class LocalScope(Scope):
     def get_resource(self, name: str, renderer=None):
         with suppress(KeyError):
             return self._defined_resources[name]
-        if name not in self._undefined_resources:
-            return self._upper.get_resource(name, renderer)
-
         return self.render_resource(name, renderer)
 
     def __contains__(self, item):

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Iterable
+from typing import Iterable, Dict
 
 from resource_manager.exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
@@ -9,15 +9,12 @@ from .structures import *
 
 class SyntaxTree:
     def __init__(self, resources: dict, builtins: Iterable):
-        self.resources = resources
-        self._request_stack = []
         self.messages = defaultdict(lambda: defaultdict(set))
-
         self._scopes = []
-        self._add_scope(resources)
         self._builtins = builtins
-        for name, node in resources.items():
-            self._analyze_definition(name)
+
+        self.enter_scope(resources)
+        self.visit_current_scope()
 
     def add_message(self, message, node, content):
         self.messages[message][node.source()].add(content)
@@ -40,25 +37,37 @@ class SyntaxTree:
         if message:
             custom_raise(BuildConfigError(message))
 
-    def _add_scope(self, names, visited=()):
-        scope = {name: False for name in names}
+    def enter_scope(self, names: Dict[str, Structure], visited=()):
+        scope = {name: [value, None] for name, value in names.items()}
         for name in visited:
-            scope[name] = True
+            scope[name][1] = True
         self._scopes.append(scope)
 
-    def _delete_scope(self):
+    def leave_scope(self):
         self._scopes.pop()
 
-    def _visited(self, name):
-        scope = self._scopes[-1]
-        assert name in scope
-        scope[name] = True
+    def is_visited(self, value):
+        return value[1]
 
-    def _analyze_definition(self, name):
-        self._request_stack.append(name)
-        self.resources[name].render(self)
-        self._visited(name)
-        self._request_stack.pop()
+    def not_visited(self, value):
+        return value[1] is None
+
+    def entered(self, value):
+        return value[1] is False
+
+    def visit(self, value, level):
+        assert value[1] is None
+        n = len(self._scopes) - level
+        self._scopes, tail = self._scopes[:n], self._scopes[n:]
+        value[1] = False
+        value[0].render(self)
+        value[1] = True
+        self._scopes.extend(tail)
+
+    def visit_current_scope(self):
+        for value in self._scopes[-1].values():
+            if self.not_visited(value):
+                self.visit(value, 0)
 
     def _render_sequence(self, sequence):
         for item in sequence:
@@ -66,23 +75,25 @@ class SyntaxTree:
 
     def _render_resource(self, node: Resource):
         name = node.name.body
-        # is it an argument?
-        for scope in reversed(self._scopes):
+        for level, scope in enumerate(reversed(self._scopes)):
             if name in scope:
-                return
-        # undefined variable:
-        if name not in self._global:
-            if name not in self._builtins:
-                self.add_message('Undefined resources found, but are required', node, name)
-            return
-        # cycle
-        if name in self._request_stack:
-            prefix = " -> ".join(self._request_stack)
-            self.add_message('Cyclic dependencies found', node, '{} -> {}'.format(prefix, name))
-            return
+                node.set_level(level)
+                value = scope[name]
 
-        if not self._global[name]:
-            self._analyze_definition(name)
+                if self.is_visited(value):
+                    return
+                if self.not_visited(value):
+                    return self.visit(value, level)
+                if self.entered(value):
+                    # TODO: rewrite
+                    return self.add_message('Resources are referenced before being completely defined',
+                                            node, '"' + name + '" at %d:%d' % node.position()[:2])
+
+        if name in self._builtins:
+            return node.set_level(-1)
+
+        # undefined resource:
+        self.add_message('Undefined resources found, but are required', node, name)
 
     def _render_get_attribute(self, node: GetAttribute):
         node.target.render(self)
@@ -129,11 +140,11 @@ class SyntaxTree:
         self._render_func_def(node)
 
     def _render_func_def(self, node: FuncDef):
-        names = {x.name.body for x in node.arguments}
+        names = {x.name.body: None for x in node.arguments}
         if len(names) != len(node.arguments):
             self.add_message('Duplicate arguments in lambda definition', node, 'at %d:%d' % node.position()[:2])
 
-        bindings = {x.name.body for x in node.bindings}
+        bindings = {x.name.body: x.value for x in node.bindings}
         if len(bindings) != len(node.bindings):
             self.add_message('Duplicate binding names in function definition', node, 'at %d:%d' % node.position()[:2])
 
@@ -141,12 +152,15 @@ class SyntaxTree:
             self.add_message('Binding names clash with argument names in function definition',
                              node, 'at %d:%d' % node.position()[:2])
 
-        names.update(bindings)
-        self._scopes.append(names)
-        for binding in node.bindings:
-            binding.value.render(self)
+        for argument in node.arguments:
+            if argument.has_default_value:
+                argument.default_expression.render(self)
+
+        bindings.update(names)
+        self.enter_scope(bindings, names)
         node.expression.render(self)
-        self._scopes.pop()
+        self.visit_current_scope()
+        self.leave_scope()
 
     def _render_lazy_import(self, node: LazyImport):
         pass
