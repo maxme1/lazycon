@@ -52,14 +52,14 @@ class SyntaxTree:
     def entered(self, value):
         return value[1] is False
 
-    def visit(self, value):
+    def visit(self, value, level=0):
         assert value[1] is None
-        # n = len(self._scopes) - level
-        # self._scopes, tail = self._scopes[:n], self._scopes[n:]
+        n = len(self._scopes) - level
+        self._scopes, tail = self._scopes[:n], self._scopes[n:]
         value[1] = False
         value[0].render(self)
         value[1] = True
-        # self._scopes.extend(tail)
+        self._scopes.extend(tail)
 
     def visit_current_scope(self):
         for value in self._scopes[-1].values():
@@ -74,12 +74,13 @@ class SyntaxTree:
         name = node.name.body
         for level, scope in enumerate(reversed(self._scopes)):
             if name in scope:
-                if self.entered(scope[name]):
-                    # TODO: rewrite
-                    return self.add_message('Resources are referenced before being completely defined',
-                                            node, '"' + name + '" at %d:%d' % node.position()[:2])
-                node.set_level(level)
-                return
+                if self.not_visited(scope[name]):
+                    self.visit(scope[name], level)
+                elif self.entered(scope[name]):
+                    # TODO: more information
+                    self.add_message('Resources are referenced before being completely defined',
+                                     node, '"' + name + '" at %d:%d' % node.position()[:2])
+                return node.set_level(level)
 
         if name in self._builtins:
             return node.set_level(len(self._scopes) - 1)
