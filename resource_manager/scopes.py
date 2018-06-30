@@ -1,5 +1,5 @@
 import builtins
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from contextlib import suppress
 from threading import Lock
 
@@ -11,26 +11,33 @@ from .structures import Structure, LazyImport
 class Scope:
     def __init__(self):
         self._defined_resources = OrderedDict()
-        self._undefined_resources = OrderedDict()
-        self._local_locks = {}
+        self._name_to_node = {}
+        self._node_to_names = defaultdict(set)
+        self._node_locks = {}
 
-    def set_node(self, name: str, value: Structure):
-        if name in self._undefined_resources:
-            custom_raise(BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, value.source())))
-        self._undefined_resources[name] = value
-        self._local_locks[name] = Lock()
+    def _update_node_to_names(self):
+        for name, node in self._name_to_node.items():
+            self._node_to_names[node].add(name)
+
+    def set_node(self, name: str, node: Structure):
+        if name in self._name_to_node:
+            custom_raise(BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, node.source())))
+        self._name_to_node[name] = node
+        self._update_node_to_names()
+        self._node_locks[node] = Lock()
 
     def render_resource(self, name: str, renderer=None):
-        with self._local_locks[name]:
+        node = self._name_to_node[name]
+        with self._node_locks[node]:
             with suppress(KeyError):
                 return self._defined_resources[name]
 
-            node = self._undefined_resources[name]
             if renderer is None:
                 resource = Renderer.render(node, self)
             else:
                 resource = renderer(node)
-            self._defined_resources[name] = resource
+            for name_ in self._node_to_names[node]:
+                self._defined_resources[name_] = resource
             return resource
 
 
@@ -41,28 +48,32 @@ class GlobalScope(Scope):
 
     def render_config(self):
         result = ''
-        for name, value in self._undefined_resources.items():
-            if type(value) is LazyImport:
-                result += value.to_str(0)
+        for node, names in self._node_to_names.items():
+            if type(node) is LazyImport:
+                assert len(names) == 1
+                result += node.to_str(0)
         if result:
             result += '\n'
 
-        for name, value in self._undefined_resources.items():
-            if type(value) is not LazyImport:
-                result += '{} = {}\n\n'.format(name, value.to_str(0))
+        for node, names in self._node_to_names.items():
+            if type(node) is not LazyImport:
+                result += ' = '.join(sorted(names)) + ' = %s\n\n' % node.to_str(0)
 
         return result[:-1]
 
-    def overwrite(self, scope):
-        for name in scope._undefined_resources.keys():
-            if (name in self._local_locks and self._local_locks[name].locked()) or name in self._defined_resources:
-                custom_raise(BuildConfigError('The resource "%s" is already rendered. '
-                                              "Overwriting it may lead to undefined behaviour." % name))
+    def overwrite(self, scope: Scope):
+        for name in scope._name_to_node.keys():
+            with suppress(KeyError):
+                node = self._name_to_node[name]
+                if (node in self._node_locks and self._node_locks[node].locked()) or name in self._defined_resources:
+                    custom_raise(BuildConfigError('The resource "%s" is already rendered. '
+                                                  'Overwriting it may lead to undefined behaviour.' % name))
 
-        for name, value in scope._undefined_resources.items():
-            self._undefined_resources[name] = value
-            if name not in self._local_locks:
-                self._local_locks[name] = Lock()
+        for name, node in scope._name_to_node.items():
+            self._name_to_node[name] = node
+            if node not in self._node_locks:
+                self._node_locks[node] = Lock()
+        self._update_node_to_names()
 
     def get_resource(self, name: str, renderer=None):
         with suppress(KeyError):
@@ -70,14 +81,14 @@ class GlobalScope(Scope):
         with suppress(KeyError):
             return self.builtins[name]
 
-        if name not in self._undefined_resources:
+        if name not in self._name_to_node:
             raise AttributeError('Resource "{}" is not defined'.format(name))
 
         return self.render_resource(name, renderer)
 
 
 class LocalScope(Scope):
-    def __init__(self, upper_scope):
+    def __init__(self, upper_scope: Scope):
         super().__init__()
         self._upper = upper_scope
 

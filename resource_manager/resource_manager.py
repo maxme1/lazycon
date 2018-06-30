@@ -103,19 +103,19 @@ class ResourceManager:
                     # TODO: should warn about ambiguous shortcut names:
                     # importlib.util.find_spec(shortcut)
                     local = self._import(self._resolve_path(path, source_path, shortcut))
-                    value = local._undefined_resources[what]
+                    node = local._name_to_node[what]
                 else:
-                    value = LazyImport(import_.get_root(), what, as_, import_.main_token)
+                    node = LazyImport(import_.get_root(), what, as_, import_.main_token)
 
                 name = get_imported_name(what, as_)
-                scope.set_node(name, value)
+                scope.set_node(name, node)
 
         for definition in definitions:
             if isinstance(definition, FuncDef):
-                name, value = definition.name, definition
+                scope.set_node(definition.name, definition)
             else:
-                name, value = definition.name.body, definition.value
-            scope.set_node(name, value)
+                for name in definition.names:
+                    scope.set_node(name.body, definition.value)
 
         parent_scope.overwrite(scope)
         return parent_scope

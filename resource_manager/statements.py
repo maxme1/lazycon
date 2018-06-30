@@ -5,13 +5,13 @@ from .structures import Structure, TokenWrapper
 
 
 class Definition(Structure):
-    def __init__(self, name: TokenWrapper, value: Structure):
-        super().__init__(name)
-        self.name = name
+    def __init__(self, names: List[TokenWrapper], value: Structure):
+        super().__init__(names[0])
+        self.names = names
         self.value = value
 
     def to_str(self, level):
-        return '    ' * level + '%s = %s' % (self.name.body, self.value.to_str(level))
+        return '    ' * level + ' = '.join(name.body for name in self.names) + ' = %s\n\n' % self.value.to_str(level)
 
 
 def get_imported_name(what, as_):

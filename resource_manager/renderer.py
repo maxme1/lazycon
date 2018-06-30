@@ -66,7 +66,7 @@ class Renderer:
                 custom_raise(LambdaArgumentsError('Undefined argument(s): ' + ', '.join(not_defined)))
 
             for binding in node.bindings:
-                scope.set_node(binding.name.body, binding.value)
+                scope.set_node(binding.names[0].body, binding.value)
 
             return Renderer.render(node.expression, scope)
 

@@ -8,12 +8,13 @@ from .structures import *
 
 
 class SyntaxTree:
-    def __init__(self, resources: dict, builtins: Iterable):
+    def __init__(self, name_to_node: dict, node_to_names: dict, builtins: Iterable):
         self.messages = defaultdict(lambda: defaultdict(set))
         self._scopes = []
         self._builtins = builtins
+        self.node_to_names = node_to_names
 
-        self.enter_scope(resources)
+        self.enter_scope(name_to_node)
         self.visit_current_scope()
 
     def add_message(self, message, node, content):
@@ -30,7 +31,7 @@ class SyntaxTree:
 
     @staticmethod
     def analyze(scope: GlobalScope):
-        tree = SyntaxTree(scope._undefined_resources, scope.builtins)
+        tree = SyntaxTree(scope._name_to_node, scope._node_to_names, scope.builtins)
         message = ''
         for msg, elements in tree.messages.items():
             message += tree.format(msg, elements)
@@ -57,8 +58,17 @@ class SyntaxTree:
         n = len(self._scopes) - level
         self._scopes, tail = self._scopes[:n], self._scopes[n:]
         value[1] = False
-        value[0].render(self)
-        value[1] = True
+        node = value[0]
+
+        node.render(self)
+        if node in self.node_to_names:
+            assert len(self._scopes) == 1
+            scope = self._scopes[0]
+            for name in self.node_to_names[node]:
+                scope[name][1] = True
+            assert value[1]
+        else:
+            value[1] = True
         self._scopes.extend(tail)
 
     def visit_current_scope(self):
@@ -137,7 +147,8 @@ class SyntaxTree:
         if len(names) != len(node.arguments):
             self.add_message('Duplicate arguments in lambda definition', node, 'at %d:%d' % node.position()[:2])
 
-        bindings = {x.name.body: x.value for x in node.bindings}
+        assert all(len(x.names) == 1 for x in node.bindings)
+        bindings = {x.names[0].body: x.value for x in node.bindings}
         if len(bindings) != len(node.bindings):
             self.add_message('Duplicate binding names in function definition', node, 'at %d:%d' % node.position()[:2])
 

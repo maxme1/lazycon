@@ -29,6 +29,14 @@ class TestResourceManager(unittest.TestCase):
     def test_import_partial(self):
         rm = read_config('imports/import_from_config.config')
         self.assertListEqual([1, 2], rm.one)
+        rm = read_config('imports/import_twice.config')
+        self.assertEqual(rm.link_, rm.link)
+
+    def test_multiple_definitions(self):
+        rm = read_config('statements/multiple_definitions.config')
+        self.assertEqual('''a = b = c = 1\n\nd = a\n''', rm.render_config())
+        rm = read_config('statements/import_from_multiple.config')
+        self.assertEqual('''a = 2\n\nb = c = 1\n\nd = a\n''', rm.render_config())
 
     def test_import_partial_upper(self):
         rm = read_config('imports/folder/upper_partial.config')

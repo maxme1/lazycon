@@ -120,7 +120,7 @@ class Resource(Structure):
         return self.name.body
 
     def set_level(self, level):
-        assert self.n_levels is None or self.n_levels == level
+        assert self.n_levels is None
         self.n_levels = level
 
 

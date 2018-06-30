@@ -1,4 +1,4 @@
-config = importWholeConfig* partialImport* (definition | funcDef)*
+config = importWholeConfig* partialImport* (multipleDefinitions | funcDef)*
 
 importWholeConfig = importStr | importStarred
 importStr = 'import' STRING
@@ -17,6 +17,7 @@ dotted_import_as = dotted (as IDENTIFIER)?
 funcDef = 'def' IDENTIFIER '(' params ')' ':' definition* 'return' inlineIf
 
 definition = IDENTIFIER '=' inlineIf
+multipleDefinitions = (IDENTIFIER '=')+ inlineIf
 inlineIf = expression ('if' expression 'else' inlineIf)
 
 expression = orExp

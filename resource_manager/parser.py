@@ -234,7 +234,19 @@ class Parser:
     def definition(self):
         name = self.require(TokenType.IDENTIFIER)
         self.require(TokenType.EQUAL)
-        return Definition(name, self.inline_if())
+        return Definition([name], self.inline_if())
+
+    def multiple_definitions(self):
+        names = [self.require(TokenType.IDENTIFIER)]
+        self.require(TokenType.EQUAL)
+        data = self.inline_if()
+        while self.ignore(TokenType.EQUAL):
+            token = data.main_token
+            if not isinstance(data, Resource):
+                self.throw('Invalid identifier', token)
+            names.append(token)
+            data = self.inline_if()
+        return Definition(names, data)
 
     def inline_container(self, begin, end, get_data) -> (InlineContainer, int):
         structure_begin = self.require(begin)
@@ -348,7 +360,7 @@ class Parser:
             if self.matches(TokenType.DEF):
                 val = self.func_def()
             else:
-                val = self.definition()
+                val = self.multiple_definitions()
             definitions.append(val)
 
         return definitions, parents, imports
