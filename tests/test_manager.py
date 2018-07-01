@@ -31,6 +31,7 @@ class TestResourceManager(unittest.TestCase):
         self.assertListEqual([1, 2], rm.one)
         rm = read_config('imports/import_twice.config')
         self.assertEqual(rm.link_, rm.link)
+        self.assertEqual(rm.func_, rm.func)
 
     def test_multiple_definitions(self):
         rm = read_config('statements/multiple_definitions.config')

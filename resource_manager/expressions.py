@@ -54,11 +54,11 @@ class Lambda(Function):
 
 
 class FuncDef(Function):
-    def to_str(self, level):
-        result = 'def %s(' % self.name + self.draw_params(level) + '):\n'
+    def to_str(self, level, name=None):
+        result = '\ndef %s(' % (name or self.name) + self.draw_params(level) + '):\n'
         for binding in self.bindings:
-            result += binding.to_str(level + 1) + '\n'
-        return result + 'return ' + self.expression.to_str(level + 1)
+            result += binding.to_str(level + 1)
+        return result + '    ' * (level + 1) + 'return ' + self.expression.to_str(level + 1) + '\n\n'
 
 
 class InlineIf(Structure):

@@ -5,7 +5,7 @@ from threading import Lock
 
 from .exceptions import custom_raise, BuildConfigError, BadSyntaxError, LambdaArgumentsError
 from .renderer import Renderer
-from .structures import Structure, LazyImport
+from .structures import Structure, LazyImport, FuncDef
 
 
 class Scope:
@@ -69,8 +69,13 @@ class GlobalScope(Scope):
             result += '\n'
 
         for node, names in self._node_to_names.items():
-            if type(node) is not LazyImport:
-                result += ' = '.join(sorted(names)) + ' = %s\n\n' % node.to_str(0)
+            # TODO: perhaps need a method
+            if not isinstance(node, LazyImport):
+                if isinstance(node, FuncDef):
+                    for name in names:
+                        result += node.to_str(0, name=name) + '\n'
+                else:
+                    result += ' = '.join(sorted(names)) + ' = %s\n\n' % node.to_str(0)
 
         return result[:-1]
 
