@@ -107,15 +107,19 @@ class LazyImport(Structure):
         super().__init__(main_token)
         self.from_, self.what, self.as_ = from_, what, as_
 
-    def to_str(self, level):
-        result = ''
+    def from_to_str(self):
         if self.from_:
-            result += 'from ' + self.from_ + ' '
+            return 'from ' + self.from_ + ' '
+        return ''
 
-        result += 'import %s' % self.what
+    def what_to_str(self):
+        result = '%s' % self.what
         if self.as_:
             result += ' as %s' % self.as_.body
-        return result + '\n'
+        return result
+
+    def to_str(self, level):
+        return self.from_to_str() + 'import ' + self.what_to_str() + '\n'
 
     def error_message(self):
         result = 'importing '

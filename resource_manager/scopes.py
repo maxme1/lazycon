@@ -47,12 +47,25 @@ class GlobalScope(Scope):
         self.builtins = {x: getattr(builtins, x) for x in dir(builtins) if not x.startswith('_')}
 
     def render_config(self):
-        result = ''
+        groups = defaultdict(list)
+        plain = []
         for node, names in self._node_to_names.items():
             if type(node) is LazyImport:
                 assert len(names) == 1
-                result += node.to_str(0)
-        if result:
+                if node.from_:
+                    groups[node.from_].append(node)
+                else:
+                    plain.append(node)
+
+        result = ''
+        for node in plain:
+            result += node.to_str(0)
+        if plain:
+            result += '\n'
+
+        for group in groups.values():
+            result += group[0].from_to_str() + 'import ' + ', '.join(node.what_to_str() for node in group) + '\n'
+        if groups:
             result += '\n'
 
         for node, names in self._node_to_names.items():
