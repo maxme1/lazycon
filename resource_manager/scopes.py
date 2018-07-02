@@ -4,7 +4,6 @@ from contextlib import suppress
 from threading import Lock
 
 from .exceptions import custom_raise, BuildConfigError, BadSyntaxError, LambdaArgumentsError
-from .renderer import Renderer
 from .structures import Structure, LazyImport, FuncDef
 
 
@@ -26,16 +25,13 @@ class Scope:
         self._update_node_to_names()
         self._node_locks[node] = Lock()
 
-    def render_resource(self, name: str, renderer=None):
+    def render_resource(self, name: str, renderer):
         node = self._name_to_node[name]
         with self._node_locks[node]:
             with suppress(KeyError):
                 return self._defined_resources[name]
 
-            if renderer is None:
-                resource = Renderer.render(node, self)
-            else:
-                resource = renderer(node)
+            resource = renderer(node)
             for name_ in self._node_to_names[node]:
                 self._defined_resources[name_] = resource
             return resource
@@ -93,7 +89,7 @@ class GlobalScope(Scope):
                 self._node_locks[node] = Lock()
         self._update_node_to_names()
 
-    def get_resource(self, name: str, renderer=None):
+    def get_resource(self, name: str, renderer):
         with suppress(KeyError):
             return self._defined_resources[name]
         with suppress(KeyError):
@@ -115,7 +111,7 @@ class LocalScope(Scope):
             custom_raise(LambdaArgumentsError('Duplicate argument: ' + name))
         self._defined_resources[name] = value
 
-    def get_resource(self, name: str, renderer=None):
+    def get_resource(self, name: str, renderer):
         with suppress(KeyError):
             return self._defined_resources[name]
         return self.render_resource(name, renderer)

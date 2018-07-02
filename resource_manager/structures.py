@@ -29,6 +29,9 @@ class Structure:
     def line(self):
         return self.main_token.token_line
 
+    def __repr__(self):
+        return '<' + self.__class__.__name__ + ' ' + self.to_str(0) + '>'
+
 
 from .expressions import *
 from .statements import *

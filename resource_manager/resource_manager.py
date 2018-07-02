@@ -1,4 +1,5 @@
-from resource_manager.exceptions import custom_raise, BuildConfigError
+from .exceptions import custom_raise, BuildConfigError
+from .renderer import Renderer
 from .scopes import GlobalScope
 from .parser import parse_file, parse_string
 from .structures import *
@@ -19,6 +20,7 @@ class ResourceManager:
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._scope = GlobalScope()
+        self._node_levels = {}
 
     @classmethod
     def read_config(cls, source_path: str, shortcuts: dict = None):
@@ -36,9 +38,7 @@ class ResourceManager:
         -------
         resource_manager: ResourceManager
         """
-        rm = cls(shortcuts)
-        # rm._scope.builtins['__file__'] = rm._resolve_path(source_path, '', '')
-        return rm.import_config(source_path)
+        return cls(shortcuts).import_config(source_path)
 
     def import_config(self, path: str):
         """Import the config located at `path`."""
@@ -69,11 +69,12 @@ class ResourceManager:
         return self.get_resource(item)
 
     def get_resource(self, name: str):
-        return self._scope.get_resource(name)
+        # TODO: this is ugly
+        return self._scope.get_resource(name, Renderer.make_renderer(self._scope, self._node_levels))
 
     def _update_resources(self, scope):
         self._scope.overwrite(scope)
-        SyntaxTree.analyze(self._scope)
+        self._node_levels = SyntaxTree.analyze(self._scope)
 
     def _import(self, absolute_path: str) -> GlobalScope:
         if absolute_path in self._imported_configs:

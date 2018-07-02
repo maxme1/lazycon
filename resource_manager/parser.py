@@ -43,7 +43,7 @@ class Parser:
             default = NoDefaultValue
             if not vararg and self.ignore(TokenType.EQUAL):
                 default = self.inline_if()
-            params.append(Parameter(name, vararg, keyword=not vararg, default=default))
+            params.append(Parameter(name, vararg, positional=positional or vararg, keyword=not vararg, default=default))
         self.require(end)
         return params
 

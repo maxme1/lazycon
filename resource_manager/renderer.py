@@ -9,13 +9,21 @@ from .exceptions import RenderError, custom_raise, LambdaArgumentsError
 
 
 class Renderer:
-    def __init__(self, scope):
+    def __init__(self, scope, node_levels):
         self.scope = scope
         self._definitions_stack = []
+        self._node_levels = node_levels
 
     @staticmethod
-    def render(node: Structure, scope):
-        return Renderer(scope)._render(node)
+    def render(node: Structure, scope, node_levels):
+        return Renderer(scope, node_levels)._render(node)
+
+    @staticmethod
+    def make_renderer(scope, node_levels):
+        return Renderer(scope, node_levels)._render
+
+    def update_levels(self, levels: dict):
+        self._node_levels = levels
 
     def _render(self, node: Structure):
         self._definitions_stack.append(node)
@@ -68,17 +76,19 @@ class Renderer:
             for binding in node.bindings:
                 scope.set_node(binding.names[0].body, binding.value)
 
-            return Renderer.render(node.expression, scope)
+            return Renderer.render(node.expression, scope, self._node_levels)
 
         function_.__qualname__ = function_.__name__ = node.name
         return function_
 
     def _render_resource(self, node: Resource):
+        levels = self._node_levels[node]
         scope = self.scope
-        for _ in range(node.n_levels):
+        for _ in range(levels):
             scope = scope._upper
-        if node.n_levels > 0:
-            renderer = None
+        # TODO: this is ugly
+        if levels > 0:
+            renderer = Renderer.make_renderer(scope, self._node_levels)
         else:
             renderer = self._render
         # TODO: make dynamic scopes for renderer?

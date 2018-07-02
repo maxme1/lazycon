@@ -57,6 +57,7 @@ starredOrInline = inlineIf | ('*' orBitExp)
 // this part is not a valid grammar, but i'm too lazy
 lambda = 'lambda' params ':' inlineIf
 params = (arg* ('*' IDENTIFIER)? arg*)
+# TODO: non-default arg can follow default now
 arg = IDENTIFIER ('=' inlineIf)?
 
 LAZY = '#\s*lazy\s*$'

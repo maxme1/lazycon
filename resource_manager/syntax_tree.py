@@ -13,6 +13,7 @@ class SyntaxTree:
         self._scopes = []
         self._builtins = builtins
         self.node_to_names = node_to_names
+        self.node_levels = {}
 
         self.enter_scope(name_to_node)
         self.visit_current_scope()
@@ -37,6 +38,7 @@ class SyntaxTree:
             message += tree.format(msg, elements)
         if message:
             custom_raise(BuildConfigError(message))
+        return tree.node_levels
 
     def enter_scope(self, names: Dict[str, Structure], visited=()):
         scope = {name: [value, None] for name, value in names.items()}
@@ -52,6 +54,10 @@ class SyntaxTree:
 
     def entered(self, value):
         return value[1] is False
+
+    def set_node_level(self, node, level):
+        assert node not in self.node_levels, node
+        self.node_levels[node] = level
 
     def visit(self, value, level=0):
         assert value[1] is None
@@ -90,10 +96,11 @@ class SyntaxTree:
                     # TODO: more information
                     self.add_message('Resources are referenced before being completely defined',
                                      node, '"' + name + '" at %d:%d' % node.position()[:2])
-                return node.set_level(level)
+
+                return self.set_node_level(node, level)
 
         if name in self._builtins:
-            return node.set_level(len(self._scopes) - 1)
+            return self.set_node_level(node, len(self._scopes) - 1)
 
         # undefined resource:
         self.add_message('Undefined resources found, but are required', node, name)
