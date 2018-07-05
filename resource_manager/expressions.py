@@ -1,6 +1,6 @@
 from typing import List, Union
 
-from resource_manager.arguments import Parameter
+from .arguments import Parameter
 from .structures import Structure, MAX_COLUMNS
 from .statements import Definition
 from .token import TokenWrapper

@@ -12,7 +12,7 @@ with open('README.rst', encoding='utf-8') as file:
 
 setup(
     name='resource-manager',
-    packages=find_packages(exclude=('tests',)),
+    packages=find_packages(include=('resource_manager',)),
     include_package_data=True,
     version=__version__,
     description='A small resource manager for config files',
