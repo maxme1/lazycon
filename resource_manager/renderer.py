@@ -83,16 +83,14 @@ class Renderer:
 
     def _render_resource(self, node: Resource):
         levels = self._node_levels[node]
-        scope = self.scope
+        old_scope = self.scope
         for _ in range(levels):
-            scope = scope._upper
-        # TODO: this is ugly
-        if levels > 0:
-            renderer = Renderer.make_renderer(scope, self._node_levels)
-        else:
-            renderer = self._render
-        # TODO: make dynamic scopes for renderer?
-        return scope.get_resource(node.name.body, renderer)
+            self.scope = self.scope._upper
+        try:
+            value = self.scope.get_resource(node.name.body, self._render)
+        finally:
+            self.scope = old_scope
+        return value
 
     def _render_get_attribute(self, node: GetAttribute):
         data = self._render(node.target)

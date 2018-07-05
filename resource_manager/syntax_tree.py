@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Iterable, Dict
 
-from resource_manager.exceptions import custom_raise, BuildConfigError
+from .exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
 from .scopes import GlobalScope
 from .structures import *

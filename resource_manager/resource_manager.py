@@ -104,7 +104,12 @@ class ResourceManager:
                     # TODO: should warn about ambiguous shortcut names:
                     # importlib.util.find_spec(shortcut)
                     local = self._import(self._resolve_path(path, source_path, shortcut))
-                    node = local._name_to_node[what]
+                    try:
+                        node = local._name_to_node[what]
+                    except KeyError:
+                        custom_raise(BuildConfigError(
+                            f'Resource "{what}" is not defined in the config it is imported from.\n'
+                            '  at %d:%d in %s' % import_.position()), None)
                 else:
                     node = LazyImport(import_.get_root(), what, as_, import_.main_token)
 
