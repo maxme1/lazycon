@@ -116,7 +116,7 @@ class Renderer:
             else:
                 args.append(temp)
         kwargs = {arg.name.body: self._render(arg.value) for arg in node.kwargs}
-        if node.lazy:
+        if node.partial:
             return functools.partial(target, *args, **kwargs)
         return target(*args, **kwargs)
 

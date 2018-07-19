@@ -188,20 +188,20 @@ class Slice(Structure):
 
 
 class Call(Structure):
-    def __init__(self, target: Structure, args: tuple, kwargs: tuple, lazy: bool, main_token):
+    def __init__(self, target: Structure, args: tuple, kwargs: tuple, partial: bool, main_token):
         super().__init__(main_token)
         self.kwargs = kwargs
         self.target = target
         self.args = args
-        self.lazy = lazy
+        self.partial = partial
 
     def to_str(self, level):
         target = self.target.to_str(level)
-        lazy = ''
-        if self.lazy:
-            lazy = '    ' * (level + 1) + '# lazy\n'
+        partial = ''
+        if self.partial:
+            partial = '    ' * (level + 1) + '# partial\n'
 
-        body = lazy + ',\n'.join('    ' * (level + 1) + x.to_str(level + 1) for x in self.args + self.kwargs)
+        body = partial + ',\n'.join('    ' * (level + 1) + x.to_str(level + 1) for x in self.args + self.kwargs)
         if body:
             body = '\n' + body + '\n' + '    ' * level
 

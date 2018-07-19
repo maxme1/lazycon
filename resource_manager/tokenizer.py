@@ -1,7 +1,7 @@
 from token import tok_name
 from tokenize import tokenize as _tokenize, TokenError
 
-from .token import LAZY, TokenWrapper, RESERVED, TokenType, EXCLUDE
+from .token import PARTIAL, TokenWrapper, RESERVED, TokenType, EXCLUDE
 
 
 def tokenize(readline, source_path: str):
@@ -14,9 +14,9 @@ def tokenize(readline, source_path: str):
             continue
 
         if name == 'COMMENT':
-            if not LAZY.match(token.string.strip()):
+            if not PARTIAL.match(token.string.strip()):
                 continue
-            token_type = TokenType.LAZY
+            token_type = TokenType.PARTIAL
         else:
             token_type = RESERVED.get(token.string)
             if token_type is None:

@@ -47,7 +47,7 @@ class TokenType(Enum):
     NOT_EQUAL = token.NOTEQUAL
 
     # names
-    IF, ELSE, IS, IN, AND, OR, NOT, IMPORT, RETURN, DEF, LAMBDA, FROM, AS, LITERAL, LAZY, *_ = range(-100, 0)
+    IF, ELSE, IS, IN, AND, OR, NOT, IMPORT, RETURN, DEF, LAMBDA, FROM, AS, LITERAL, PARTIAL, *_ = range(-100, 0)
 
 
 RESERVED = {
@@ -70,7 +70,7 @@ RESERVED = {
     '...': TokenType.ELLIPSIS,
 }
 
-LAZY = re.compile(r'^#\s*lazy\s*$')
+PARTIAL = re.compile(r'^#\s*(lazy|partial)\s*$')
 EXCLUDE = {'NEWLINE', 'NL', 'INDENT', 'DEDENT', 'ENDMARKER', 'ENCODING', 'BACKQUOTE'}
 INVALID_STRING_PREFIXES = tuple(x for x in _all_string_prefixes() if 'f' in x.lower())
 

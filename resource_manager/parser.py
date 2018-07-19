@@ -28,7 +28,7 @@ class Parser:
         return Literal(self.require(TokenType.STRING, TokenType.LITERAL, TokenType.NUMBER, TokenType.ELLIPSIS))
 
     def params(self, end):
-        params, positional = [], True
+        params, positional, require_default = [], True, False
         while not self.matches(end):
             if params:
                 self.require(TokenType.COMA)
@@ -41,8 +41,12 @@ class Parser:
 
             name = self.require(TokenType.IDENTIFIER)
             default = NoDefaultValue
-            if not vararg and self.ignore(TokenType.EQUAL):
+            # TODO: add an informative error
+            if not vararg and (self.matches(TokenType.EQUAL) or require_default):
+                self.require(TokenType.EQUAL)
                 default = self.inline_if()
+                require_default = True
+
             params.append(Parameter(name, vararg, positional=positional or vararg, keyword=not vararg, default=default))
         self.require(end)
         return params
@@ -67,7 +71,7 @@ class Parser:
         return FuncDef(params, bindings, self.inline_if(), name.body, token)
 
     def arguments(self):
-        lazy = self.ignore(TokenType.LAZY)
+        partial = self.ignore(TokenType.PARTIAL)
 
         args, kwargs, positional = [], [], True
         while not self.matches(TokenType.PAR_CLOSE):
@@ -90,7 +94,7 @@ class Parser:
                 else:
                     args.append(PositionalArgument(vararg, data))
 
-        return tuple(args), tuple(kwargs), lazy
+        return tuple(args), tuple(kwargs), partial
 
     def inline_if(self):
         data = self.expression()
@@ -192,9 +196,9 @@ class Parser:
                 data = GetItem(data, args, coma)
             else:
                 main_token = self.require(TokenType.PAR_OPEN)
-                args, kwargs, lazy = self.arguments()
+                args, kwargs, partial = self.arguments()
                 self.require(TokenType.PAR_CLOSE)
-                data = Call(data, args, kwargs, lazy, main_token)
+                data = Call(data, args, kwargs, partial, main_token)
 
         return data
 
