@@ -7,6 +7,12 @@ from .exceptions import custom_raise, BuildConfigError, BadSyntaxError, LambdaAr
 from .structures import Structure, LazyImport, FuncDef
 
 
+def add_if_missing(target: dict, name, node):
+    if name in target:
+        custom_raise(BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, node.source())))
+    target[name] = node
+
+
 class Scope:
     def __init__(self):
         self._defined_resources = OrderedDict()
@@ -17,13 +23,6 @@ class Scope:
     def _update_node_to_names(self):
         for name, node in self._name_to_node.items():
             self._node_to_names[node].add(name)
-
-    def set_node(self, name: str, node: Structure):
-        if name in self._name_to_node:
-            custom_raise(BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, node.source())))
-        self._name_to_node[name] = node
-        self._update_node_to_names()
-        self._node_locks[node] = Lock()
 
     def render_resource(self, name: str, renderer):
         node = self._name_to_node[name]
@@ -75,15 +74,15 @@ class GlobalScope(Scope):
 
         return result[:-1]
 
-    def overwrite(self, scope: Scope):
-        for name in scope._name_to_node.keys():
+    def overwrite(self, name_to_node: dict):
+        for name in name_to_node.keys():
             with suppress(KeyError):
                 node = self._name_to_node[name]
                 if (node in self._node_locks and self._node_locks[node].locked()) or name in self._defined_resources:
                     custom_raise(BuildConfigError('The resource "%s" is already rendered. '
                                                   'Overwriting it may lead to undefined behaviour.' % name))
 
-        for name, node in scope._name_to_node.items():
+        for name, node in name_to_node.items():
             self._name_to_node[name] = node
             if node not in self._node_locks:
                 self._node_locks[node] = Lock()
@@ -105,6 +104,11 @@ class LocalScope(Scope):
     def __init__(self, upper_scope: Scope):
         super().__init__()
         self._upper = upper_scope
+
+    def set_node(self, name: str, node: Structure):
+        add_if_missing(self._name_to_node, name, node)
+        self._update_node_to_names()
+        self._node_locks[node] = Lock()
 
     def set_resource(self, name: str, value):
         if name in self._defined_resources:
