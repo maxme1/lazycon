@@ -59,14 +59,8 @@ class SyntaxTree:
         assert node not in self.node_levels, node
         self.node_levels[node] = level
 
-    def visit(self, value, level=0):
-        assert value[1] is None
-        n = len(self._scopes) - level
-        self._scopes, tail = self._scopes[:n], self._scopes[n:]
-        value[1] = False
+    def mark_as_visited(self, value):
         node = value[0]
-
-        node.render(self)
         if node in self.node_to_names:
             assert len(self._scopes) == 1
             scope = self._scopes[0]
@@ -75,6 +69,22 @@ class SyntaxTree:
             assert value[1]
         else:
             value[1] = True
+
+    def visit(self, value, level=0):
+        assert value[1] is None
+        n = len(self._scopes) - level
+        self._scopes, tail = self._scopes[:n], self._scopes[n:]
+        value[1] = False
+        node = value[0]
+
+        # allowing recursion
+        if isinstance(node, Function):
+            self.mark_as_visited(value)
+            node.render(self)
+        else:
+            node.render(self)
+            self.mark_as_visited(value)
+
         self._scopes.extend(tail)
 
     def visit_current_scope(self):
@@ -152,7 +162,7 @@ class SyntaxTree:
     def _render_func_def(self, node: FuncDef):
         names = {x.name.body: None for x in node.arguments}
         if len(names) != len(node.arguments):
-            self.add_message('Duplicate arguments in lambda definition', node, 'at %d:%d' % node.position()[:2])
+            self.add_message('Duplicate arguments in function definition', node, 'at %d:%d' % node.position()[:2])
 
         assert all(len(x.names) == 1 for x in node.bindings)
         bindings = {x.names[0].body: x.value for x in node.bindings}
