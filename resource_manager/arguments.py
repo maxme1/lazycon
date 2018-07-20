@@ -16,6 +16,7 @@ class Parameter:
         assert not (vararg and self.has_default_value)
 
     def default_value(self, renderer):
+        # TODO: this should be implemented outside
         if not hasattr(self, '_default_value'):
             self._default_value = renderer(self.default_expression)
         return self._default_value

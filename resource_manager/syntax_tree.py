@@ -4,7 +4,8 @@ from typing import Iterable, Dict
 from .exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
 from .scopes import GlobalScope
-from .structures import *
+from .expressions import *
+from .statements import *
 
 
 class SyntaxTree:

@@ -31,7 +31,3 @@ class Structure:
 
     def __repr__(self):
         return '<' + self.__class__.__name__ + ' ' + self.to_str(0) + '>'
-
-
-from .expressions import *
-from .statements import *

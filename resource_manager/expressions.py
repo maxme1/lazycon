@@ -1,9 +1,8 @@
 from typing import List, Union
 
 from .arguments import Parameter
-from .structures import Structure, MAX_COLUMNS
+from .structure import Structure, MAX_COLUMNS, TokenWrapper
 from .statements import Definition
-from .token import TokenWrapper
 
 
 class Function(Structure):
@@ -78,13 +77,13 @@ class Binary(Structure):
         self.operation = operation
         self.left = left
         self.right = right
-        if type(operation) is tuple:
+        if isinstance(operation, tuple):
             self.key = tuple(x.type for x in operation)
         else:
             self.key = operation.type
 
     def _operation_body(self):
-        if type(self.operation) is tuple:
+        if isinstance(self.operation, tuple):
             return ' '.join(x.body for x in self.operation)
         else:
             return self.operation.body

@@ -4,12 +4,13 @@ import sys
 
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
 from . import scopes
-from .structures import *
+from .expressions import *
+from .statements import *
 from .exceptions import RenderError, custom_raise, LambdaArgumentsError
 
 
 class Renderer:
-    def __init__(self, scope, node_levels):
+    def __init__(self, scope: scopes.Scope, node_levels: dict):
         self.scope = scope
         self._definitions_stack = []
         self._node_levels = node_levels
@@ -48,10 +49,9 @@ class Renderer:
             scope = scopes.LocalScope(upper_scope)
             if node.vararg:
                 scope.set_resource(node.vararg.name.body, args[len(node.positional):])
-            else:
-                if len(node.arguments) < len(args):
-                    custom_raise(LambdaArgumentsError('Function requires %d argument(s), but %d provided' %
-                                                      (len(node.arguments), len(args))))
+            elif len(node.arguments) < len(args):
+                custom_raise(LambdaArgumentsError('Function requires %d argument(s), but %d provided' %
+                                                  (len(node.arguments), len(args))))
 
             for name, arg in zip(node.positional, args):
                 scope.set_resource(name, arg)
@@ -82,15 +82,13 @@ class Renderer:
         return function_
 
     def _render_resource(self, node: Resource):
-        levels = self._node_levels[node]
         old_scope = self.scope
-        for _ in range(levels):
-            self.scope = self.scope._upper
+        for _ in range(self._node_levels[node]):
+            self.scope = self.scope.parent
         try:
-            value = self.scope.get_resource(node.name.body, self._render)
+            return self.scope.get_resource(node.name.body, self._render)
         finally:
             self.scope = old_scope
-        return value
 
     def _render_get_attribute(self, node: GetAttribute):
         data = self._render(node.target)
@@ -144,7 +142,7 @@ class Renderer:
     def _render_array(self, node: Array):
         result = []
         for value in node.entries:
-            if type(value) is Starred:
+            if isinstance(value, Starred):
                 result.extend(list(self._render(value.expression)))
             else:
                 result.append(self._render(value))

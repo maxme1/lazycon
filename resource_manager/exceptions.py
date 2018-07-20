@@ -1,7 +1,7 @@
 import sys
 from contextlib import contextmanager
 
-from .structures import *
+from .expressions import *
 
 IGNORE_IN_TRACEBACK = (
     Binary, Unary, Parenthesis, Slice, Starred, Array, Tuple, Dictionary
@@ -80,7 +80,7 @@ class RenderError(ModifiedException):
         return 'An exception occurred while ' + definition.error_message() + ''.join(reversed(stack))
 
     def update_self(self):
-        while type(self.__cause__) is RenderError:
+        while isinstance(self.__cause__, RenderError):
             cause = self.__cause__
             self.update_definitions(cause.definitions)
             self.__cause__ = cause.__cause__

@@ -4,7 +4,8 @@ from contextlib import suppress
 from threading import Lock
 
 from .exceptions import custom_raise, BuildConfigError, BadSyntaxError, LambdaArgumentsError
-from .structures import Structure, LazyImport, FuncDef
+from .statements import Structure, LazyImport
+from .expressions import FuncDef
 
 
 def add_if_missing(target: dict, name, node):
@@ -45,7 +46,7 @@ class GlobalScope(Scope):
         groups = defaultdict(list)
         plain = []
         for node, names in self._node_to_names.items():
-            if type(node) is LazyImport:
+            if isinstance(node, LazyImport):
                 assert len(names) == 1
                 if node.from_:
                     groups[node.from_].append(node)
@@ -80,7 +81,7 @@ class GlobalScope(Scope):
                 node = self._name_to_node[name]
                 if (node in self._node_locks and self._node_locks[node].locked()) or name in self._defined_resources:
                     custom_raise(BuildConfigError('The resource "%s" is already rendered. '
-                                                  'Overwriting it may lead to undefined behaviour.' % name))
+                                                  'Overwriting it may lead to undefined behavior.' % name))
 
         for name, node in name_to_node.items():
             self._name_to_node[name] = node
@@ -101,12 +102,13 @@ class GlobalScope(Scope):
 
 
 class LocalScope(Scope):
-    def __init__(self, upper_scope: Scope):
+    def __init__(self, parent: Scope):
         super().__init__()
-        self._upper = upper_scope
+        self.parent = parent
 
     def set_node(self, name: str, node: Structure):
-        add_if_missing(self._name_to_node, name, node)
+        assert name not in self._name_to_node
+        self._name_to_node[name] = node
         self._update_node_to_names()
         self._node_locks[node] = Lock()
 

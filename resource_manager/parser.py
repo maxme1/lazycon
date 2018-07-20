@@ -4,7 +4,8 @@ from io import BytesIO
 
 from .tokenizer import tokenize
 from .token import TokenType
-from .structures import *
+from .expressions import *
+from .statements import *
 from .arguments import NoDefaultValue, Parameter, PositionalArgument, KeywordArgument
 from .exceptions import BadSyntaxError, custom_raise
 
@@ -88,7 +89,7 @@ class Parser:
             else:
                 vararg = self.ignore(TokenType.ASTERISK)
                 data = self.inline_if()
-                if not vararg and type(data) is Resource and self.ignore(TokenType.EQUAL):
+                if not vararg and isinstance(data, Resource) and self.ignore(TokenType.EQUAL):
                     positional = False
                     kwargs.append(KeywordArgument(data.main_token, self.inline_if()))
                 else:
@@ -268,7 +269,7 @@ class Parser:
 
     def dictionary_or_set(self):
         data, main_token, _ = self.inline_container(TokenType.DICT_OPEN, TokenType.DICT_CLOSE, self.pair_or_value)
-        types = [type(x) is tuple for x in data]
+        types = [isinstance(x, tuple) for x in data]
         if all(types):
             return Dictionary(data, main_token)
         if any(types):
@@ -283,14 +284,14 @@ class Parser:
         data, main_token, comas = self.inline_container(TokenType.PAR_OPEN, TokenType.PAR_CLOSE, self.starred_or_if)
         if comas == 0 and data:
             assert len(data) == 1
-            if type(data[0]) is Starred:
+            if isinstance(data[0], Starred):
                 self.throw('Cannot use starred expression here', main_token)
             return Parenthesis(data[0])
         return Tuple(data, main_token)
 
     def pair_or_value(self):
         key = self.starred_or_if()
-        if type(key) is not Starred and self.ignore(TokenType.COLON):
+        if not isinstance(key, Starred) and self.ignore(TokenType.COLON):
             return key, self.inline_if()
         return key
 

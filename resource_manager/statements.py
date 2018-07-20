@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from .structures import Structure, TokenWrapper
+from .structure import Structure, TokenWrapper
 
 
 class Definition(Structure):

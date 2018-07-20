@@ -2,7 +2,8 @@ from .exceptions import custom_raise, BuildConfigError
 from .renderer import Renderer
 from .scopes import GlobalScope, add_if_missing
 from .parser import parse_file, parse_string
-from .structures import *
+from .expressions import *
+from .statements import *
 from .syntax_tree import SyntaxTree
 
 
