@@ -125,13 +125,12 @@ class ResourceManager:
                         node = local[what]
                     except KeyError:
                         custom_raise(BuildConfigError(
-                            f'Resource "{what}" is not defined in the config it is imported from.\n'
+                            'Resource "%s" is not defined in the config it is imported from.\n' % what +
                             '  at %d:%d in %s' % import_.position()), None)
                 else:
                     node = LazyImport(import_.get_root(), what, as_, import_.main_token)
 
-                name = get_imported_name(what, as_)
-                add_if_missing(scope, name, node)
+                add_if_missing(scope, get_imported_name(what, as_), node)
 
         for definition in definitions:
             if isinstance(definition, FuncDef):
@@ -156,6 +155,12 @@ class ResourceManager:
 
         path = os.path.expanduser(path)
         return os.path.realpath(path)
+
+    def __dir__(self):
+        return list(set(self._scope.get_resource_names()) | set(super().__dir__()))
+
+    def _ipython_key_completions_(self):
+        return self._scope.get_resource_names()
 
 
 read_config = ResourceManager.read_config

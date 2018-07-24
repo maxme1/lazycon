@@ -42,6 +42,9 @@ class GlobalScope(Scope):
         super().__init__()
         self.builtins = {x: getattr(builtins, x) for x in dir(builtins) if not x.startswith('_')}
 
+    def get_resource_names(self):
+        return list(self._name_to_node)
+
     def render_config(self):
         groups = defaultdict(list)
         plain = []
