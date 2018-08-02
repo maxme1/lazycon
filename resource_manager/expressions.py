@@ -194,15 +194,23 @@ class Call(Structure):
         self.args = args
         self.partial = partial
 
+    def draw_args(self, level, separator):
+        return separator.join('    ' * level + x.to_str(level) for x in self.args + self.kwargs)
+
     def to_str(self, level):
         target = self.target.to_str(level)
-        partial = ''
-        if self.partial:
-            partial = '    ' * (level + 1) + '# partial\n'
+        body = self.draw_args(0, ', ')
+        multiline = len(body) > MAX_COLUMNS or '\n' in body
+        if multiline:
+            body = '\n' + self.draw_args(level + 1, ',\n') + '\n' + '    ' * level
 
-        body = partial + ',\n'.join('    ' * (level + 1) + x.to_str(level + 1) for x in self.args + self.kwargs)
-        if body:
-            body = '\n' + body + '\n' + '    ' * level
+        if self.partial:
+            partial = '\n' + '    ' * (level + 1) + '# partial'
+            if not multiline:
+                if body:
+                    partial += '\n' + '    ' * (level + 1)
+                body += '\n' + '    ' * level
+            body = partial + body
 
         return target + '(' + body + ')'
 
@@ -241,7 +249,7 @@ class InlineContainer(Structure):
 
     def to_str(self, level):
         body = self.draw_body(0, ', ')
-        if len(body) > MAX_COLUMNS:
+        if len(body) > MAX_COLUMNS or '\n' in body:
             body = self.draw_body(level + 1, ',\n')
             body = '\n' + body + '\n' + '    ' * level
         return self.begin + body + self.end
