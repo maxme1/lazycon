@@ -3,7 +3,7 @@ import re
 from .token import TokenWrapper
 
 first_cap = re.compile('(.)([A-Z][a-z]+)')
-MAX_COLUMNS = 60
+MAX_COLUMNS = 100
 
 
 class Structure:
