@@ -194,7 +194,7 @@ class Parser:
                     args.append(self.slice_or_if())
 
                 self.require(TokenType.BRACKET_CLOSE)
-                data = GetItem(data, args, coma)
+                data = GetItem(data, args, coma and len(args) == 1)
             else:
                 main_token = self.require(TokenType.PAR_OPEN)
                 args, kwargs, partial = self.arguments()

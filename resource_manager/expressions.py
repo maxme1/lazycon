@@ -147,19 +147,18 @@ class GetItem(Structure):
         self.args = args
         self.trailing_coma = trailing_coma
 
+    def draw_args(self, level, separator):
+        res = separator.join('    ' * level + x.to_str(level) for x in self.args)
+        if self.trailing_coma:
+            res += ','
+        return res
+
     def to_str(self, level):
-        result = self.target.to_str(level) + '['
-        if not self.args:
-            return result + ']'
-        else:
-            result += '\n'
+        args = self.draw_args(0, ', ')
+        if len(args) > MAX_COLUMNS or '\n' in args:
+            args = '\n' + self.draw_args(level + 1, ',\n') + '\n'
 
-        for arg in self.args:
-            result += '    ' * (level + 1) + arg.to_str(level + 1) + ',\n'
-        if not self.trailing_coma:
-            result = result[:-2] + '\n'
-
-        return result + '    ' * level + ']'
+        return self.target.to_str(level) + '[' + args + ']'
 
     def error_message(self):
         return 'getting item from the resource %s' % self.target.to_str(0)
