@@ -33,3 +33,8 @@ class PositionalArgument(namedtuple('PA', ['vararg', 'value'])):
 class KeywordArgument(namedtuple('KA', ['name', 'value'])):
     def to_str(self, level):
         return self.name.body + '=' + self.value.to_str(level)
+
+
+class VariableKeywordArgument(namedtuple('VKA', ['value'])):
+    def to_str(self, level):
+        return '**' + self.value.to_str(level)

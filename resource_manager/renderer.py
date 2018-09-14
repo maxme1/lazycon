@@ -2,6 +2,7 @@ import functools
 import importlib
 import sys
 
+from .arguments import VariableKeywordArgument
 from .token import BINARY_OPERATORS, UNARY_OPERATORS, TokenType
 from . import scopes
 from .expressions import *
@@ -108,12 +109,24 @@ class Renderer:
         target = self._render(node.target)
         args = []
         for arg in node.args:
-            temp = self._render(arg.value)
+            value = self._render(arg.value)
             if arg.vararg:
-                args.extend(temp)
+                args.extend(value)
             else:
-                args.append(temp)
-        kwargs = {arg.name.body: self._render(arg.value) for arg in node.kwargs}
+                args.append(value)
+
+        pairs = []
+        for arg in node.kwargs:
+            value = self._render(arg.value)
+            if isinstance(arg, VariableKeywordArgument):
+                pairs.extend(value.items())
+            else:
+                pairs.append((arg.name.body, value))
+
+        kwargs = dict(pairs)
+        if len(kwargs) != len(pairs):
+            custom_raise(RenderError('Duplicate keyword arguments.'))
+
         if node.partial:
             return functools.partial(target, *args, **kwargs)
         return target(*args, **kwargs)

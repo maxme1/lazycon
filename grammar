@@ -42,9 +42,10 @@ getItem = '[' sliceOrIf (',' sliceOrIf)* ','? ']'
 call = '(' arguments ')'
 
 sliceOrIf =  inlineIf | ( inlineIf? ':' inlineIf? (':' inlineIf?)? )
-arguments = LAZY? (positional | keyword | (positional ',' keyword) ','?)?
+arguments = LAZY? (positional | keywords | (positional ',' keywords) ','?)?
 positional = '*'? inlineIf (',' '*'? inlineIf)*
-keyword = definition (',' definition)*
+keywords = keyword (',' keyword)*
+keyword = definition | ('**'inlineIf)
 
 primary = lambda | dictionary | array | tuple | set | IDENTIFIER | STRING | NUMBER | 'None' | 'False' | 'True' | '...'
     | '(' inlineIf ')'

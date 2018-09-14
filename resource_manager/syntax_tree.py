@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Iterable, Dict
 
+from .arguments import VariableKeywordArgument
 from .exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
 from .scopes import GlobalScope
@@ -129,8 +130,8 @@ class SyntaxTree:
         self._render_sequence(node.args)
 
     def _render_call(self, node: Call):
-        names = set(arg.name.body for arg in node.kwargs)
-        if len(names) < len(node.kwargs):
+        names = [arg.name.body for arg in node.kwargs if not isinstance(arg, VariableKeywordArgument)]
+        if len(set(names)) < len(names):
             self.add_message('Duplicate keyword arguments', node, 'at %d:%d' % node.position()[:2])
 
         node.target.render(self)

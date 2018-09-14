@@ -78,6 +78,7 @@ class TestResourceManager(unittest.TestCase):
     def test_items(self):
         rm = read_config('expressions/tail.config')
         self.assertEqual(rm.part, 6)
+        self.assertTupleEqual((1, 2), rm.value)
         np.testing.assert_array_equal(rm.another_part, [1, 2, 3])
 
     def test_functions(self):

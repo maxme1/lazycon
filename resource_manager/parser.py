@@ -6,7 +6,7 @@ from .tokenizer import tokenize
 from .token import TokenType
 from .expressions import *
 from .statements import *
-from .arguments import NoDefaultValue, Parameter, PositionalArgument, KeywordArgument
+from .arguments import NoDefaultValue, Parameter, PositionalArgument, KeywordArgument, VariableKeywordArgument
 from .exceptions import BadSyntaxError, custom_raise
 
 
@@ -74,7 +74,7 @@ class Parser:
     def arguments(self):
         partial = self.ignore(TokenType.PARTIAL)
 
-        args, kwargs, positional = [], [], True
+        args, kwargs = [], []
         while not self.matches(TokenType.PAR_CLOSE):
             if args or kwargs:
                 self.require(TokenType.COMA)
@@ -82,18 +82,22 @@ class Parser:
                 if self.matches(TokenType.PAR_CLOSE):
                     break
 
-            if not positional:
-                name = self.require(TokenType.IDENTIFIER)
+            if not kwargs and self.ignore(TokenType.ASTERISK):
+                args.append(PositionalArgument(True, self.inline_if()))
+                continue
+
+            if self.ignore(TokenType.DOUBLE_ASTERISK):
+                kwargs.append(VariableKeywordArgument(self.inline_if()))
+                continue
+
+            data = self.inline_if()
+            if kwargs or (isinstance(data, Resource) and self.matches(TokenType.EQUAL)):
+                if not isinstance(data, Resource):
+                    self.throw('Invalid keyword argument', data.main_token)
                 self.require(TokenType.EQUAL)
-                kwargs.append(KeywordArgument(name, self.inline_if()))
+                kwargs.append(KeywordArgument(data.main_token, self.inline_if()))
             else:
-                vararg = self.ignore(TokenType.ASTERISK)
-                data = self.inline_if()
-                if not vararg and isinstance(data, Resource) and self.ignore(TokenType.EQUAL):
-                    positional = False
-                    kwargs.append(KeywordArgument(data.main_token, self.inline_if()))
-                else:
-                    args.append(PositionalArgument(vararg, data))
+                args.append(PositionalArgument(False, data))
 
         return tuple(args), tuple(kwargs), partial
 
