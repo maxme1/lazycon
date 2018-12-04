@@ -242,8 +242,11 @@ class Parser:
 
     def definition(self):
         name = self.require(TokenType.IDENTIFIER)
-        self.require(TokenType.EQUAL)
-        return Definition([name], self.inline_if())
+        token = self.require(TokenType.EQUAL)
+        start = self.position
+        expression = self.inline_if()
+        stop = self.position
+        return name.body, ExpressionStatement(expression, self.get_expression_string(start, stop), token)
 
     def multiple_definitions(self):
         names = [self.require(TokenType.IDENTIFIER)]
@@ -255,7 +258,7 @@ class Parser:
                 self.throw('Invalid identifier', token)
             names.append(token)
             data = self.inline_if()
-        return Definition(names, data)
+        return ExpressionStatement(names, data)
 
     def inline_container(self, begin, end, get_data) -> (InlineContainer, int):
         structure_begin = self.require(begin)
@@ -315,11 +318,12 @@ class Parser:
         if allow_dotted:
             value = self.dotted()
         else:
-            value = self.require(TokenType.IDENTIFIER),
-        name = None
+            value = [self.require(TokenType.IDENTIFIER)]
+
+        name = value[0]
         if self.ignore(TokenType.AS):
             name = self.require(TokenType.IDENTIFIER)
-        return tuple(value), name
+        return value, name.body
 
     def import_(self):
         root, prefix_dots = [], 0
@@ -333,32 +337,28 @@ class Parser:
 
         main_token = self.require(TokenType.IMPORT)
 
-        # import by path
-        if not root and self.matches(TokenType.STRING):
-            path = self.require(TokenType.STRING)
-            if path.body.count(':') > 1:
-                self.throw('The resulting path cannot contain more than one ":" separator.', path)
-            return ImportPath(path, main_token)
-
         if self.ignore(TokenType.ASTERISK):
             return ImportStarred(root, prefix_dots, main_token)
 
         block = self.ignore(TokenType.PAR_OPEN)
-        values = [self.import_as(not root)]
+
+        value, name = self.import_as(not root)
+        imports = [(name, UnifiedImport(root, value, prefix_dots, main_token))]
         while self.ignore(TokenType.COMA):
-            values.append(self.import_as(not root))
+            value, name = self.import_as(not root)
+            imports.append((name, UnifiedImport(root, value, prefix_dots, main_token)))
 
         if block:
             self.require(TokenType.PAR_CLOSE)
 
-        return UnifiedImport(root, values, prefix_dots, main_token)
+        return imports
 
     def parse(self):
         parents, imports = [], []
         while self.matches(TokenType.IMPORT, TokenType.FROM):
             import_ = self.import_()
-            if isinstance(import_, UnifiedImport):
-                imports.append(import_)
+            if isinstance(import_, list):
+                imports.extend(import_)
             else:
                 if imports:
                     self.throw('Starred and path imports are only allowed at the top of the config', import_.main_token)
@@ -366,11 +366,11 @@ class Parser:
 
         definitions = []
         while self.position < len(self.tokens):
-            if self.matches(TokenType.DEF):
-                val = self.func_def()
-            else:
-                val = self.multiple_definitions()
-            definitions.append(val)
+            # if self.matches(TokenType.DEF):
+            #     val = self.func_def()
+            # else:
+            #     val = self.multiple_definitions()
+            definitions.append(self.definition())
 
         return definitions, parents, imports
 
@@ -417,6 +417,12 @@ class Parser:
             self.advance()
             return True
         return False
+
+    def get_expression_string(self, start, stop):
+        lines = [l[1] for l in sorted({(token.line, token.token_line) for token in self.tokens[start:stop]})]
+        lines[0] = lines[0][self.tokens[start].column - 1:]
+        lines[-1] = lines[0][:self.tokens[stop - 1].column]
+        return ''.join(lines)
 
 
 def parse(readline, source_path):

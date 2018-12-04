@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from resource_manager.exceptions import BuildConfigError, RenderError, LambdaArgumentsError, BadSyntaxError
-from resource_manager.resource_manager import ResourceManager, read_config
+from resource_manager.manager import ResourceManager, read_config
 
 
 class TestResourceManager(unittest.TestCase):

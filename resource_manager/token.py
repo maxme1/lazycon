@@ -116,4 +116,4 @@ class TokenWrapper:
         self.line, self.column = token.start
         self.column += 1
         self.source = source_path
-        self.token_line = token.line.rstrip()
+        self.token_line = token.line

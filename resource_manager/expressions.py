@@ -2,11 +2,11 @@ from typing import List, Union
 
 from .arguments import Parameter
 from .structure import Structure, MAX_COLUMNS, TokenWrapper
-from .statements import Definition
+from .statements import ExpressionStatement
 
 
 class Function(Structure):
-    def __init__(self, arguments: List[Parameter], bindings: List[Definition], expression: Structure, name, main_token):
+    def __init__(self, arguments: List[Parameter], bindings: List[ExpressionStatement], expression: Structure, name, main_token):
         super().__init__(main_token)
         self.name = name
         self.bindings = bindings

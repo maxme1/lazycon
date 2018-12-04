@@ -1,10 +1,11 @@
+from collections import ChainMap
+from itertools import chain, starmap
+
 from .exceptions import custom_raise, BuildConfigError
-from .renderer import Renderer
-from .scopes import GlobalScope, add_if_missing
+from .scope import Scope, Builtins, NodeThunk, add_if_missing
 from .parser import parse_file, parse_string
 from .expressions import *
 from .statements import *
-from .syntax_tree import SyntaxTree
 
 
 class ResourceManager:
@@ -20,8 +21,10 @@ class ResourceManager:
     def __init__(self, shortcuts: dict = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
-        self._scope = GlobalScope()
-        self._node_levels = {}
+        self._scope = Scope()
+
+        # for name, definition in parse_file(path)[0]:
+        #     self._scope.set_thunk(name, NodeThunk(compile(definition.body, path, 'eval')))
 
     @classmethod
     def read_config(cls, source_path: str, shortcuts: dict = None):
@@ -87,60 +90,54 @@ class ResourceManager:
         return self.get_resource(item)
 
     def get_resource(self, name: str):
-        return self._scope.get_resource(name, Renderer.make_renderer(self._scope, self._node_levels))
+        return self._scope[name]
 
-    def _update_resources(self, scope):
-        self._scope.overwrite(scope)
-        self._node_levels = SyntaxTree.analyze(self._scope)
+    def _update_resources(self, scope: dict):
+        list(starmap(self._scope.add_statement, scope.items()))
+        # self._node_levels = SyntaxTree.analyze(self._scope)
 
-    def _import(self, absolute_path: str) -> dict:
-        if absolute_path in self._imported_configs:
-            return self._imported_configs[absolute_path]
+    def _import(self, path: str) -> dict:
+        path = os.path.expanduser(path)
+        path = os.path.realpath(path)
+
+        if path in self._imported_configs:
+            return self._imported_configs[path]
         # avoiding cycles
-        self._imported_configs[absolute_path] = {}
+        self._imported_configs[path] = {}
 
-        result = self._get_resources(*parse_file(absolute_path))
-        self._imported_configs[absolute_path] = result
+        result = self._get_resources(*parse_file(path))
+        self._imported_configs[path] = result
         return result
 
-    def _get_resources(self, definitions: List[Union[Definition, FuncDef]],
-                       parents: List[Union[ImportPath, ImportStarred]], imports: List[UnifiedImport]) -> dict:
-        parent_scope = {}
+    def _get_resources(self, definitions: List[Union[ExpressionStatement, FuncDef]],
+                       parents: List[ImportStarred], imports: List[UnifiedImport]) -> dict:
+
+        parent_scope = ChainMap()
         for parent in parents:
-            source_path = parent.main_token.source
-            shortcut, path = parent.get_path()
-            path = self._resolve_path(path, source_path, shortcut)
-            parent_scope.update(self._import(path))
+            parent_scope = parent_scope.new_child(self._import(parent.get_path(self._shortcuts)))
 
         scope = {}
-        for import_ in imports:
-            for what, as_ in import_.iterate_values():
-                if import_.is_config_import(self._shortcuts):
-                    source_path = import_.main_token.source
-                    shortcut, path = import_.get_path()
-                    # TODO: should warn about ambiguous shortcut names:
-                    # importlib.util.find_spec(shortcut)
-                    local = self._import(self._resolve_path(path, source_path, shortcut))
-                    try:
-                        node = local[what]
-                    except KeyError:
-                        custom_raise(BuildConfigError(
-                            'Resource "%s" is not defined in the config it is imported from.\n' % what +
-                            '  at %d:%d in %s' % import_.position()), None)
-                else:
-                    node = LazyImport(import_.get_root(), what, as_, import_.main_token)
-
-                add_if_missing(scope, get_imported_name(what, as_), node)
-
-        for definition in definitions:
-            if isinstance(definition, FuncDef):
-                add_if_missing(scope, definition.name, definition)
+        for name, import_ in imports:
+            if import_.is_config_import(self._shortcuts):
+                # TODO: should warn about ambiguous shortcut names:
+                # importlib.util.find_spec(shortcut)
+                local = self._import(import_.get_path(self._shortcuts))
+                what = import_.what
+                try:
+                    node = local[what]
+                except KeyError:
+                    raise BuildConfigError(
+                        'Resource "%s" is not defined in the config it is imported from.\n' % what +
+                        '  at %d:%d in %s' % import_.position()) from None
             else:
-                for name in definition.names:
-                    add_if_missing(scope, name.body, definition.value)
+                node = import_
+            # TODO: replace by a list
+            add_if_missing(scope, name, node)
 
-        parent_scope.update(scope)
-        return parent_scope
+        for name, definition in definitions:
+            add_if_missing(scope, name, definition)
+
+        return dict(parent_scope.new_child(scope).items())
 
     def _resolve_path(self, path: str, source: str, shortcut: str):
         if shortcut:

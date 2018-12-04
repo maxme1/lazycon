@@ -4,7 +4,7 @@ from typing import Iterable, Dict
 from .arguments import VariableKeywordArgument
 from .exceptions import custom_raise, BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
-from .scopes import GlobalScope
+from .scope import GlobalScope
 from .expressions import *
 from .statements import *
 
