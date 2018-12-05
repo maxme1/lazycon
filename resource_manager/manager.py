@@ -2,7 +2,7 @@ from collections import ChainMap
 from itertools import chain, starmap
 
 from .exceptions import custom_raise, BuildConfigError
-from .scope import Scope, Builtins, NodeThunk, add_if_missing
+from .scope import Scope, add_if_missing
 from .parser import parse_file, parse_string
 from .expressions import *
 from .statements import *
@@ -154,10 +154,10 @@ class ResourceManager:
         return os.path.realpath(path)
 
     def __dir__(self):
-        return list(set(self._scope.get_resource_names()) | set(super().__dir__()))
+        return list(set(self._scope.keys()) | set(super().__dir__()))
 
     def _ipython_key_completions_(self):
-        return self._scope.get_resource_names()
+        return self._scope.keys()
 
 
 read_config = ResourceManager.read_config

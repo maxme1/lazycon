@@ -36,7 +36,7 @@ class NodeThunk(Thunk):
 class Scope(Dict[str, Any]):
     def __init__(self):
         super().__init__()
-        self._parent = Builtins()
+        self._parent = vars(builtins)
         self._thunks = {}
 
     def add_statement(self, name, statement):
@@ -65,15 +65,10 @@ class Scope(Dict[str, Any]):
             return thunk.value
 
 
-class Builtins:
-    def __getitem__(self, name):
-        return getattr(builtins, name)
-
-
 def render(statement: Statement, scope: Scope):
     if isinstance(statement, ExpressionStatement):
-        code = compile(statement.body, 'no_source', 'eval')
-        return eval(code, scope)
+        code = compile(statement.body, statement.source, 'eval')
+        return eval(code, {}, scope)
 
     if isinstance(statement, UnifiedImport):
         from_ = '.'.join(statement.root)
@@ -81,7 +76,6 @@ def render(statement: Statement, scope: Scope):
         if not from_:
             result = importlib.import_module(what)
             packages = statement.what
-            # TODO: add as_
             if len(packages) > 1 and not statement.as_:
                 # import a.b.c
                 return sys.modules[packages[0]]
@@ -93,6 +87,7 @@ def render(statement: Statement, scope: Scope):
         try:
             return importlib.import_module(what, from_)
         except ModuleNotFoundError:
-            return importlib.import_module(from_ + '.' + what)
+            pass
+        return importlib.import_module(from_ + '.' + what)
 
     raise NotImplementedError

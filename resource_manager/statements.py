@@ -9,10 +9,18 @@ class Statement:
         self.main_token = main_token
 
     def position(self):
-        return self.main_token.line, self.main_token.column, self.source()
+        return self.line, self.main_token.column, self.source
 
+    @property
     def source(self):
         return self.main_token.source or '<string input>'
+
+    @property
+    def line(self):
+        return self.main_token.line
+
+    def to_str(self, names: List[str], level: int):
+        raise NotImplementedError
 
 
 class ExpressionStatement(Statement):
@@ -21,17 +29,12 @@ class ExpressionStatement(Statement):
         self.body = body
         self.expression = expression
 
-        # super().__init__(names[0])
-        # self.names = names
-        # self.value = value
-
-    def to_str(self, level):
-        return '    ' * level + ' = '.join(name.body for name in self.names) + ' = %s\n' % self.value.to_str(level)
+    def to_str(self, names, level):
+        return '    ' * level + ' = '.join(names) + ' = ' + self.body + '\n'
 
 
-# import a
-# from a import b
-# from a import *
+def dotted(x):
+    return '.'.join(x)
 
 
 class BaseImport(Statement):
@@ -51,10 +54,10 @@ class BaseImport(Statement):
 
         return os.path.join(os.path.dirname(prefix), *root) + '.config'
 
-    def to_str(self, level):
+    def _to_str(self):
         result = ''
-        if self._from:
-            result = 'from ' + '.' * self._prefix_dots + '%s ' % make_dotted(self._from)
+        if self.root:
+            result = 'from ' + '.' * self.dots + '%s ' % dotted(self.root)
         return result + 'import '
 
 
@@ -62,47 +65,26 @@ class ImportStarred(BaseImport):
     def __init__(self, root: List[TokenWrapper], dots: int, main_token: TokenWrapper):
         super().__init__(root, dots, main_token)
 
+    def to_str(self, names=(), level=0):
+        assert not names and level == 0
+        return self._to_str() + '*\n'
+
 
 class UnifiedImport(BaseImport):
-    def __init__(self, root: List[TokenWrapper], what: List[TokenWrapper], dots: int, main_token: TokenWrapper):
+    def __init__(self, root: List[TokenWrapper], what: List[TokenWrapper], as_: bool, dots: int,
+                 main_token: TokenWrapper):
         super().__init__(root, dots, main_token)
+        self.as_ = as_
         self.what = tuple(w.body for w in what)
 
     def is_config_import(self, shortcuts):
         return self.root and (self.dots > 0 or self.root in shortcuts)
 
-    def to_str(self, level):
-        result = super().to_str(level)
-        for value, name in self.iterate_values():
-            result += value
-            if name is not None:
-                result += ' as ' + name.body
-            result += ', '
+    def to_str(self, names, level=0):
+        assert level == 0 and len(names) == 1
+        result = self._to_str() + dotted(self.what)
 
-        return result[:-2] + '\n'
+        if len(self.what) > 1 or self.what[0] != names[0]:
+            result += ' as ' + names[0]
 
-
-class LazyImport(Statement):
-    def __init__(self, from_, what, as_, main_token: TokenWrapper):
-        super().__init__(main_token)
-        self.from_, self.what, self.as_ = from_, what, as_
-
-    def from_to_str(self):
-        if self.from_:
-            return 'from ' + self.from_ + ' '
-        return ''
-
-    def what_to_str(self):
-        result = '%s' % self.what
-        if self.as_:
-            result += ' as %s' % self.as_.body
-        return result
-
-    def to_str(self, level):
-        return self.from_to_str() + 'import ' + self.what_to_str() + '\n'
-
-    def error_message(self):
-        result = 'importing '
-        if self.from_:
-            result += self.from_ + '.'
-        return result + self.what
+        return result + '\n'

@@ -7,10 +7,11 @@ from resource_manager.parser import parse_string
 
 def standardize(source):
     definitions, parents, imports = parse_string(source)
-    result = '\n'.join(imp.to_str(0) for imp in parents)
-    result += '\n'.join(imp.to_str(0) for imp in imports)
-    for definition in definitions:
-        result += definition.to_str(0) + '\n'
+    result = '\n'.join(imp.to_str() for imp in parents)
+    result += '\n'.join(imp.to_str([name]) for name, imp in imports)
+    for name, definition in definitions:
+        result += definition.to_str([name], 0)
+    print(result)
     return result
 
 

@@ -116,7 +116,7 @@ class TestResourceManager(unittest.TestCase):
         rm = read_config('expressions/lambda_.config')
         self.assertTupleEqual((1, 2), rm.with_default())
         self.assertTupleEqual(((), 1), rm.keyword(y=1))
-        with self.assertRaises(LambdaArgumentsError):
+        with self.assertRaises(TypeError):
             rm.b(1, 2)
         try:
             rm.vararg(x=1)

@@ -320,10 +320,10 @@ class Parser:
         else:
             value = [self.require(TokenType.IDENTIFIER)]
 
-        name = value[0]
+        name = None
         if self.ignore(TokenType.AS):
             name = self.require(TokenType.IDENTIFIER)
-        return value, name.body
+        return value, name
 
     def import_(self):
         root, prefix_dots = [], 0
@@ -343,10 +343,11 @@ class Parser:
         block = self.ignore(TokenType.PAR_OPEN)
 
         value, name = self.import_as(not root)
-        imports = [(name, UnifiedImport(root, value, prefix_dots, main_token))]
+        imports = [((name or value[0]).body, UnifiedImport(root, value, name is not None, prefix_dots, main_token))]
         while self.ignore(TokenType.COMA):
             value, name = self.import_as(not root)
-            imports.append((name, UnifiedImport(root, value, prefix_dots, main_token)))
+            imports.append(((name or value[0]).body,
+                            UnifiedImport(root, value, name is not None, prefix_dots, main_token)))
 
         if block:
             self.require(TokenType.PAR_CLOSE)
@@ -420,8 +421,13 @@ class Parser:
 
     def get_expression_string(self, start, stop):
         lines = [l[1] for l in sorted({(token.line, token.token_line) for token in self.tokens[start:stop]})]
-        lines[0] = lines[0][self.tokens[start].column - 1:]
-        lines[-1] = lines[0][:self.tokens[stop - 1].column]
+        # TODO: too ugly
+        first = self.tokens[start].column - 1
+        last = self.tokens[stop - 1]._token.end[1]
+        if len(lines) == 1:
+            last -= first
+        lines[0] = lines[0][first:]
+        lines[-1] = lines[-1][:last]
         return ''.join(lines)
 
 
