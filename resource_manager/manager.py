@@ -1,6 +1,7 @@
 from collections import ChainMap
 from itertools import starmap
 
+from resource_manager.semantics import SyntaxTree
 from .exceptions import BuildConfigError, ResourceError
 from .scope import Scope, add_if_missing
 from .parser import parse_file, parse_string
@@ -63,8 +64,7 @@ class ResourceManager:
 
     def import_config(self, path: str):
         """Import the config located at `path`."""
-        result = self._import(path)
-        self._update_resources(result)
+        self._update_resources(self._import(path))
         return self
 
     def string_input(self, source: str):
@@ -98,8 +98,8 @@ class ResourceManager:
         return self._scope[name]
 
     def _update_resources(self, scope: dict):
+        SyntaxTree.analyze(scope, self._scope._parent)
         list(starmap(self._scope.add_statement, scope.items()))
-        # self._node_levels = SyntaxTree.analyze(self._scope)
 
     def _import(self, path: str) -> dict:
         path = os.path.expanduser(path)

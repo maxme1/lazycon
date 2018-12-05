@@ -113,7 +113,7 @@ class Unary(Structure):
 class Resource(Structure):
     def __init__(self, name: TokenWrapper):
         super().__init__(name)
-        self.name = name
+        self.name = name.body
 
     def to_str(self, level):
         return self.name.body

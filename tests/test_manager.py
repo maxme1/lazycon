@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from resource_manager.exceptions import BuildConfigError, BadSyntaxError
+from resource_manager.exceptions import BuildConfigError, BadSyntaxError, ResourceError
 from resource_manager.manager import ResourceManager, read_config
 
 
@@ -75,6 +75,10 @@ class TestResourceManager(unittest.TestCase):
         rm = read_config('imports/imports.config')
         with self.assertRaises(AttributeError):
             rm.undefined_value
+        with self.assertRaises(KeyError):
+            rm['undefined_value']
+        with self.assertRaises(ResourceError):
+            rm.get_resource('undefined_value')
 
     def test_items(self):
         rm = read_config('expressions/tail.config')

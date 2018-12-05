@@ -33,15 +33,15 @@ class NodeThunk(Thunk):
         self.value = None
 
 
-class Builtins:
+class Builtins(dict):
     def __init__(self):
-        self.values = vars(builtins)
+        super().__init__(vars(builtins))
 
     def __getitem__(self, name):
-        if name in self.values:
-            return self.values[name]
-
-        raise ResourceError('"%s" is not defined.' % name)
+        try:
+            return super().__getitem__(name)
+        except KeyError:
+            raise ResourceError('"%s" is not defined.' % name) from None
 
 
 class Scope(Dict[str, Any]):

@@ -1,24 +1,10 @@
 import os
 from typing import List
 
-from .structure import TokenWrapper
+from .structure import TokenWrapper, Structure
 
 
-class Statement:
-    def __init__(self, main_token: TokenWrapper):
-        self.main_token = main_token
-
-    def position(self):
-        return self.line, self.main_token.column, self.source
-
-    @property
-    def source(self):
-        return self.main_token.source or '<string input>'
-
-    @property
-    def line(self):
-        return self.main_token.line
-
+class Statement(Structure):
     def to_str(self, names: List[str], level: int):
         raise NotImplementedError
 

@@ -2,26 +2,28 @@ from collections import defaultdict
 from typing import Iterable, Dict
 
 from .arguments import VariableKeywordArgument
-from .exceptions import custom_raise, BuildConfigError
+from .exceptions import BuildConfigError
 from .token import TokenType, INVALID_STRING_PREFIXES
-from .scope import GlobalScope
 from .expressions import *
 from .statements import *
 
 
 class SyntaxTree:
-    def __init__(self, name_to_node: dict, node_to_names: dict, builtins: Iterable):
+    def __init__(self, name_to_node: Dict[str, Statement], builtins: Iterable[str]):
         self.messages = defaultdict(lambda: defaultdict(set))
         self._scopes = []
         self._builtins = builtins
-        self.node_to_names = node_to_names
         self.node_levels = {}
+        self.node_to_names = defaultdict(list)
+        for name, node in name_to_node.items():
+            self.node_to_names[node].append(name)
+        self.node_to_names = dict(self.node_to_names)
 
         self.enter_scope(name_to_node)
         self.visit_current_scope()
 
     def add_message(self, message, node, content):
-        self.messages[message][node.source()].add(content)
+        self.messages[message][node.source].add(content)
 
     @staticmethod
     def format(message, elements):
@@ -33,16 +35,16 @@ class SyntaxTree:
         return message
 
     @staticmethod
-    def analyze(scope: GlobalScope):
-        tree = SyntaxTree(scope._name_to_node, scope._node_to_names, scope.builtins)
+    def analyze(scope: Dict[str, Statement], builtins: Iterable[str]):
+        tree = SyntaxTree(scope, builtins)
         message = ''
         for msg, elements in tree.messages.items():
             message += tree.format(msg, elements)
         if message:
-            custom_raise(BuildConfigError(message))
+            raise BuildConfigError(message)
         return tree.node_levels
 
-    def enter_scope(self, names: Dict[str, Structure], visited=()):
+    def enter_scope(self, names: Dict[str, Statement], visited=()):
         scope = {name: [value, None] for name, value in names.items()}
         for name in visited:
             scope[name][1] = True
@@ -56,10 +58,6 @@ class SyntaxTree:
 
     def entered(self, value):
         return value[1] is False
-
-    def set_node_level(self, node, level):
-        assert node not in self.node_levels, node
-        self.node_levels[node] = level
 
     def mark_as_visited(self, value):
         node = value[0]
@@ -98,8 +96,11 @@ class SyntaxTree:
         for item in sequence:
             item.render(self)
 
+    def _render_expression_statement(self, node: ExpressionStatement):
+        node.expression.render(self)
+
     def _render_resource(self, node: Resource):
-        name = node.name.body
+        name = node.name
         for level, scope in enumerate(reversed(self._scopes)):
             if name in scope:
                 if self.not_visited(scope[name]):
@@ -108,14 +109,10 @@ class SyntaxTree:
                     # TODO: more information
                     self.add_message('Resources are referenced before being completely defined',
                                      node, '"' + name + '" at %d:%d' % node.position()[:2])
+                return
 
-                return self.set_node_level(node, level)
-
-        if name in self._builtins:
-            return self.set_node_level(node, len(self._scopes) - 1)
-
-        # undefined resource:
-        self.add_message('Undefined resources found, but are required', node, name)
+        if name not in self._builtins:
+            self.add_message('Undefined resources found, but are required', node, name)
 
     def _render_get_attribute(self, node: GetAttribute):
         node.target.render(self)
@@ -185,7 +182,7 @@ class SyntaxTree:
         self.visit_current_scope()
         self.leave_scope()
 
-    def _render_lazy_import(self, node: LazyImport):
+    def _render_unified_import(self, node: UnifiedImport):
         pass
 
     def _render_literal(self, node: Literal):
