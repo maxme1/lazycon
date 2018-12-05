@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from .structure import Structure, TokenWrapper
+from .structure import TokenWrapper
 
 
 class Statement:
@@ -50,9 +50,9 @@ class BaseImport(Statement):
             prefix = shortcuts[shortcut]
         else:
             root = (os.pardir,) * (self.dots - 1) + self.root
-            prefix = self.main_token.source
+            prefix = os.path.dirname(self.main_token.source)
 
-        return os.path.join(os.path.dirname(prefix), *root) + '.config'
+        return os.path.join(prefix, *root) + '.config'
 
     def _to_str(self):
         result = ''

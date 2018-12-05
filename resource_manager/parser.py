@@ -7,7 +7,7 @@ from .token import TokenType
 from .expressions import *
 from .statements import *
 from .arguments import NoDefaultValue, Parameter, PositionalArgument, KeywordArgument, VariableKeywordArgument
-from .exceptions import BadSyntaxError, custom_raise
+from .exceptions import BadSyntaxError
 
 
 class Parser:
@@ -243,22 +243,28 @@ class Parser:
     def definition(self):
         name = self.require(TokenType.IDENTIFIER)
         token = self.require(TokenType.EQUAL)
+        expression, body = self.expression_and_body()
+        return name.body, ExpressionStatement(expression, body, token)
+
+    def expression_and_body(self):
         start = self.position
-        expression = self.inline_if()
+        data = self.inline_if()
         stop = self.position
-        return name.body, ExpressionStatement(expression, self.get_expression_string(start, stop), token)
+        return data, self.get_expression_string(start, stop)
 
     def multiple_definitions(self):
         names = [self.require(TokenType.IDENTIFIER)]
-        self.require(TokenType.EQUAL)
-        data = self.inline_if()
+        token = self.require(TokenType.EQUAL)
+        data, body = self.expression_and_body()
         while self.ignore(TokenType.EQUAL):
             token = data.main_token
             if not isinstance(data, Resource):
                 self.throw('Invalid identifier', token)
             names.append(token)
-            data = self.inline_if()
-        return ExpressionStatement(names, data)
+            data, body = self.expression_and_body()
+
+        expression = ExpressionStatement(data, body, token)
+        return [(name.body, expression) for name in names]
 
     def inline_container(self, begin, end, get_data) -> (InlineContainer, int):
         structure_begin = self.require(begin)
@@ -371,7 +377,7 @@ class Parser:
             #     val = self.func_def()
             # else:
             #     val = self.multiple_definitions()
-            definitions.append(self.definition())
+            definitions.extend(self.multiple_definitions())
 
         return definitions, parents, imports
 
@@ -386,7 +392,7 @@ class Parser:
             message = 'Unexpected end of source'
             if self.tokens and self.tokens[0].source:
                 message += ' in ' + self.tokens[0].source
-            custom_raise(BadSyntaxError(message))
+            raise BadSyntaxError(message)
         return self.tokens[self.position]
 
     def matches(self, *types):
@@ -404,8 +410,8 @@ class Parser:
     @staticmethod
     def throw(message, token):
         source = token.source or '<string input>'
-        custom_raise(BadSyntaxError(message + '\n  at %d:%d in %s\n    %s' %
-                                    (token.line, token.column, source, token.token_line.rstrip())))
+        raise BadSyntaxError(message + '\n  at %d:%d in %s\n    %s' %
+                             (token.line, token.column, source, token.token_line.rstrip()))
 
     def require(self, *types) -> TokenWrapper:
         if not self.matches(*types):
@@ -420,7 +426,15 @@ class Parser:
         return False
 
     def get_expression_string(self, start, stop):
-        lines = [l[1] for l in sorted({(token.line, token.token_line) for token in self.tokens[start:stop]})]
+        lines = set()
+        for token in self.tokens[start:stop]:
+            local_lines = token.token_line.splitlines()
+            assert len(local_lines) == token._token.end[0] - token._token.start[0] + 1
+
+            for i, line in enumerate(local_lines):
+                lines.add((token.line + i, line))
+
+        lines = [l[1] for l in sorted(lines)]
         # TODO: too ugly
         first = self.tokens[start].column - 1
         last = self.tokens[stop - 1]._token.end[1]
@@ -428,7 +442,7 @@ class Parser:
             last -= first
         lines[0] = lines[0][first:]
         lines[-1] = lines[-1][:last]
-        return ''.join(lines)
+        return '\n'.join(lines)
 
 
 def parse(readline, source_path):
@@ -437,7 +451,7 @@ def parse(readline, source_path):
     except TokenError as e:
         source_path = source_path or '<string input>'
         line, col = e.args[1]
-        custom_raise(BadSyntaxError(e.args[0] + ' at %d:%d in %s' % (line, col, source_path)), None)
+        raise BadSyntaxError(e.args[0] + ' at %d:%d in %s' % (line, col, source_path)) from None
 
 
 def parse_file(config_path):

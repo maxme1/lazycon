@@ -1,7 +1,7 @@
 from collections import ChainMap
-from itertools import chain, starmap
+from itertools import starmap
 
-from .exceptions import custom_raise, BuildConfigError
+from .exceptions import BuildConfigError, ResourceError
 from .scope import Scope, add_if_missing
 from .parser import parse_file, parse_string
 from .expressions import *
@@ -63,7 +63,6 @@ class ResourceManager:
 
     def import_config(self, path: str):
         """Import the config located at `path`."""
-        path = self._resolve_path(path, '', '')
         result = self._import(path)
         self._update_resources(result)
         return self
@@ -76,18 +75,24 @@ class ResourceManager:
 
     def render_config(self) -> str:
         """Generate a string containing definitions of all the resources in the current scope."""
-        return self._scope.render_config()
+        return '\n'.join(sorted(self._scope.render()))
 
     def save_config(self, path: str):
         """Render the config and save it to `path`."""
         with open(path, 'w') as file:
             file.write(self.render_config())
 
-    def __getattr__(self, item):
-        return self.get_resource(item)
+    def __getattr__(self, name: str):
+        try:
+            return self.get_resource(name)
+        except ResourceError:
+            raise AttributeError('"%s" is not defined.' % name)
 
-    def __getitem__(self, item):
-        return self.get_resource(item)
+    def __getitem__(self, name: str):
+        try:
+            return self.get_resource(name)
+        except ResourceError:
+            raise KeyError('"%s" is not defined.' % name)
 
     def get_resource(self, name: str):
         return self._scope[name]
@@ -123,6 +128,8 @@ class ResourceManager:
                 # importlib.util.find_spec(shortcut)
                 local = self._import(import_.get_path(self._shortcuts))
                 what = import_.what
+                assert len(what) == 1
+                what = what[0]
                 try:
                     node = local[what]
                 except KeyError:
@@ -138,20 +145,6 @@ class ResourceManager:
             add_if_missing(scope, name, definition)
 
         return dict(parent_scope.new_child(scope).items())
-
-    def _resolve_path(self, path: str, source: str, shortcut: str):
-        if shortcut:
-            if shortcut not in self._shortcuts:
-                message = 'Shortcut "%s" is not recognized' % shortcut
-                if source:
-                    message = 'Error while processing %s:\n ' % source + message
-                custom_raise(BuildConfigError(message))
-            path = os.path.join(self._shortcuts[shortcut], path)
-        else:
-            path = os.path.join(os.path.dirname(source), path)
-
-        path = os.path.expanduser(path)
-        return os.path.realpath(path)
 
     def __dir__(self):
         return list(set(self._scope.keys()) | set(super().__dir__()))

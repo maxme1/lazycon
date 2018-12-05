@@ -6,7 +6,8 @@ from .statements import ExpressionStatement
 
 
 class Function(Structure):
-    def __init__(self, arguments: List[Parameter], bindings: List[ExpressionStatement], expression: Structure, name, main_token):
+    def __init__(self, arguments: List[Parameter], bindings: List[ExpressionStatement], expression: Structure, name,
+                 main_token):
         super().__init__(main_token)
         self.name = name
         self.bindings = bindings

@@ -11,7 +11,6 @@ def standardize(source):
     result += '\n'.join(imp.to_str([name]) for name, imp in imports)
     for name, definition in definitions:
         result += definition.to_str([name], 0)
-    print(result)
     return result
 
 

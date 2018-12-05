@@ -1,16 +1,16 @@
 import builtins
-import importlib
-import sys
+from collections import defaultdict
 from threading import Lock
 from typing import Dict, Any
 
-from .exceptions import BadSyntaxError
-from .statements import Statement, ExpressionStatement, UnifiedImport
+from resource_manager.renderer import render
+from .exceptions import BadSyntaxError, ResourceError
+from .statements import Statement
 
 
 def add_if_missing(target: dict, name, node):
     if name in target:
-        raise BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, node.source()))
+        raise BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, node.source))
     target[name] = node
 
 
@@ -33,19 +33,42 @@ class NodeThunk(Thunk):
         self.value = None
 
 
+class Builtins:
+    def __init__(self):
+        self.values = vars(builtins)
+
+    def __getitem__(self, name):
+        if name in self.values:
+            return self.values[name]
+
+        raise ResourceError('"%s" is not defined.' % name)
+
+
 class Scope(Dict[str, Any]):
     def __init__(self):
         super().__init__()
-        self._parent = vars(builtins)
-        self._thunks = {}
+        self._parent = Builtins()
+        self._statement_to_thunk = {}
+
+    def render(self):
+        statements = {v: k for k, v in self._statement_to_thunk.items()}
+        names = {name: statements[thunk] for name, thunk in self.items()}
+        groups = defaultdict(list)
+        for name, statement in names.items():
+            groups[statement].append(name)
+
+        for statement, names in groups.items():
+            yield statement.to_str(sorted(names), 0)
 
     def add_statement(self, name, statement):
         assert name not in self
-        if statement not in self._thunks:
-            self._thunks[statement] = NodeThunk(statement)
-        super().__setitem__(name, self._thunks[statement])
+        if statement not in self._statement_to_thunk:
+            self._statement_to_thunk[statement] = NodeThunk(statement)
+
+        super().__setitem__(name, self._statement_to_thunk[statement])
 
     def __setitem__(self, key, value):
+        # TODO: move add_statement here
         raise NotImplementedError
 
     def __getitem__(self, name: str):
@@ -65,29 +88,18 @@ class Scope(Dict[str, Any]):
             return thunk.value
 
 
-def render(statement: Statement, scope: Scope):
-    if isinstance(statement, ExpressionStatement):
-        code = compile(statement.body, statement.source, 'eval')
-        return eval(code, {}, scope)
+class ScopeWrapper(Dict[str, Any]):
+    def __init__(self, scope):
+        super().__init__()
+        self.scope = scope
 
-    if isinstance(statement, UnifiedImport):
-        from_ = '.'.join(statement.root)
-        what = '.'.join(statement.what)
-        if not from_:
-            result = importlib.import_module(what)
-            packages = statement.what
-            if len(packages) > 1 and not statement.as_:
-                # import a.b.c
-                return sys.modules[packages[0]]
-            return result
+    def __getitem__(self, name):
         try:
-            return getattr(importlib.import_module(from_), what)
-        except AttributeError:
+            return self.scope[name]
+        except ResourceError:
             pass
-        try:
-            return importlib.import_module(what, from_)
-        except ModuleNotFoundError:
-            pass
-        return importlib.import_module(from_ + '.' + what)
 
-    raise NotImplementedError
+        if name not in self:
+            raise NameError('"%s" is not defined.' % name)
+
+        return super().__getitem__(name)

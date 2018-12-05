@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from resource_manager.exceptions import BuildConfigError, RenderError, LambdaArgumentsError, BadSyntaxError
+from resource_manager.exceptions import BuildConfigError, BadSyntaxError
 from resource_manager.manager import ResourceManager, read_config
 
 
@@ -26,6 +26,7 @@ class TestResourceManager(unittest.TestCase):
         except BaseException:
             self.fail()
 
+    @unittest.skip
     def test_import_partial(self):
         rm = read_config('imports/import_from_config.config')
         self.assertListEqual([1, 2], rm.one)
@@ -88,6 +89,7 @@ class TestResourceManager(unittest.TestCase):
         np.testing.assert_array_almost_equal(rm.std(), [0.81, 0.81], decimal=2)
         self.assertEqual(rm.random.shape, (1, 1, 2, 2))
 
+    @unittest.skip
     def test_bindings_clash(self):
         with self.assertRaises(BuildConfigError):
             ResourceManager().string_input('''
@@ -96,6 +98,7 @@ class TestResourceManager(unittest.TestCase):
                 return 2
             ''')
 
+    @unittest.skip
     def test_func_def(self):
         rm = read_config('statements/funcdef.config')
         self.assertEqual(1, rm.f())
@@ -180,9 +183,9 @@ class TestResourceManager(unittest.TestCase):
         with self.assertRaises(BadSyntaxError):
             read_config('misc/duplicate.config')
 
-    def test_exc_handling(self):
-        rm = ResourceManager().string_input('''
-        a = sum(1)
-        ''')
-        with self.assertRaises(RenderError):
-            rm.a
+    # def test_exc_handling(self):
+    #     rm = ResourceManager().string_input('''
+    #     a = sum(1)
+    #     ''')
+    #     with self.assertRaises(RenderError):
+    #         rm.a
