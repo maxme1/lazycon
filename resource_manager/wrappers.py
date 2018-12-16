@@ -2,7 +2,7 @@ import ast
 import inspect
 import os
 from collections import namedtuple
-from typing import List, Iterable, Tuple
+from typing import Iterable
 
 
 class Wrapper(ast.AST):
@@ -15,14 +15,11 @@ class Wrapper(ast.AST):
         raise NotImplementedError
 
 
-ScopeItem = namedtuple('ScopeItem', 'name value')
-
-
 class ExpressionWrapper(Wrapper):
-    def __init__(self, node: ast.AST, body, position):
+    def __init__(self, expression: ast.AST, body, position):
         super().__init__(position)
         self.body = body
-        self.node = node
+        self.expression = expression
 
     def to_str(self, names, level: int = 0):
         return '    ' * level + ' = '.join(names) + ' = ' + self.body + '\n'

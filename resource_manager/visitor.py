@@ -17,4 +17,4 @@ class Visitor:
         return visitor(node, *args, **kwargs)
 
     def generic_visit(self, node: ast.AST, *args, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError(node.__class__.__name__)

@@ -80,7 +80,7 @@ class Normalizer(Visitor):
         assert node.returns is None
         assert node.body
         *raw_bindings, ret = node.body
-        assert all(isinstance(s, ast.Assign) for s in raw_bindings)
+        assert all(isinstance(s, ast.Assign) and len(s.targets) == 1 for s in raw_bindings)
         assert isinstance(ret, ast.Return)
         assert not node.args.defaults
         assert not node.args.kw_defaults

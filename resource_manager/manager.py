@@ -1,7 +1,7 @@
 import os
 from collections import ChainMap
 from itertools import starmap
-from typing import List, Union
+from typing import List
 
 from .semantics import SyntaxTree
 from .wrappers import ImportStarred, UnifiedImport
@@ -24,9 +24,6 @@ class ResourceManager:
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._scope = Scope()
-
-        # for name, definition in parse_file(path)[0]:
-        #     self._scope.set_thunk(name, NodeThunk(compile(definition.body, path, 'eval')))
 
     @classmethod
     def read_config(cls, source_path: str, shortcuts: dict = None):
@@ -76,7 +73,7 @@ class ResourceManager:
 
     def render_config(self) -> str:
         """Generate a string containing definitions of all the resources in the current scope."""
-        return '\n'.join(sorted(self._scope.render()))
+        return '\n'.join(self._scope.render())
 
     def save_config(self, path: str):
         """Render the config and save it to `path`."""
@@ -99,7 +96,7 @@ class ResourceManager:
         return self._scope[name]
 
     def _update_resources(self, scope: dict):
-        # SyntaxTree.analyze(scope, self._scope._parent)
+        SyntaxTree.analyze(scope, self._scope.parent)
         list(starmap(self._scope.add_statement, scope.items()))
 
     def _import(self, path: str) -> dict:
