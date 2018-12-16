@@ -6,11 +6,11 @@ from resource_manager.parser import parse_string
 
 
 def standardize(source):
-    definitions, parents, imports = parse_string(source)
+    parents, imports, definitions = parse_string(source)
     result = '\n'.join(imp.to_str() for imp in parents)
     result += '\n'.join(imp.to_str([name]) for name, imp in imports)
     for name, definition in definitions:
-        result += definition.to_str([name], 0)
+        result += definition.to_str([name])
     return result
 
 
@@ -20,6 +20,9 @@ class TestParser(unittest.TestCase):
 
         for root, _, files in os.walk(folder):
             for filename in files:
+                # if filename != 'target.config':
+                #     continue
+
                 if filename.endswith('.config'):
                     path = os.path.join(root, filename)
                     with self.subTest(filename=filename):

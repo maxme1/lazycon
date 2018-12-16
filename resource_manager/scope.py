@@ -1,11 +1,13 @@
 import builtins
 from collections import defaultdict
 from threading import Lock
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
-from resource_manager.renderer import render
+from .wrappers import Wrapper
+from .renderer import render
 from .exceptions import BadSyntaxError, ResourceError
-from .statements import Statement
+
+ScopeDict = Dict[str, Wrapper]
 
 
 def add_if_missing(target: dict, name, node):
@@ -26,7 +28,7 @@ class ValueThunk(Thunk):
 
 
 class NodeThunk(Thunk):
-    def __init__(self, statement: Statement):
+    def __init__(self, statement):
         self.lock = Lock()
         self.statement = statement
         self.ready = False

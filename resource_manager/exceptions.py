@@ -1,5 +1,8 @@
-class BadSyntaxError(SyntaxError):
-    pass
+BadSyntaxError = SyntaxError
+
+
+# class BadSyntaxError(SyntaxError):
+#     pass
 
 
 class SemanticsError(SyntaxError):

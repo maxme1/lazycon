@@ -1,8 +1,10 @@
+import ast
 import importlib
 import sys
 from types import CodeType
 
-from .statements import Statement, ExpressionStatement, UnifiedImport
+from .visitor import Visitor
+from .wrappers import ExpressionWrapper, UnifiedImport
 from . import scope
 
 NAMES = ('argcount kwonlyargcount nlocals stacksize flags codestring '
@@ -18,18 +20,26 @@ def shift_code(code: CodeType, shift: int):
     return CodeType(*(args[name] for name in NAMES))
 
 
-def render(statement: Statement, global_scope, local_scope=None):
-    if isinstance(statement, ExpressionStatement):
-        code = shift_code(compile(statement.body, statement.source, 'eval'), statement.line)
-        return eval(code, scope.ScopeWrapper(global_scope), local_scope)
+class Renderer(Visitor):
+    def __init__(self, global_scope, local_scope):
+        self.local_scope = local_scope
+        self.global_scope = global_scope
 
-    if isinstance(statement, UnifiedImport):
-        from_ = '.'.join(statement.root)
-        what = '.'.join(statement.what)
+    @staticmethod
+    def render(node, global_scope, local_scope=None):
+        return Renderer(global_scope, local_scope).visit(node)
+
+    def visit_expression_wrapper(self, node: ExpressionWrapper):
+        code = shift_code(compile(ast.Expression(node.node), node.source_path, 'eval'), node.line)
+        return eval(code, scope.ScopeWrapper(self.global_scope), self.local_scope)
+
+    def visit_unified_import(self, node: ExpressionWrapper):
+        from_ = '.'.join(node.root)
+        what = '.'.join(node.what)
         if not from_:
             result = importlib.import_module(what)
-            packages = statement.what
-            if len(packages) > 1 and not statement.as_:
+            packages = node.what
+            if len(packages) > 1 and not node.as_:
                 # import a.b.c
                 return sys.modules[packages[0]]
             return result
@@ -43,4 +53,5 @@ def render(statement: Statement, global_scope, local_scope=None):
             pass
         return importlib.import_module(from_ + '.' + what)
 
-    raise NotImplementedError
+
+render = Renderer.render

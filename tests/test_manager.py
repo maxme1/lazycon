@@ -10,8 +10,8 @@ class TestResourceManager(unittest.TestCase):
     def test_string_input(self):
         rm = ResourceManager()
         rm.string_input('''
-        a = [1,2,3]
-        b = sum(a)
+a = [1,2,3]
+b = sum(a)
         ''')
         self.assertEqual(6, rm.b)
 
@@ -97,9 +97,9 @@ class TestResourceManager(unittest.TestCase):
     def test_bindings_clash(self):
         with self.assertRaises(BuildConfigError):
             ResourceManager().string_input('''
-            def f(x):
-                x = 1
-                return 2
+def f(x):
+    x = 1
+    return 2
             ''')
 
     @unittest.skip
@@ -169,7 +169,7 @@ class TestResourceManager(unittest.TestCase):
     def test_build_config(self):
         rm = read_config('imports/config_import.config', shortcuts={'expressions': 'expressions'})
         with open('imports/built.config') as built:
-            self.assertEqual(rm.render_config(), built.read())
+            self.assertEqual(built.read(), rm.render_config())
 
     def test_cached(self):
         rm = read_config('imports/cached/main.config')

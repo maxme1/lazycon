@@ -1,12 +1,13 @@
+import os
 from collections import ChainMap
 from itertools import starmap
+from typing import List, Union
 
-from resource_manager.semantics import SyntaxTree
+from .semantics import SyntaxTree
+from .wrappers import ImportStarred, UnifiedImport
 from .exceptions import BuildConfigError, ResourceError
 from .scope import Scope, add_if_missing
 from .parser import parse_file, parse_string
-from .expressions import *
-from .statements import *
 
 
 class ResourceManager:
@@ -98,7 +99,7 @@ class ResourceManager:
         return self._scope[name]
 
     def _update_resources(self, scope: dict):
-        SyntaxTree.analyze(scope, self._scope._parent)
+        # SyntaxTree.analyze(scope, self._scope._parent)
         list(starmap(self._scope.add_statement, scope.items()))
 
     def _import(self, path: str) -> dict:
@@ -114,8 +115,7 @@ class ResourceManager:
         self._imported_configs[path] = result
         return result
 
-    def _get_resources(self, definitions: List[Union[ExpressionStatement, FuncDef]],
-                       parents: List[ImportStarred], imports: List[UnifiedImport]) -> dict:
+    def _get_resources(self, parents: List[ImportStarred], imports: List[UnifiedImport], definitions) -> dict:
 
         parent_scope = ChainMap()
         for parent in parents:

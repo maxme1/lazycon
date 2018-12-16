@@ -2,7 +2,6 @@ import re
 import token
 from enum import Enum, unique
 from tokenize import TokenInfo, _all_string_prefixes
-import operator
 
 
 @unique
@@ -73,39 +72,6 @@ RESERVED = {
 PARTIAL = re.compile(r'^#\s*(lazy|partial)\s*$')
 EXCLUDE = {'NEWLINE', 'NL', 'INDENT', 'DEDENT', 'ENDMARKER', 'ENCODING', 'BACKQUOTE'}
 INVALID_STRING_PREFIXES = tuple(x for x in _all_string_prefixes() if 'f' in x.lower())
-
-UNARY_OPERATORS = {
-    TokenType.NOT: operator.not_,
-    TokenType.TILDE: operator.invert,
-    TokenType.PLUS: operator.pos,
-    TokenType.MINUS: operator.neg,
-}
-
-BINARY_OPERATORS = {
-    TokenType.BIT_AND: operator.and_,
-    TokenType.BIT_OR: operator.or_,
-    TokenType.BIT_XOR: operator.xor,
-
-    TokenType.DIVIDE: operator.truediv,
-    TokenType.FLOOR_DIVIDE: operator.floordiv,
-    TokenType.ASTERISK: operator.mul,
-    TokenType.DOUBLE_ASTERISK: operator.pow,
-    TokenType.MATMUL: operator.matmul,
-    TokenType.MOD: operator.mod,
-    TokenType.PLUS: operator.add,
-    TokenType.MINUS: operator.sub,
-
-    TokenType.LESS: operator.lt,
-    TokenType.GREATER: operator.gt,
-    TokenType.LESS_EQUAL: operator.le,
-    TokenType.GREATER_EQUAL: operator.ge,
-    TokenType.IS_EQUAL: operator.eq,
-    TokenType.NOT_EQUAL: operator.ne,
-    TokenType.IS: operator.is_,
-    TokenType.IN: lambda x, y: x in y,
-    (TokenType.NOT, TokenType.IN): lambda x, y: x not in y,
-    (TokenType.IS, TokenType.NOT): operator.is_not,
-}
 
 
 class TokenWrapper:
