@@ -198,6 +198,12 @@ def f(x):
         with self.assertRaises(RuntimeError):
             rm.import_config('expressions/literals.config')
 
+        rm = read_config('expressions/literals.config').string_input('a = 2')
+        try:
+            rm.literals
+        except:
+            self.fail()
+
     def test_cycles(self):
         with self.assertRaises(SemanticsError):
             read_string('''

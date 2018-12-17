@@ -51,7 +51,7 @@ class Renderer(Visitor):
 
             local_scope = scope.Scope(self.local_scope or self.global_scope)
             for name, binding in node.bindings:
-                local_scope.add_statement(name, binding)
+                local_scope.update_value(name, binding)
             for name, value in arguments.arguments.items():
                 local_scope.add_value(name, value)
 

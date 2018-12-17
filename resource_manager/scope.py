@@ -80,8 +80,7 @@ class Scope(Dict[str, Any]):
         assert name not in self
         self._set_thunk(name, ValueThunk(value))
 
-    def add_statement(self, name, statement):
-        assert name not in self
+    def update_value(self, name, statement):
         if statement not in self._statement_to_thunk:
             self._statement_to_thunk[statement] = NodeThunk(statement)
 
