@@ -51,6 +51,7 @@ class Scope(Dict[str, Any]):
         super().__init__()
         self.parent = parent
         self._statement_to_thunk = {}
+        self.populated = False
 
     def render(self, order: dict):
         statements = {v: k for k, v in self._statement_to_thunk.items()}
@@ -72,16 +73,19 @@ class Scope(Dict[str, Any]):
         for names, statement in sorted(imports) + definitions:
             yield statement.to_str(names)
 
+    def _set_thunk(self, name, thunk):
+        super().__setitem__(name, thunk)
+
     def add_value(self, name, value):
         assert name not in self
-        super().__setitem__(name, ValueThunk(value))
+        self._set_thunk(name, ValueThunk(value))
 
     def add_statement(self, name, statement):
         assert name not in self
         if statement not in self._statement_to_thunk:
             self._statement_to_thunk[statement] = NodeThunk(statement)
 
-        super().__setitem__(name, self._statement_to_thunk[statement])
+        self._set_thunk(name, self._statement_to_thunk[statement])
 
     def __setitem__(self, key, value):
         raise NotImplementedError
@@ -97,6 +101,7 @@ class Scope(Dict[str, Any]):
         assert isinstance(thunk, NodeThunk)
         with thunk.lock:
             if not thunk.ready:
+                self.populated = True
                 thunk.value = Renderer.render(thunk.statement, self)
                 thunk.ready = True
 

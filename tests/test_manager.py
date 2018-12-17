@@ -192,6 +192,12 @@ def f(x):
         rm = read_config('imports/cached/main.config')
         self.assertEqual(1, rm.x)
 
+    def test_overwrite(self):
+        rm = read_config('expressions/literals.config').string_input('literals = 1')
+        rm.literals
+        with self.assertRaises(RuntimeError):
+            rm.import_config('expressions/literals.config')
+
     def test_cycles(self):
         with self.assertRaises(SemanticsError):
             read_string('''

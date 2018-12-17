@@ -86,8 +86,9 @@ class Normalizer(Visitor):
         *raw_bindings, ret = node.body
         assert all(isinstance(s, ast.Assign) and len(s.targets) == 1 for s in raw_bindings)
         assert isinstance(ret, ast.Return)
+        # TODO: add defaults
         assert not node.args.defaults
-        assert not node.args.kw_defaults
+        assert all(d is None for d in node.args.kw_defaults)
 
         # bindings
         bindings = []
@@ -109,9 +110,9 @@ class Normalizer(Visitor):
         if args.vararg is not None:
             parameters.append(Parameter(args.vararg.arg, Parameter.VAR_POSITIONAL))
         for arg in args.kwonlyargs:
-            parameters.append(Parameter(arg.arg, Parameter.POSITIONAL_OR_KEYWORD))
+            parameters.append(Parameter(arg.arg, Parameter.KEYWORD_ONLY))
         if args.kwarg is not None:
-            parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_POSITIONAL))
+            parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_KEYWORD))
 
         yield node.name, Function(inspect.Signature(parameters), bindings, expression, self.get_position(node))
 

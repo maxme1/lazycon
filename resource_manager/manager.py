@@ -68,8 +68,7 @@ class ResourceManager:
 
     def string_input(self, source: str):
         """Interpret the `source`."""
-        result = self._get_resources(*parse_string(source))
-        self._update_resources(result)
+        self._update_resources(self._get_resources(*parse_string(source)))
         return self
 
     def render_config(self) -> str:
@@ -97,6 +96,11 @@ class ResourceManager:
         return self._scope[name]
 
     def _update_resources(self, scope: dict):
+        if self._scope.populated:
+            raise RuntimeError('The scope has already been populated with live objects. Overwriting them might cause '
+                               'undefined behaviour. Please, create another instance of ResourceManager.')
+
+        self._scope = Scope(Builtins())
         self._leave_time = Semantics.analyze(scope, self._scope.parent)
         list(starmap(self._scope.add_statement, scope.items()))
 
