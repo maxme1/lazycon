@@ -89,6 +89,7 @@ class Semantics(Visitor):
             value[1] = True
 
     def mark_name(self, value, level=0):
+        assert isinstance(value[0], Wrapper)
         assert value[1] is None
         n = len(self._scopes) - level
         self._scopes, tail = self._scopes[:n], self._scopes[n:]
@@ -96,7 +97,8 @@ class Semantics(Visitor):
         node = value[0]
 
         # allowing recursion
-        if isinstance(node, (Function, ast.Lambda)):
+        if isinstance(node, Function) or (
+                isinstance(node, ExpressionWrapper) and isinstance(node.expression, ast.Lambda)):
             self._mark_name(value)
             self.visit(node)
         else:
@@ -225,11 +227,39 @@ class Semantics(Visitor):
     def visit_ext_slice(self, node):
         self._visit_sequence(node.dims)
 
-    # comprehensions
+    # comprehensions.config
 
-    # TODO: implement comprehensions
     def visit_list_comp(self, node):
-        raise NotImplementedError
+        for comp in node.generators:
+            self.visit(comp)
+
+        self.visit(node.elt)
+
+        for _ in node.generators:
+            self.leave_scope()
+
+    def visit_dict_comp(self, node):
+        for comp in node.generators:
+            self.visit(comp)
+
+        self.visit(node.key)
+        self.visit(node.value)
+
+        for _ in node.generators:
+            self.leave_scope()
+
+    visit_set_comp = visit_generator_exp = visit_list_comp
+
+    def visit_comprehension(self, node: ast.comprehension):
+        assert not getattr(node, 'is_async', False)
+        assert isinstance(node.target, ast.Name)
+        assert isinstance(node.target.ctx, ast.Store)
+
+        self.visit(node.iter)
+        self.enter_scope({}, [node.target.id])
+
+        for test in node.ifs:
+            self.visit(test)
 
     # imports
 

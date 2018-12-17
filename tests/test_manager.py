@@ -155,6 +155,25 @@ def f(x):
         ])
         self.assertEqual(1 + 2 * 3 ** 4 + 1, rm.priority)
 
+    def test_comprehensions(self):
+        rm = read_config('expressions/comprehensions.config')
+        self.assertListEqual(rm.everything, [
+            list(range(10)), [0, 6],
+            [1, 2, 3], [1, 3], [1, 3]
+        ])
+        self.assertSetEqual({i for i in range(10)}, rm.set_comp)
+        self.assertDictEqual({i: i + 1 for i in range(10)}, rm.dict_comp)
+        self.assertListEqual(list(range(10)), list(rm.gen_comp))
+
+        with self.assertRaises(SemanticsError):
+            read_string('_ = [x for i in range(1)]')
+
+        with self.assertRaises(SemanticsError):
+            read_string('_ = [[x, i] for i in range(1)]')
+
+        with self.assertRaises(SemanticsError):
+            read_string('_ = [i for i in [[2]] if x != 2 for x in i]')
+
     def test_if(self):
         rm = read_config('expressions/if_.config')
         self.assertListEqual([1, 1, 1], rm.results)
