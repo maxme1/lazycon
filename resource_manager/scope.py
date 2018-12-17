@@ -5,14 +5,14 @@ from typing import Dict, Any
 
 from .wrappers import Wrapper, UnifiedImport
 from .renderer import Renderer
-from .exceptions import BadSyntaxError, ResourceError
+from .exceptions import ResourceError, SemanticsError
 
 ScopeDict = Dict[str, Wrapper]
 
 
 def add_if_missing(target: dict, name, node):
     if name in target:
-        raise BadSyntaxError('Duplicate definition of resource "%s" in %s' % (name, node.source_path))
+        raise SemanticsError('Duplicate definition of resource "%s" in %s' % (name, node.source_path))
     target[name] = node
 
 
@@ -47,9 +47,9 @@ class Builtins(dict):
 
 
 class Scope(Dict[str, Any]):
-    def __init__(self):
+    def __init__(self, parent):
         super().__init__()
-        self.parent = Builtins()
+        self.parent = parent
         self._statement_to_thunk = {}
 
     def render(self):
@@ -71,6 +71,10 @@ class Scope(Dict[str, Any]):
         for names, statement in sorted(imports) + sorted(definitions):
             yield statement.to_str(names)
 
+    def add_value(self, name, value):
+        assert name not in self
+        super().__setitem__(name, ValueThunk(value))
+
     def add_statement(self, name, statement):
         assert name not in self
         if statement not in self._statement_to_thunk:
@@ -79,7 +83,6 @@ class Scope(Dict[str, Any]):
         super().__setitem__(name, self._statement_to_thunk[statement])
 
     def __setitem__(self, key, value):
-        # TODO: move add_statement here
         raise NotImplementedError
 
     def __getitem__(self, name: str):
@@ -110,5 +113,5 @@ class ScopeWrapper(Dict[str, Any]):
         except ResourceError:
             pass
 
-        assert name in self
+        assert name in self, name
         return super().__getitem__(name)

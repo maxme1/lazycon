@@ -1,4 +1,3 @@
-import ast
 from inspect import Parameter
 
 from .visitor import Visitor
@@ -36,7 +35,7 @@ class Normalizer(Visitor):
     def normalize(node, stop, lines, source_path):
         return Normalizer(stop, lines, source_path).visit(node)
 
-    def generic_visit(self, node):
+    def generic_visit(self, node, *args, **kwargs):
         # TODO: more info
         raise BadSyntaxError('Unrecognized syntactic structure: ' + str(node))
 

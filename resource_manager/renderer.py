@@ -3,7 +3,7 @@ import importlib
 import sys
 
 from .visitor import Visitor
-from .wrappers import ExpressionWrapper, UnifiedImport
+from .wrappers import ExpressionWrapper, UnifiedImport, Function
 from . import scope
 
 
@@ -39,3 +39,23 @@ class Renderer(Visitor):
         except ModuleNotFoundError:
             pass
         return importlib.import_module(from_ + '.' + what)
+
+    def visit_function(self, node: Function):
+        def function_(*args, **kwargs):
+            arguments = node.signature.bind_partial(*args, **kwargs)
+            arguments.apply_defaults()
+
+            not_defined = set(node.signature.parameters.keys()) - set(arguments.arguments)
+            if not_defined:
+                raise TypeError('Undefined argument(s): ' + ', '.join(not_defined))
+
+            local_scope = scope.Scope(self.local_scope or self.global_scope)
+            for name, binding in node.bindings:
+                local_scope.add_statement(name, binding)
+            for name, value in arguments.arguments.items():
+                local_scope.add_value(name, value)
+
+            return Renderer.render(node.expression, self.global_scope, local_scope)
+
+        function_.__signature__ = node.signature
+        return function_

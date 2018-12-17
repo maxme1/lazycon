@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from resource_manager.exceptions import BuildConfigError, BadSyntaxError, ResourceError
-from resource_manager.manager import ResourceManager, read_config
+from resource_manager.exceptions import BuildConfigError, BadSyntaxError, ResourceError, SemanticsError
+from resource_manager.manager import ResourceManager, read_config, read_string
 
 
 class TestResourceManager(unittest.TestCase):
@@ -26,7 +26,6 @@ b = sum(a)
         except BaseException:
             self.fail()
 
-    @unittest.skip
     def test_import_partial(self):
         rm = read_config('imports/import_from_config.config')
         self.assertListEqual([1, 2], rm.one)
@@ -45,7 +44,7 @@ b = sum(a)
         self.assertIsNone(rm.numpy)
         self.assertEqual(np, rm.np)
         rm = read_config('imports/folder/child/third.config')
-        self.assertEqual(1, rm.one)
+        self.assertListEqual([1, 2, 1], rm.a)
 
     def test_cycle_import(self):
         try:
@@ -55,16 +54,13 @@ b = sum(a)
 
     def test_inheritance_order(self):
         rm = read_config('imports/order1.config')
-        self.assertEqual(rm.one, 1)
-        self.assertEqual(rm.two, '2')
+        self.assertIsNotNone(rm.literals)
         rm = read_config('imports/order2.config')
-        self.assertIsNone(rm.one)
-        self.assertIsNone(rm.two)
+        self.assertIsNone(rm.literals)
 
     def test_import_in_string(self):
-        rm = ResourceManager()
-        rm.string_input('from .expressions.types import *')
-        self.assertEqual(1, rm.one)
+        rm = read_string('from .expressions.literals import *')
+        self.assertTrue(rm.literals[0])
 
     def test_upper_import(self):
         rm = read_config('imports/folder/upper_import.config')
@@ -86,23 +82,31 @@ b = sum(a)
         self.assertTupleEqual((1, 2), rm.value)
         np.testing.assert_array_equal(rm.another_part, [1, 2, 3])
 
-    def test_functions(self):
+    def test_tail(self):
         rm = read_config('expressions/tail.config')
         np.testing.assert_array_equal(rm.mean, [2, 5])
         np.testing.assert_array_equal(rm.mean2, [2, 5])
         np.testing.assert_array_almost_equal(rm.std(), [0.81, 0.81], decimal=2)
         self.assertEqual(rm.random.shape, (1, 1, 2, 2))
 
-    @unittest.skip
     def test_bindings_clash(self):
-        with self.assertRaises(BuildConfigError):
+        with self.assertRaises(SemanticsError):
             ResourceManager().string_input('''
 def f(x):
     x = 1
     return 2
             ''')
 
-    @unittest.skip
+    def test_bindings_names(self):
+        with self.assertRaises(SemanticsError):
+            ResourceManager().string_input('''
+def f(x):
+    x = 1
+    y = 2
+    x = 3
+    return 2
+            ''')
+
     def test_func_def(self):
         rm = read_config('statements/funcdef.config')
         self.assertEqual(1, rm.f())
@@ -130,31 +134,24 @@ def f(x):
         except BaseException:
             self.fail()
 
-    def test_types(self):
-        rm = read_config('expressions/types.config')
-        try:
-            rm.one
-            rm.two
-            rm.three
-            rm.four
-            rm.five
-            rm.six
-        except BaseException:
-            self.fail()
-        self.assertListEqual(list(range(1, 7)), rm.starred_array)
-        self.assertTupleEqual(tuple(range(1, 7)), rm.starred_tuple)
-        self.assertSetEqual({1, 2}, rm.set_one)
-        self.assertSetEqual({1, 2, 3}, rm.starred_set)
-
-        rm = read_config('expressions/other_cases.config')
-        self.assertEqual(1, rm.parenthesis)
-        self.assertEqual(tuple(), rm.empty_tuple)
+    def test_literals(self):
+        rm = read_config('expressions/literals.config')
+        self.assertListEqual([
+            True, False, None, ...,
+            1, 2, 3, .4, 5j, .55e-2, 0x101, 0b101,
+            'abc', r'def', b'ghi', u'jkl', rb'mno',
+            [], [1, 2, 1],
+            (), (1, 2, 1), (1,),
+            {1, 2, 1},
+            {}, {1: 2, 3: 4, '5': 6}
+        ], rm.literals)
 
     def test_operators(self):
         rm = read_config('expressions/operators.config')
         self.assertListEqual(rm.arithmetic, [
             5, 6, 0.75, 0, 2, 6, -3, -5, 5, True, 63, 36, 27, 5, 3,
-            True, False, False, False, True, True, False, True, False, True
+            True, False, False, False, True, True, False, True, False, True,
+            True, True, True
         ])
         self.assertEqual(1 + 2 * 3 ** 4 + 1, rm.priority)
 
@@ -176,20 +173,31 @@ def f(x):
         self.assertEqual(1, rm.x)
 
     def test_cycles(self):
-        with self.assertRaises(BuildConfigError):
-            read_config('misc/cycles.config')
+        with self.assertRaises(SemanticsError):
+            read_string('''
+a = a
+x = {"y": y}
+y = {
+    'good': t,
+    'list': [1, 2, z]
+}
+z = {'nested': x}
+t = 1
+''')
 
     def test_undefined(self):
-        with self.assertRaises(BuildConfigError):
-            read_config('misc/static_undefined.config')
+        with self.assertRaises(SemanticsError):
+            read_string('''
+with_undefined = {
+    'param': dunno
+}
+x = another_undefined
+''')
 
     def test_duplicates(self):
-        with self.assertRaises(BadSyntaxError):
-            read_config('misc/duplicate.config')
-
-    # def test_exc_handling(self):
-    #     rm = ResourceManager().string_input('''
-    #     a = sum(1)
-    #     ''')
-    #     with self.assertRaises(RenderError):
-    #         rm.a
+        with self.assertRaises(SemanticsError):
+            read_string('''
+a = 1
+b = 2
+a = 11
+''')

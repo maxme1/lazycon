@@ -1,7 +1,6 @@
 import ast
 import inspect
 import os
-from collections import namedtuple
 from typing import Iterable
 
 

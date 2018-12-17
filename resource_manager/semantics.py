@@ -3,7 +3,7 @@ from collections import defaultdict
 from resource_manager.scope import ScopeDict
 from .visitor import Visitor
 from .wrappers import *
-from .exceptions import BuildConfigError
+from .exceptions import SemanticsError
 
 
 def change_source(method):
@@ -14,6 +14,10 @@ def change_source(method):
         return value
 
     return wrapper
+
+
+def position(node: ast.AST):
+    return node.lineno, node.col_offset
 
 
 class SyntaxTree(Visitor):
@@ -51,12 +55,12 @@ class SyntaxTree(Visitor):
         for msg, elements in tree.messages.items():
             message += tree.format(msg, elements)
         if message:
-            raise BuildConfigError(message)
+            raise SemanticsError(message)
 
     def enter_scope(self, names: ScopeDict, visited=()):
         scope = {name: [value, None] for name, value in names.items()}
         for name in visited:
-            scope[name][1] = True
+            scope[name] = [None, True]
         self._scopes.append(scope)
 
     def leave_scope(self):
@@ -154,7 +158,7 @@ class SyntaxTree(Visitor):
                 elif self.entered(scope[name]):
                     # TODO: more information
                     self.add_message('Resources are referenced before being completely defined',
-                                     '"' + name + '" at %d:%d' % (node.lineno, node.col_offset))
+                                     '"' + name + '" at %d:%d' % position(node))
                 return
 
         if name not in self._builtins:
@@ -180,11 +184,6 @@ class SyntaxTree(Visitor):
         self._visit_sequence(node.comparators)
 
     def visit_call(self, node: ast.Call):
-        # TODO:
-        #     names = [arg.name.body for arg in node.kwargs if not isinstance(arg, VariableKeywordArgument)]
-        #     if len(set(names)) < len(names):
-        #         self.add_message('Duplicate keyword arguments', node, 'at %d:%d' % node.position()[:2])
-
         self.visit(node.func)
         self._visit_sequence(node.args)
         self._visit_sequence(node.keywords)
@@ -235,28 +234,38 @@ class SyntaxTree(Visitor):
 
     @change_source
     def visit_function(self, node: Function):
-        pass
+        bindings = {name: binding for name, binding in node.bindings}
+        if len(bindings) != len(node.bindings):
+            self.add_message('Duplicate binding names in function definition', 'at %d:%d' % node.position[:2])
 
-    def visit_lambda(self, node):
-        pass
+        names = [parameter.name for parameter in node.signature.parameters.values()]
+        assert len(names) == len(set(names))
 
-    # def _render_function(self, node: Function):
-    #     bindings = {name: binding for name, binding in node.bindings}
-    #     if len(bindings) != len(node.bindings):
-    #         self.add_message('Duplicate binding names in function definition', node, 'at %d:%d' % node.position()[:2])
-    #
-    #     names = {parameter.name: None for parameter in node.signature.parameters.values()}
-    #
-    #     if set(names) & set(bindings):
-    #         self.add_message('Binding names clash with argument names in function definition',
-    #                          node, 'at %d:%d' % node.position()[:2])
-    #
-    #     for parameter in node.signature.parameters.values():
-    #         if parameter.default is not Parameter.empty:
-    #             parameter.default.render(self)
-    #
-    #     bindings.update(names)
-    #     self.enter_scope(bindings, names)
-    #     node.expression.render(self)
-    #     self.visit_current_scope()
-    #     self.leave_scope()
+        if set(names) & set(bindings):
+            self.add_message('Binding names clash with argument names in function definition',
+                             'at %d:%d' % node.position[:2])
+
+        # for parameter in node.signature.parameters.values():
+        #     if parameter.default is not Parameter.empty:
+        #         parameter.default.render(self)
+
+        self.enter_scope(bindings, names)
+        self.visit(node.expression)
+        self.analyze_current_scope()
+        self.leave_scope()
+
+    def visit_lambda(self, node: ast.Lambda):
+        args = node.args
+        names = [arg.arg for arg in args.args + args.kwonlyargs]
+        if args.vararg:
+            names.append(args.vararg.arg)
+        if args.kwarg:
+            names.append(args.kwarg.arg)
+
+        for default in args.defaults + list(filter(None, args.kw_defaults)):
+            self.visit(default)
+
+        self.enter_scope({}, names)
+        self.visit(node.body)
+        self.analyze_current_scope()
+        self.leave_scope()

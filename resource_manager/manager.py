@@ -6,7 +6,7 @@ from typing import List
 from .semantics import SyntaxTree
 from .wrappers import ImportStarred, UnifiedImport
 from .exceptions import BuildConfigError, ResourceError
-from .scope import Scope, add_if_missing
+from .scope import Scope, add_if_missing, Builtins
 from .parser import parse_file, parse_string
 
 
@@ -23,7 +23,7 @@ class ResourceManager:
     def __init__(self, shortcuts: dict = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
-        self._scope = Scope()
+        self._scope = Scope(Builtins())
 
     @classmethod
     def read_config(cls, source_path: str, shortcuts: dict = None):
@@ -84,13 +84,13 @@ class ResourceManager:
         try:
             return self.get_resource(name)
         except ResourceError:
-            raise AttributeError('"%s" is not defined.' % name)
+            raise AttributeError('"%s" is not defined.' % name) from None
 
     def __getitem__(self, name: str):
         try:
             return self.get_resource(name)
         except ResourceError:
-            raise KeyError('"%s" is not defined.' % name)
+            raise KeyError('"%s" is not defined.' % name) from None
 
     def get_resource(self, name: str):
         return self._scope[name]
@@ -132,7 +132,7 @@ class ResourceManager:
                 except KeyError:
                     raise BuildConfigError(
                         'Resource "%s" is not defined in the config it is imported from.\n' % what +
-                        '  at %d:%d in %s' % import_.position()) from None
+                        '  at %d:%d in %s' % import_.position) from None
             else:
                 node = import_
             # TODO: replace by a list
