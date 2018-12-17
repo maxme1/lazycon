@@ -3,7 +3,7 @@ from collections import ChainMap
 from itertools import starmap
 from typing import List
 
-from .semantics import SyntaxTree
+from .semantics import Semantics
 from .wrappers import ImportStarred, UnifiedImport
 from .exceptions import BuildConfigError, ResourceError
 from .scope import Scope, add_if_missing, Builtins
@@ -24,6 +24,7 @@ class ResourceManager:
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._scope = Scope(Builtins())
+        self._leave_time = {}
 
     @classmethod
     def read_config(cls, source_path: str, shortcuts: dict = None):
@@ -73,7 +74,7 @@ class ResourceManager:
 
     def render_config(self) -> str:
         """Generate a string containing definitions of all the resources in the current scope."""
-        return '\n'.join(self._scope.render())
+        return '\n'.join(self._scope.render(self._leave_time)).strip() + '\n'
 
     def save_config(self, path: str):
         """Render the config and save it to `path`."""
@@ -96,7 +97,7 @@ class ResourceManager:
         return self._scope[name]
 
     def _update_resources(self, scope: dict):
-        SyntaxTree.analyze(scope, self._scope.parent)
+        self._leave_time = Semantics.analyze(scope, self._scope.parent)
         list(starmap(self._scope.add_statement, scope.items()))
 
     def _import(self, path: str) -> dict:

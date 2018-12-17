@@ -20,12 +20,14 @@ def position(node: ast.AST):
     return node.lineno, node.col_offset
 
 
-class SyntaxTree(Visitor):
+class Semantics(Visitor):
     def __init__(self, name_to_node: ScopeDict, builtins: Iterable[str]):
         self.messages = defaultdict(lambda: defaultdict(set))
         self._scopes = []
         self._source_paths = []
         self._builtins = builtins
+        self.leave_time = {}
+        self._current_time = 0
 
         self.node_to_names = defaultdict(list)
         for name, node in name_to_node.items():
@@ -50,12 +52,13 @@ class SyntaxTree(Visitor):
 
     @staticmethod
     def analyze(scope: ScopeDict, builtins: Iterable[str]):
-        tree = SyntaxTree(scope, builtins)
+        tree = Semantics(scope, builtins)
         message = ''
         for msg, elements in tree.messages.items():
             message += tree.format(msg, elements)
         if message:
             raise SemanticsError(message)
+        return tree.leave_time
 
     def enter_scope(self, names: ScopeDict, visited=()):
         scope = {name: [value, None] for name, value in names.items()}
@@ -79,6 +82,8 @@ class SyntaxTree(Visitor):
             scope = self._scopes[0]
             for name in self.node_to_names[node]:
                 scope[name][1] = True
+                self.leave_time[name] = self._current_time
+                self._current_time += 1
             assert value[1]
         else:
             value[1] = True
@@ -101,7 +106,7 @@ class SyntaxTree(Visitor):
         self._scopes.extend(tail)
 
     def analyze_current_scope(self):
-        for value in self._scopes[-1].values():
+        for _, value in sorted(self._scopes[-1].items()):
             if self.not_visited(value):
                 self.mark_name(value)
 

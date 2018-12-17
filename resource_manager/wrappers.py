@@ -89,10 +89,10 @@ class Function(Wrapper):
         self.signature = signature
 
     def _to_str(self, name, level):
-        result = '\ndef ' + name + str(self.signature) + ':\n'
+        result = 'def ' + name + str(self.signature) + ':\n'
         for local_name, binding in self.bindings:
             result += binding.to_str([local_name], level + 1)
-        return result + '    ' * (level + 1) + 'return ' + self.expression.body + '\n'
+        return result + '    ' * (level + 1) + 'return ' + self.expression.body + '\n\n'
 
     def to_str(self, names, level=0):
-        return '\n'.join(self._to_str(name, level) for name in names)
+        return '\n' + '\n'.join(self._to_str(name, level) for name in names).strip() + '\n\n'

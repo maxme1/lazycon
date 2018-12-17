@@ -52,7 +52,7 @@ class Scope(Dict[str, Any]):
         self.parent = parent
         self._statement_to_thunk = {}
 
-    def render(self):
+    def render(self, order: dict):
         statements = {v: k for k, v in self._statement_to_thunk.items()}
         names = {name: statements[thunk] for name, thunk in self.items()}
         groups = defaultdict(list)
@@ -67,8 +67,9 @@ class Scope(Dict[str, Any]):
             else:
                 definitions.append(pair)
 
-        # TODO: smarter arrangement
-        for names, statement in sorted(imports) + sorted(definitions):
+        # TODO: group imports
+        definitions = sorted(definitions, key=lambda x: min(order[name] for name in x[0]))
+        for names, statement in sorted(imports) + definitions:
             yield statement.to_str(names)
 
     def add_value(self, name, value):

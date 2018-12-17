@@ -201,3 +201,7 @@ a = 1
 b = 2
 a = 11
 ''')
+
+    def test_bad_import(self):
+        with self.assertRaises(BuildConfigError):
+            read_string('from .expressions.literals import a')
