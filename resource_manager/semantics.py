@@ -134,10 +134,11 @@ class Semantics(Visitor):
     visit_name_constant = visit_ellipsis = visit_bytes = visit_num = visit_str = _ignore_node
 
     def visit_formatted_value(self, node):
-        raise NotImplementedError
+        assert node.format_spec is None
+        self.visit(node.value)
 
     def visit_joined_str(self, node):
-        raise NotImplementedError
+        self._visit_sequence(node.values)
 
     def visit_list(self, node: ast.List):
         assert isinstance(node.ctx, ast.Load)

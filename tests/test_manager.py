@@ -140,6 +140,7 @@ def f(x):
             True, False, None, ...,
             1, 2, 3, .4, 5j, .55e-2, 0x101, 0b101,
             'abc', r'def', b'ghi', u'jkl', rb'mno',
+            'string interpolation: (3, 1)', 'a: 3 b: 7',
             [], [1, 2, 1],
             (), (1, 2, 1), (1,),
             {1, 2, 1},

@@ -5,6 +5,10 @@ BadSyntaxError = SyntaxError
 #     pass
 
 
+class DeprecationError(Exception):
+    pass
+
+
 class SemanticsError(SyntaxError):
     pass
 
