@@ -164,8 +164,7 @@ class Semantics(Visitor):
                 if self.not_visited(scope[name]):
                     self.mark_name(scope[name], level)
                 elif self.entered(scope[name]):
-                    # TODO: more information
-                    self.add_message('Resources are referenced before being completely defined',
+                    self.add_message('Values are referenced before being completely defined (cyclic dependency)',
                                      '"' + name + '" at %d:%d' % position(node))
                 return
 

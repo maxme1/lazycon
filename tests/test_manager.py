@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from resource_manager.exceptions import BuildConfigError, BadSyntaxError, ResourceError, SemanticsError
-from resource_manager.manager import ResourceManager, read_config, read_string
+from resource_manager.exceptions import ResourceError, SemanticsError
+from resource_manager import ResourceManager, read_config, read_string
 
 
 class TestResourceManager(unittest.TestCase):
@@ -235,5 +235,5 @@ a = 11
 ''')
 
     def test_bad_import(self):
-        with self.assertRaises(BuildConfigError):
+        with self.assertRaises(NameError):
             read_string('from .expressions.literals import a')

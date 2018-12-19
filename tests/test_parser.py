@@ -1,7 +1,6 @@
 import os
 import unittest
 
-from resource_manager.exceptions import BadSyntaxError
 from resource_manager.parser import parse_string
 
 
@@ -32,19 +31,19 @@ class TestParser(unittest.TestCase):
                         self.assertEqual(temp, standardize(temp))
 
     def test_unexpected_token(self):
-        with self.assertRaises(BadSyntaxError):
+        with self.assertRaises(SyntaxError):
             parse_string('a = [1, 2 3]')
 
     def test_unexpected_eof(self):
-        with self.assertRaises(BadSyntaxError):
+        with self.assertRaises(SyntaxError):
             parse_string('a = [1, 2')
 
     def test_unrecognized_token(self):
-        with self.assertRaises(BadSyntaxError):
+        with self.assertRaises(SyntaxError):
             parse_string('$')
 
     def test_mixed_import(self):
-        with self.assertRaises(BadSyntaxError):
+        with self.assertRaises(SyntaxError):
             parse_string('''
             from .abc import *
             import numpy

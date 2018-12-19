@@ -5,7 +5,7 @@ from typing import List
 
 from .semantics import Semantics
 from .wrappers import ImportStarred, UnifiedImport
-from .exceptions import BuildConfigError, ResourceError
+from .exceptions import ResourceError
 from .scope import Scope, add_if_missing, Builtins
 from .parser import parse_file, parse_string
 
@@ -134,8 +134,8 @@ class ResourceManager:
                 try:
                     node = local[what]
                 except KeyError:
-                    raise BuildConfigError(
-                        'Resource "%s" is not defined in the config it is imported from.\n' % what +
+                    raise NameError(
+                        '"%s" is not defined in the config it is imported from.\n' % what +
                         '  at %d:%d in %s' % import_.position) from None
             else:
                 node = import_

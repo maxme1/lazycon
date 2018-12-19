@@ -58,4 +58,5 @@ class Renderer(Visitor):
             return Renderer.render(node.expression, self.global_scope, local_scope)
 
         function_.__signature__ = node.signature
+        function_.__name__ = function_.__qualname__ = node.original_name
         return function_

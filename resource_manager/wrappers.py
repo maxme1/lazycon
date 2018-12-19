@@ -82,8 +82,9 @@ class UnifiedImport(BaseImport):
 
 class Function(Wrapper):
     def __init__(self, signature: inspect.Signature, bindings: [(str, Wrapper)],
-                 expression: ExpressionWrapper, position):
+                 expression: ExpressionWrapper, original_name: str, position):
         super().__init__(position)
+        self.original_name = original_name
         self.bindings = bindings
         self.expression = expression
         self.signature = signature

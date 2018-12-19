@@ -1,17 +1,17 @@
 import re
-from inspect import Parameter
+from inspect import Parameter, Signature
 from io import BytesIO
 from tokenize import tokenize, tok_name
 
 from .visitor import Visitor
-from .exceptions import BadSyntaxError, DeprecationError
+from .exceptions import DeprecationError
 from .wrappers import *
 
 PARTIAL = re.compile(r'^#\s*(lazy|partial)\s*$')
 
 
 def throw(message, position):
-    raise BadSyntaxError(message + '\n  at %d:%d in %s' % position)
+    raise SyntaxError(message + '\n  at %d:%d in %s' % position)
 
 
 class Normalizer(Visitor):
@@ -41,8 +41,7 @@ class Normalizer(Visitor):
         return Normalizer(stop, lines, source_path).visit(node)
 
     def generic_visit(self, node, *args, **kwargs):
-        # TODO: more info
-        raise BadSyntaxError('Unrecognized syntactic structure: ' + str(node))
+        throw('This syntactic structure is not supported.', self.get_position(node))
 
     def visit_assign(self, node: ast.Assign):
         position = self.get_position(node.value)
@@ -80,15 +79,20 @@ class Normalizer(Visitor):
             yield name, UnifiedImport('', 0, alias.name.split('.'), alias.asname is not None, position)
 
     def visit_function_def(self, node: ast.FunctionDef):
-        assert not node.decorator_list
-        assert node.returns is None
         assert node.body
+        if node.decorator_list:
+            throw('Decorators are not supported.', self.get_position(node.decorator_list[0]))
+
         *raw_bindings, ret = node.body
-        assert all(isinstance(s, ast.Assign) and len(s.targets) == 1 for s in raw_bindings)
-        assert isinstance(ret, ast.Return)
+
+        if not all(isinstance(s, ast.Assign) and len(s.targets) == 1
+                   for s in raw_bindings) or not isinstance(ret, ast.Return):
+            throw('A function definition must consist of value definitions '
+                  'followed by a return statement.', self.get_position(node))
+
         # TODO: add defaults
-        assert not node.args.defaults
-        assert all(d is None for d in node.args.kw_defaults)
+        if node.args.defaults or not all(d is None for d in node.args.kw_defaults):
+            throw('Function default argument values are not supported.', self.get_position(node))
 
         # bindings
         bindings = []
@@ -114,7 +118,7 @@ class Normalizer(Visitor):
         if args.kwarg is not None:
             parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_KEYWORD))
 
-        yield node.name, Function(inspect.Signature(parameters), bindings, expression, self.get_position(node))
+        yield node.name, Function(Signature(parameters), bindings, expression, node.name, self.get_position(node))
 
 
 def parse(source: str, source_path: str):
@@ -144,10 +148,9 @@ def parse(source: str, source_path: str):
 
     # TODO: this is legacy
     for token in tokenize(BytesIO(source.encode()).readline):
-        if tok_name[token.type] == 'COMMENT':
-            if PARTIAL.match(token.string.strip()):
-                raise DeprecationError('The "# partial" syntax is not supported anymore.\n'
-                                       '    Your config contains such a comment in %s' % source_path)
+        if tok_name[token.type] == 'COMMENT' and PARTIAL.match(token.string.strip()):
+            raise DeprecationError('The "# partial" syntax is not supported anymore.\n'
+                                   '    Your config contains such a comment in %s' % source_path)
 
     return parents, imports, definitions
 
