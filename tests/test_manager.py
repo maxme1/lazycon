@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from resource_manager.exceptions import ResourceError, SemanticsError
+from resource_manager.exceptions import ResourceError, SemanticError
 from resource_manager import ResourceManager, read_config, read_string
 
 
@@ -90,7 +90,7 @@ b = sum(a)
         self.assertEqual(rm.random.shape, (1, 1, 2, 2))
 
     def test_bindings_clash(self):
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             ResourceManager().string_input('''
 def f(x):
     x = 1
@@ -98,7 +98,7 @@ def f(x):
             ''')
 
     def test_bindings_names(self):
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             ResourceManager().string_input('''
 def f(x):
     x = 1
@@ -166,13 +166,13 @@ def f(x):
         self.assertDictEqual({i: i + 1 for i in range(10)}, rm.dict_comp)
         self.assertListEqual(list(range(10)), list(rm.gen_comp))
 
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             read_string('_ = [x for i in range(1)]')
 
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             read_string('_ = [[x, i] for i in range(1)]')
 
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             read_string('_ = [i for i in [[2]] if x != 2 for x in i]')
 
     def test_if(self):
@@ -205,7 +205,7 @@ def f(x):
             self.fail()
 
     def test_cycles(self):
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             read_string('''
 a = a
 x = {"y": y}
@@ -218,7 +218,7 @@ t = 1
 ''')
 
     def test_undefined(self):
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             read_string('''
 with_undefined = {
     'param': dunno
@@ -227,7 +227,7 @@ x = another_undefined
 ''')
 
     def test_duplicates(self):
-        with self.assertRaises(SemanticsError):
+        with self.assertRaises(SemanticError):
             read_string('''
 a = 1
 b = 2

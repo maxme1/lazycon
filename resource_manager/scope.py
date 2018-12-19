@@ -5,14 +5,14 @@ from typing import Dict, Any
 
 from .wrappers import Wrapper, UnifiedImport
 from .renderer import Renderer
-from .exceptions import ResourceError, SemanticsError
+from .exceptions import ResourceError, SemanticError
 
 ScopeDict = Dict[str, Wrapper]
 
 
 def add_if_missing(target: dict, name, node):
     if name in target:
-        raise SemanticsError('Duplicate definition of resource "%s" in %s' % (name, node.source_path))
+        raise SemanticError('Duplicate definition of resource "%s" in %s' % (name, node.source_path))
     target[name] = node
 
 

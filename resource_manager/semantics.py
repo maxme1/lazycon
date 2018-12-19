@@ -3,7 +3,7 @@ from collections import defaultdict
 from resource_manager.scope import ScopeDict
 from .visitor import Visitor
 from .wrappers import *
-from .exceptions import SemanticsError
+from .exceptions import SemanticError
 
 
 def change_source(method):
@@ -57,7 +57,7 @@ class Semantics(Visitor):
         for msg, elements in tree.messages.items():
             message += tree.format(msg, elements)
         if message:
-            raise SemanticsError(message)
+            raise SemanticError(message)
         return tree.leave_time
 
     def enter_scope(self, names: ScopeDict, visited=()):

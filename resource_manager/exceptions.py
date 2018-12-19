@@ -2,7 +2,7 @@ class DeprecationError(Exception):
     pass
 
 
-class SemanticsError(SyntaxError):
+class SemanticError(SyntaxError):
     pass
 
 
