@@ -53,9 +53,12 @@ class Scope(Dict[str, Any]):
         self._statement_to_thunk = {}
         self.populated = False
 
-    def render(self, order: dict):
+    def get_name_to_statement(self):
         statements = {v: k for k, v in self._statement_to_thunk.items()}
-        names = {name: statements[thunk] for name, thunk in self.items()}
+        return {name: statements[thunk] for name, thunk in self.items()}
+
+    def render(self, order: dict):
+        names = self.get_name_to_statement()
         groups = defaultdict(list)
         for name, statement in names.items():
             groups[statement].append(name)

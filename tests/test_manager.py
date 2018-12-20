@@ -200,6 +200,11 @@ def f(x):
 
         rm = read_config('expressions/literals.config').string_input('a = 2')
         try:
+            rm.string_input('b = a + 1')
+        except:
+            self.fail()
+
+        try:
             rm.literals
         except:
             self.fail()

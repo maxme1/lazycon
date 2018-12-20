@@ -100,7 +100,8 @@ class ResourceManager:
             raise RuntimeError('The scope has already been populated with live objects. Overwriting them might cause '
                                'undefined behaviour. Please, create another instance of ResourceManager.')
 
-        self._leave_time = Semantics.analyze(scope, self._scope.parent)
+        updated_scope = ChainMap(scope, self._scope.get_name_to_statement())
+        self._leave_time = Semantics.analyze(updated_scope, self._scope.parent)
         list(starmap(self._scope.update_value, scope.items()))
 
     def _import(self, path: str) -> dict:
