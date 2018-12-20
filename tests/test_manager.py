@@ -112,6 +112,7 @@ def f(x):
         self.assertEqual(1, rm.f())
         self.assertTupleEqual((2, 1, 1), rm.inc_first(['a', 'b', 'c']))
         self.assertListEqual([1, 2, 3, 10, 10], rm.qsort([2, 1, 3, 10, 10]))
+        self.assertEqual(2, rm.returner(2)())
 
     def test_lambda(self):
         rm = read_config('expressions/lambda_.config')

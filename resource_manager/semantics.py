@@ -22,6 +22,7 @@ def position(node: ast.AST):
 
 class Semantics(Visitor):
     def __init__(self, name_to_node: ScopeDict, builtins: Iterable[str]):
+        # TODO: use an ordered dict
         self.messages = defaultdict(lambda: defaultdict(set))
         self._scopes = []
         self._source_paths = []
