@@ -8,17 +8,16 @@ from . import scope
 
 
 class Renderer(Visitor):
-    def __init__(self, global_scope, local_scope):
-        self.local_scope = local_scope
+    def __init__(self, global_scope):
         self.global_scope = global_scope
 
     @staticmethod
     def render(node, global_scope):
-        return Renderer(global_scope, None).visit(node)
+        return Renderer(global_scope).visit(node)
 
     def visit_expression_wrapper(self, node: ExpressionWrapper):
         code = compile(ast.Expression(node.expression), node.source_path, 'eval')
-        return eval(code, scope.ScopeWrapper(self.global_scope), self.local_scope)
+        return eval(code, scope.ScopeWrapper(self.global_scope))
 
     def visit_unified_import(self, node: UnifiedImport):
         from_ = '.'.join(node.root)
