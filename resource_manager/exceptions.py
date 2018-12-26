@@ -8,3 +8,8 @@ class SemanticError(SyntaxError):
 
 class ResourceError(NameError):
     pass
+
+
+class ExceptionWrapper(Exception):
+    def __init__(self, exception):
+        self.exception = exception

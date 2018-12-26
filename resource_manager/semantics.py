@@ -1,6 +1,6 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
-from resource_manager.scope import ScopeDict
+from .scope import ScopeDict
 from .visitor import Visitor
 from .wrappers import *
 from .exceptions import SemanticError
@@ -22,7 +22,6 @@ def position(node: ast.AST):
 
 class Semantics(Visitor):
     def __init__(self, name_to_node: ScopeDict, builtins: Iterable[str]):
-        # TODO: use an ordered dict
         self.messages = defaultdict(lambda: defaultdict(set))
         self._scopes = []
         self._source_paths = []
@@ -62,7 +61,9 @@ class Semantics(Visitor):
         return tree.leave_time
 
     def enter_scope(self, names: ScopeDict, visited=()):
-        scope = {name: [value, None] for name, value in names.items()}
+        scope = OrderedDict()
+        for name, value in names.items():
+            scope[name] = [value, None]
         for name in visited:
             scope[name] = [None, True]
         self._scopes.append(scope)
@@ -109,7 +110,7 @@ class Semantics(Visitor):
         self._scopes.extend(tail)
 
     def analyze_current_scope(self):
-        for _, value in sorted(self._scopes[-1].items()):
+        for _, value in self._scopes[-1].items():
             if self.not_visited(value):
                 self.mark_name(value)
 
@@ -253,6 +254,7 @@ class Semantics(Visitor):
 
     def visit_comprehension(self, node: ast.comprehension):
         assert not getattr(node, 'is_async', False)
+        # TODO: implement support for other targets
         assert isinstance(node.target, ast.Name)
         assert isinstance(node.target.ctx, ast.Store)
 

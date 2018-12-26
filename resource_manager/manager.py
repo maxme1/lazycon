@@ -1,11 +1,11 @@
 import os
-from collections import ChainMap
+from collections import OrderedDict
 from itertools import starmap
 from typing import List
 
 from .semantics import Semantics
 from .wrappers import ImportStarred, UnifiedImport
-from .exceptions import ResourceError
+from .exceptions import ResourceError, ExceptionWrapper
 from .scope import Scope, add_if_missing, Builtins
 from .parser import parse_file, parse_string
 
@@ -18,16 +18,20 @@ class ResourceManager:
     ----------
     shortcuts: dict, optional
         a dict that maps keywords to paths. It is used to resolve paths during import.
+    injections: dict, optional
+        a dict with default values that will be used in case the config doesn't define them.
     """
+    # restricting setattr to these names
+    __slots__ = '_shortcuts', '_imported_configs', '_scope', '_leave_time'
 
-    def __init__(self, shortcuts: dict = None):
+    def __init__(self, shortcuts: dict = None, injections: dict = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
-        self._scope = Scope(Builtins())
+        self._scope = Scope(Builtins(injections or {}))
         self._leave_time = {}
 
     @classmethod
-    def read_config(cls, source_path: str, shortcuts: dict = None):
+    def read_config(cls, source_path: str, shortcuts: dict = None, injections: dict = None):
         """
         Import the config located at `source_path` and return a ResourceManager instance.
 
@@ -37,15 +41,17 @@ class ResourceManager:
             path to the config to import
         shortcuts: dict, optional
             a dict that maps keywords to paths. It is used to resolve paths during import.
+        injections: dict, optional
+            a dict with default values that will be used in case the config doesn't define them.
 
         Returns
         -------
         resource_manager: ResourceManager
         """
-        return cls(shortcuts).import_config(source_path)
+        return cls(shortcuts, injections).import_config(source_path)
 
     @classmethod
-    def read_string(cls, source: str, shortcuts: dict = None):
+    def read_string(cls, source: str, shortcuts: dict = None, injections: dict = None):
         """
         Interpret the `source` and return a ResourceManager instance.
 
@@ -54,12 +60,14 @@ class ResourceManager:
         source: str
         shortcuts: dict, optional
             a dict that maps keywords to paths. It is used to resolve paths during import.
+        injections: dict, optional
+            a dict with default values that will be used in case the config doesn't define them.
 
         Returns
         -------
         resource_manager: ResourceManager
         """
-        return cls(shortcuts).string_input(source)
+        return cls(shortcuts, injections).string_input(source)
 
     def import_config(self, path: str):
         """Import the config located at `path`."""
@@ -93,18 +101,22 @@ class ResourceManager:
             raise KeyError('"%s" is not defined.' % name) from None
 
     def get_resource(self, name: str):
-        return self._scope[name]
+        try:
+            return self._scope[name]
+        except ExceptionWrapper as e:
+            raise e.exception from None
 
-    def _update_resources(self, scope: dict):
+    def _update_resources(self, scope: OrderedDict):
         if self._scope.populated:
             raise RuntimeError('The scope has already been populated with live objects. Overwriting them might cause '
                                'undefined behaviour. Please, create another instance of ResourceManager.')
 
-        updated_scope = ChainMap(scope, self._scope.get_name_to_statement())
+        updated_scope = self._scope.get_name_to_statement()
+        updated_scope.update(scope)
         self._leave_time = Semantics.analyze(updated_scope, self._scope.parent)
         list(starmap(self._scope.update_value, scope.items()))
 
-    def _import(self, path: str) -> dict:
+    def _import(self, path: str) -> OrderedDict:
         path = os.path.expanduser(path)
         path = os.path.realpath(path)
 
@@ -117,13 +129,13 @@ class ResourceManager:
         self._imported_configs[path] = result
         return result
 
-    def _get_resources(self, parents: List[ImportStarred], imports: List[UnifiedImport], definitions) -> dict:
+    def _get_resources(self, parents: List[ImportStarred], imports: List[UnifiedImport], definitions) -> OrderedDict:
 
-        parent_scope = ChainMap()
+        parent_scope = OrderedDict()
         for parent in parents:
-            parent_scope = parent_scope.new_child(self._import(parent.get_path(self._shortcuts)))
+            parent_scope.update(self._import(parent.get_path(self._shortcuts)))
 
-        scope = {}
+        scope = OrderedDict()
         for name, import_ in imports:
             if import_.is_config_import(self._shortcuts):
                 # TODO: should warn about ambiguous shortcut names:
@@ -132,12 +144,10 @@ class ResourceManager:
                 what = import_.what
                 assert len(what) == 1
                 what = what[0]
-                try:
-                    node = local[what]
-                except KeyError:
-                    raise NameError(
-                        '"%s" is not defined in the config it is imported from.\n' % what +
-                        '  at %d:%d in %s' % import_.position) from None
+                if what not in local:
+                    raise NameError('"%s" is not defined in the config it is imported from.\n' % what +
+                                    '  at %d:%d in %s' % import_.position)
+                node = local[what]
             else:
                 node = import_
             # TODO: replace by a list
@@ -146,13 +156,21 @@ class ResourceManager:
         for name, definition in definitions:
             add_if_missing(scope, name, definition)
 
-        return dict(parent_scope.new_child(scope).items())
+        final_scope = OrderedDict(parent_scope.items())
+        final_scope.update(scope)
+        return final_scope
 
     def __dir__(self):
         return list(set(self._scope.keys()) | set(super().__dir__()))
 
     def _ipython_key_completions_(self):
         return self._scope.keys()
+
+    def __setattr__(self, name, value):
+        try:
+            super().__setattr__(name, value)
+        except AttributeError:
+            raise AttributeError('ResourceManager\'s attribute "%s" is read-only.' % name) from None
 
 
 read_config = ResourceManager.read_config

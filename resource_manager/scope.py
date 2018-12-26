@@ -1,11 +1,11 @@
 import builtins
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from threading import Lock
 from typing import Dict, Any
 
 from .wrappers import Wrapper, UnifiedImport
 from .renderer import Renderer
-from .exceptions import ResourceError, SemanticError
+from .exceptions import ResourceError, SemanticError, ExceptionWrapper
 
 ScopeDict = Dict[str, Wrapper]
 
@@ -36,8 +36,13 @@ class NodeThunk(Thunk):
 
 
 class Builtins(dict):
-    def __init__(self):
-        super().__init__(vars(builtins))
+    def __init__(self, injections: dict):
+        base = dict(vars(builtins))
+        common = set(base) & set(injections)
+        if common:
+            raise SemanticError('Some injections clash with builtins: ' + str(common))
+        base.update(injections)
+        super().__init__(base)
 
     def __getitem__(self, name):
         try:
@@ -46,7 +51,7 @@ class Builtins(dict):
             raise ResourceError('"%s" is not defined.' % name) from None
 
 
-class Scope(Dict[str, Any]):
+class Scope(OrderedDict):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -118,6 +123,9 @@ class ScopeWrapper(Dict[str, Any]):
     def __getitem__(self, name):
         try:
             return self.scope[name]
+        except KeyError as e:
+            # this is needed because KeyError is converted to NameError by `eval`
+            raise ExceptionWrapper(e) from e
         except ResourceError:
             pass
 

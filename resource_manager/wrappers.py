@@ -37,7 +37,9 @@ class BaseImport(Wrapper):
     def get_path(self, shortcuts):
         if self.dots == 0:
             shortcut, *root = self.root
-            assert shortcut in shortcuts
+            if shortcut not in shortcuts:
+                raise ImportError('Shortcut "%s" is not found while parsing %s.' % (shortcuts, self.source_path))
+
             prefix = shortcuts[shortcut]
         else:
             root = (os.pardir,) * (self.dots - 1) + self.root

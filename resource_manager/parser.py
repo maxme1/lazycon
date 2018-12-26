@@ -56,6 +56,7 @@ class Normalizer(Visitor):
         expression = ExpressionWrapper(node.value, body, position)
 
         for target in node.targets:
+            # TODO: error message
             assert isinstance(target, ast.Name) and isinstance(target.ctx, ast.Store)
             yield target.id, expression
 
@@ -85,6 +86,7 @@ class Normalizer(Visitor):
 
         *raw_bindings, ret = node.body
 
+        # TODO: add support to function definitions
         if not all(isinstance(s, ast.Assign) and len(s.targets) == 1
                    for s in raw_bindings) or not isinstance(ret, ast.Return):
             throw('A function definition must consist of value definitions '

@@ -189,6 +189,10 @@ def f(x):
         with open('imports/built.config') as built:
             self.assertEqual(built.read(), rm.render_config())
 
+    def test_bad_shortcut(self):
+        with self.assertRaises(ImportError):
+            read_string('from a.b import *')
+
     def test_cached(self):
         rm = read_config('imports/cached/main.config')
         self.assertEqual(1, rm.x)
@@ -209,6 +213,12 @@ def f(x):
             rm.literals
         except:
             self.fail()
+
+    def test_injections(self):
+        with self.assertRaises(SemanticError):
+            ResourceManager(injections={'print': int})
+
+        self.assertEqual(15, read_string('a = 1 + b', injections={'b': 14}).a)
 
     def test_cycles(self):
         with self.assertRaises(SemanticError):
@@ -243,3 +253,15 @@ a = 11
     def test_bad_import(self):
         with self.assertRaises(NameError):
             read_string('from .expressions.literals import a')
+
+    def test_exception_type(self):
+        with self.assertRaises(KeyError):
+            read_string('''
+a = {'0': 1}[0]
+b = a
+''').b
+
+    def test_setattr(self):
+        with self.assertRaises(AttributeError):
+            rm = ResourceManager()
+            rm.a = 1

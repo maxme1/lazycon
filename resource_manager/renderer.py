@@ -41,12 +41,11 @@ class Renderer(Visitor):
 
     def visit_function(self, node: Function):
         def function_(*args, **kwargs):
-            arguments = node.signature.bind_partial(*args, **kwargs)
-            arguments.apply_defaults()
+            arguments = node.signature.bind(*args, **kwargs)
 
-            not_defined = set(node.signature.parameters.keys()) - set(arguments.arguments)
-            if not_defined:
-                raise TypeError('Undefined argument(s): ' + ', '.join(not_defined))
+            # not_defined = set(node.signature.parameters.keys()) - set(arguments.arguments)
+            # if not_defined:
+            #     raise TypeError('Undefined argument(s): ' + ', '.join(not_defined))
 
             local_scope = scope.Scope(self.global_scope)
             for name, binding in node.bindings:
