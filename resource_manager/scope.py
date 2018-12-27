@@ -68,17 +68,36 @@ class Scope(OrderedDict):
         for name, statement in names.items():
             groups[statement].append(name)
 
-        imports, definitions = [], []
-        for statement, names in groups.items():
+        import_groups, imports, definitions = defaultdict(list), [], []
+        for statement, names in sorted(groups.items(), key=lambda x: min(order[name] for name in x[1])):
             pair = sorted(names), statement
             if isinstance(statement, UnifiedImport):
-                imports.append(pair)
+                if statement.root:
+                    import_groups[statement.root, statement.dots].append(pair)
+                else:
+                    imports.append(pair)
             else:
                 definitions.append(pair)
 
-        # TODO: group imports
-        definitions = sorted(definitions, key=lambda x: min(order[name] for name in x[0]))
-        for names, statement in sorted(imports) + definitions:
+        for names, statement in imports:
+            yield statement.to_str(names)
+
+        if imports:
+            yield ''
+
+        for group in import_groups.values():
+            names, statement = group[0]
+            result = statement.to_str(names)
+            for names, statement in group[1:]:
+                assert len(names) == 1
+                result += ', ' + statement.import_what(names[0])
+
+            yield result
+
+        if import_groups or imports:
+            yield '\n'
+
+        for names, statement in definitions:
             yield statement.to_str(names)
 
     def _set_thunk(self, name, thunk):

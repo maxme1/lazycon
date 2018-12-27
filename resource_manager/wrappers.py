@@ -21,6 +21,7 @@ class ExpressionWrapper(Wrapper):
         self.expression = expression
 
     def to_str(self, names, level: int = 0):
+        # TODO: keep information about newline
         return '    ' * level + ' = '.join(names) + ' = ' + self.body + '\n'
 
 
@@ -38,7 +39,7 @@ class BaseImport(Wrapper):
         if self.dots == 0:
             shortcut, *root = self.root
             if shortcut not in shortcuts:
-                raise ImportError('Shortcut "%s" is not found while parsing %s.' % (shortcuts, self.source_path))
+                raise ImportError('Shortcut "%s" is not found while parsing "%s".' % (shortcut, self.source_path))
 
             prefix = shortcuts[shortcut]
         else:
@@ -72,14 +73,16 @@ class UnifiedImport(BaseImport):
     def is_config_import(self, shortcuts):
         return self.root and (self.dots > 0 or self.root in shortcuts)
 
+    def import_what(self, name):
+        result = dotted(self.what)
+        if len(self.what) > 1 or self.what[0] != name:
+            result += ' as ' + name
+
+        return result
+
     def to_str(self, names, level=0):
         assert len(names) == 1
-        result = self._to_str() + dotted(self.what)
-
-        if len(self.what) > 1 or self.what[0] != names[0]:
-            result += ' as ' + names[0]
-
-        return result + '\n'
+        return self._to_str() + self.import_what(names[0])
 
 
 class Function(Wrapper):

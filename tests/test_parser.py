@@ -6,8 +6,8 @@ from resource_manager.parser import parse_string
 
 def standardize(source):
     parents, imports, definitions = parse_string(source)
-    result = '\n'.join(imp.to_str() for imp in parents)
-    result += '\n'.join(imp.to_str([name]) for name, imp in imports)
+    result = '\n'.join(imp.to_str() for imp in parents) + '\n'
+    result += '\n'.join(imp.to_str([name]) for name, imp in imports) + '\n'
     for name, definition in definitions:
         result += definition.to_str([name])
     return result
@@ -41,11 +41,3 @@ class TestParser(unittest.TestCase):
     def test_unrecognized_token(self):
         with self.assertRaises(SyntaxError):
             parse_string('$')
-
-    def test_mixed_import(self):
-        with self.assertRaises(SyntaxError):
-            parse_string('''
-            from .abc import *
-            import numpy
-            import "asdasd"
-            ''')
