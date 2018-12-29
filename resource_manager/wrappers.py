@@ -1,7 +1,7 @@
 import ast
 import inspect
 import os
-from typing import Iterable
+from typing import Iterable, Sequence
 
 
 class Wrapper(ast.AST):
@@ -86,16 +86,18 @@ class UnifiedImport(BaseImport):
 
 
 class Function(Wrapper):
-    def __init__(self, signature: inspect.Signature, bindings: [(str, Wrapper)],
-                 expression: ExpressionWrapper, original_name: str, position):
+    def __init__(self, signature: inspect.Signature, bindings: [(str, Wrapper)], expression: ExpressionWrapper,
+                 decorators: Sequence[ExpressionWrapper], original_name: str, position):
         super().__init__(position)
+        self.decorators = decorators
         self.original_name = original_name
         self.bindings = bindings
         self.expression = expression
         self.signature = signature
 
     def _to_str(self, name, level):
-        result = 'def ' + name + str(self.signature) + ':\n'
+        result = ''.join('@' + decorator.body + '\n' for decorator in self.decorators)
+        result += 'def ' + name + str(self.signature) + ':\n'
         for local_name, binding in self.bindings:
             result += binding.to_str([local_name], level + 1)
         return result + '    ' * (level + 1) + 'return ' + self.expression.body + '\n\n'

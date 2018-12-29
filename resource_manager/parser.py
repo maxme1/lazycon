@@ -14,6 +14,19 @@ def throw(message, position):
     raise SyntaxError(message + '\n  at %d:%d in %s' % position)
 
 
+def get_body(lines, start: ast.AST, stop_line, stop_col) -> str:
+    lines = list(lines[start.lineno - 1:stop_line])
+
+    lines[-1] = lines[-1][:stop_col]
+    lines[0] = lines[0][start.col_offset:]
+
+    return '\n'.join(lines).strip()
+
+
+def tokenize_string(source):
+    return tokenize(BytesIO(source.encode()).readline)
+
+
 class Normalizer(Visitor):
     def __init__(self, stop, lines, source_path):
         self.lines = lines
@@ -26,12 +39,7 @@ class Normalizer(Visitor):
         else:
             stop_line, stop_col = self.stop.lineno, self.stop.col_offset
 
-        lines = list(self.lines[start.lineno - 1:stop_line])
-
-        lines[-1] = lines[-1][:stop_col]
-        lines[0] = lines[0][start.col_offset:]
-
-        return '\n'.join(lines).strip()
+        return get_body(self.lines, start, stop_line, stop_col)
 
     def get_position(self, node: ast.AST):
         return node.lineno, node.col_offset, self.source_path
@@ -80,15 +88,14 @@ class Normalizer(Visitor):
             yield name, UnifiedImport('', 0, alias.name.split('.'), alias.asname is not None, position)
 
     def visit_function_def(self, node: ast.FunctionDef):
-        assert node.body
-        if node.decorator_list:
-            throw('Decorators are not supported.', self.get_position(node.decorator_list[0]))
-
         *raw_bindings, ret = node.body
+        if not isinstance(ret, ast.Return):
+            throw('Functions must end with a return statement.', self.get_position(ret))
 
+        # TODO: add docstrings support?
         # TODO: add support to function definitions
         if not all(isinstance(s, ast.Assign) and len(s.targets) == 1
-                   for s in raw_bindings) or not isinstance(ret, ast.Return):
+                   for s in raw_bindings):
             throw('A function definition must consist of value definitions '
                   'followed by a return statement.', self.get_position(node))
 
@@ -98,8 +105,8 @@ class Normalizer(Visitor):
 
         # bindings
         bindings = []
-        for b, s in zip(raw_bindings, node.body[1:]):
-            bindings.extend(Normalizer.normalize(b, s, self.lines, self.source_path))
+        for binding, stop in zip(raw_bindings, node.body[1:]):
+            bindings.extend(Normalizer.normalize(binding, stop, self.lines, self.source_path))
 
         # expression
         value = ret.value
@@ -120,7 +127,26 @@ class Normalizer(Visitor):
         if args.kwarg is not None:
             parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_KEYWORD))
 
-        yield node.name, Function(Signature(parameters), bindings, expression, node.name, self.get_position(node))
+        decorators = []
+        for decorator, stop in zip(node.decorator_list, node.decorator_list[1:]):
+            body = get_body(self.lines, decorator, stop.lineno, stop.col_offset)
+            assert body.endswith('@')
+            body = body[:-1].strip()
+            decorators.append(ExpressionWrapper(decorator, body, self.get_position(decorator)))
+
+        if node.decorator_list:
+            # get the `def` token position
+            for token in tokenize_string(self.get_body(node)):
+                if token.string == 'def':
+                    break
+
+            line, column = token.start
+            decorator = node.decorator_list[-1]
+            body = get_body(self.lines, decorator, line + node.lineno - 1, column)
+            decorators.append(ExpressionWrapper(decorator, body, self.get_position(decorator)))
+
+        yield node.name, Function(
+            Signature(parameters), bindings, expression, decorators, node.name, self.get_position(node))
 
 
 def parse(source: str, source_path: str):
@@ -149,7 +175,7 @@ def parse(source: str, source_path: str):
             definitions.append((name, w))
 
     # TODO: this is legacy
-    for token in tokenize(BytesIO(source.encode()).readline):
+    for token in tokenize_string(source):
         if tok_name[token.type] == 'COMMENT' and PARTIAL.match(token.string.strip()):
             raise DeprecationError('The "# partial" syntax is not supported anymore.\n'
                                    '    Your config contains such a comment in %s' % source_path)

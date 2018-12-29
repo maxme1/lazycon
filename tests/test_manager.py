@@ -105,7 +105,7 @@ def f(x):
     y = 2
     x = 3
     return 2
-            ''')
+''')
 
     def test_func_def(self):
         rm = read_config('statements/funcdef.config')
@@ -113,6 +113,14 @@ def f(x):
         self.assertTupleEqual((2, 1, 1), rm.inc_first(['a', 'b', 'c']))
         self.assertListEqual([1, 2, 3, 10, 10], rm.qsort([2, 1, 3, 10, 10]))
         self.assertEqual(2, rm.returner(2)())
+
+    def test_decorators(self):
+        rm = read_config('statements/funcdef.config')
+        self.assertEqual(1, rm.one(0))
+        self.assertEqual(2, rm.two(0))
+        self.assertEqual(3, rm.three(0))
+
+        self.assertEqual(tuple(range(5)), rm.order())
 
     def test_lambda(self):
         rm = read_config('expressions/lambda_.config')

@@ -57,4 +57,7 @@ class Renderer(Visitor):
 
         function_.__signature__ = node.signature
         function_.__name__ = function_.__qualname__ = node.original_name
+        for decorator in reversed(node.decorators):
+            function_ = self.visit(decorator)(function_)
+
         return function_

@@ -19,7 +19,7 @@ class TestParser(unittest.TestCase):
 
         for root, _, files in os.walk(folder):
             for filename in files:
-                # if filename != 'target.config':
+                # if filename != 'funcdef.config':
                 #     continue
 
                 if filename.endswith('.config'):
