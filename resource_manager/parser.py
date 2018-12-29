@@ -64,8 +64,10 @@ class Normalizer(Visitor):
         expression = ExpressionWrapper(node.value, body, position)
 
         for target in node.targets:
-            # TODO: error message
-            assert isinstance(target, ast.Name) and isinstance(target.ctx, ast.Store)
+            if not isinstance(target, ast.Name):
+                throw('This assignment syntax is not supported.', self.get_position(target))
+            assert isinstance(target.ctx, ast.Store)
+
             yield target.id, expression
 
     def visit_import_from(self, node: ast.ImportFrom):
@@ -93,20 +95,18 @@ class Normalizer(Visitor):
             throw('Functions must end with a return statement.', self.get_position(ret))
 
         # TODO: add docstrings support?
-        # TODO: add support to function definitions
-        if not all(isinstance(s, ast.Assign) and len(s.targets) == 1
-                   for s in raw_bindings):
-            throw('A function definition must consist of value definitions '
-                  'followed by a return statement.', self.get_position(node))
-
-        # TODO: add defaults
-        if node.args.defaults or not all(d is None for d in node.args.kw_defaults):
-            throw('Function default argument values are not supported.', self.get_position(node))
-
+        # TODO: add assertions?
         # bindings
         bindings = []
-        for binding, stop in zip(raw_bindings, node.body[1:]):
-            bindings.extend(Normalizer.normalize(binding, stop, self.lines, self.source_path))
+        for statement, stop in zip(raw_bindings, node.body[1:]):
+            if not isinstance(statement, (ast.Assign, ast.FunctionDef)):
+                throw('A function definition must consist of value or function definitions '
+                      'followed by a return statement.', self.get_position(statement))
+
+            if isinstance(statement, ast.Assign) and len(statement.targets) != 1:
+                throw('Assignments inside function must have a single target.', self.get_position(statement))
+
+            bindings.extend(Normalizer.normalize(statement, stop, self.lines, self.source_path))
 
         # expression
         value = ret.value
@@ -114,6 +114,10 @@ class Normalizer(Visitor):
         assert body[:6] == 'return'
         body = body[6:].lstrip()
         expression = ExpressionWrapper(value, body, self.get_position(value))
+
+        # TODO: add defaults
+        if node.args.defaults or not all(d is None for d in node.args.kw_defaults):
+            throw('Function default argument values are not supported.', self.get_position(node))
 
         # parameters
         args = node.args
@@ -127,6 +131,7 @@ class Normalizer(Visitor):
         if args.kwarg is not None:
             parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_KEYWORD))
 
+        # decorators
         decorators = []
         for decorator, stop in zip(node.decorator_list, node.decorator_list[1:]):
             body = get_body(self.lines, decorator, stop.lineno, stop.col_offset)

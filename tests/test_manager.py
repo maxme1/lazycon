@@ -273,3 +273,11 @@ b = a
         with self.assertRaises(AttributeError):
             rm = ResourceManager()
             rm.a = 1
+
+    def test_unused(self):
+        with self.assertRaises(SemanticError):
+            read_string('''
+def f():
+    x = 1
+    return 2
+''')

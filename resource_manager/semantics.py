@@ -229,7 +229,7 @@ class Semantics(Visitor):
     def visit_ext_slice(self, node):
         self._visit_sequence(node.dims)
 
-    # comprehensions.config
+    # comprehensions
 
     def visit_list_comp(self, node):
         for comp in node.generators:
@@ -283,13 +283,19 @@ class Semantics(Visitor):
             self.add_message('Binding names clash with argument names in function definition',
                              'at %d:%d' % node.position[:2])
 
+        self._visit_sequence(node.decorators)
+
         # for parameter in node.signature.parameters.values():
         #     if parameter.default is not Parameter.empty:
         #         parameter.default.render(self)
 
         self.enter_scope(bindings, names)
         self.visit(node.expression)
-        self.analyze_current_scope()
+
+        for value in self._scopes[-1].values():
+            if self.not_visited(value):
+                self.add_message('Definition is never used', 'at %d:%d' % value[0].position[:2])
+
         self.leave_scope()
 
     def visit_lambda(self, node: ast.Lambda):
@@ -300,10 +306,8 @@ class Semantics(Visitor):
         if args.kwarg:
             names.append(args.kwarg.arg)
 
-        for default in args.defaults + list(filter(None, args.kw_defaults)):
-            self.visit(default)
+        self._visit_sequence(args.defaults + list(filter(None, args.kw_defaults)))
 
         self.enter_scope({}, names)
         self.visit(node.body)
-        self.analyze_current_scope()
         self.leave_scope()

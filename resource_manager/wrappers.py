@@ -95,12 +95,13 @@ class Function(Wrapper):
         self.expression = expression
         self.signature = signature
 
-    def _to_str(self, name, level):
-        result = ''.join('@' + decorator.body + '\n' for decorator in self.decorators)
-        result += 'def ' + name + str(self.signature) + ':\n'
+    def _to_str(self, name, level: int = 0):
+        result = ''.join('    ' * level + '@' + decorator.body + '\n' for decorator in self.decorators)
+        result += '    ' * level + 'def ' + name + str(self.signature) + ':\n'
         for local_name, binding in self.bindings:
             result += binding.to_str([local_name], level + 1)
         return result + '    ' * (level + 1) + 'return ' + self.expression.body + '\n\n'
 
-    def to_str(self, names, level=0):
-        return '\n' + '\n'.join(self._to_str(name, level) for name in names).strip() + '\n\n'
+    def to_str(self, names, level: int = 0):
+        sep = '\n' + '    ' * level
+        return sep + sep.join(self._to_str(name, level) for name in names).strip() + '\n\n'
