@@ -254,12 +254,20 @@ class Semantics(Visitor):
 
     def visit_comprehension(self, node: ast.comprehension):
         assert not getattr(node, 'is_async', False)
-        # TODO: implement support for other targets
-        assert isinstance(node.target, ast.Name)
-        assert isinstance(node.target.ctx, ast.Store)
+
+        def get_names(target):
+            assert isinstance(target.ctx, ast.Store)
+            names = []
+            if isinstance(target, (ast.Tuple, ast.List)):
+                for elt in target.elts:
+                    names.extend(get_names(elt))
+                return names
+
+            assert isinstance(target, ast.Name)
+            return [target.id]
 
         self.visit(node.iter)
-        self.enter_scope({}, [node.target.id])
+        self.enter_scope({}, get_names(node.target))
 
         for test in node.ifs:
             self.visit(test)

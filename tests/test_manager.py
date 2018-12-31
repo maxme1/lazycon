@@ -174,6 +174,7 @@ def f(x):
         self.assertSetEqual({i for i in range(10)}, rm.set_comp)
         self.assertDictEqual({i: i + 1 for i in range(10)}, rm.dict_comp)
         self.assertListEqual(list(range(10)), list(rm.gen_comp))
+        self.assertListEqual(list(range(0, 10, 2)), rm.even)
 
         with self.assertRaises(SemanticError):
             read_string('_ = [x for i in range(1)]')
