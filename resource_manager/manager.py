@@ -1,6 +1,7 @@
 import os
 from collections import OrderedDict
 from itertools import starmap
+from pathlib import Path
 from typing import List
 
 from .semantics import Semantics
@@ -31,13 +32,14 @@ class ResourceManager:
         self._leave_time = {}
 
     @classmethod
-    def read_config(cls, source_path: str, shortcuts: dict = None, injections: dict = None):
+    def read_config(cls, path: str, shortcuts: dict = None, injections: dict = None):
         """
-        Import the config located at `source_path` and return a ResourceManager instance.
+        Import the config located at `path` and return a ResourceManager instance.
+        Also this methods adds a `__file__ = pathlib.Path(path)` value to the global scope.
 
         Parameters
         ----------
-        source_path: str
+        path: str
             path to the config to import
         shortcuts: dict, optional
             a dict that maps keywords to paths. It is used to resolve paths during import.
@@ -48,7 +50,13 @@ class ResourceManager:
         -------
         resource_manager: ResourceManager
         """
-        return cls(shortcuts, injections).import_config(source_path)
+        key = '__file__'
+        injections = dict(injections or {})
+        if key in injections:
+            raise ValueError('The "__file__" key is not allowed in "injections".')
+
+        injections[key] = Path(cls._standardize_path(path))
+        return cls(shortcuts, injections).import_config(path)
 
     @classmethod
     def read_string(cls, source: str, shortcuts: dict = None, injections: dict = None):
@@ -116,9 +124,14 @@ class ResourceManager:
         self._leave_time = Semantics.analyze(updated_scope, self._scope.parent)
         list(starmap(self._scope.update_value, scope.items()))
 
-    def _import(self, path: str) -> OrderedDict:
+    @staticmethod
+    def _standardize_path(path: str):
         path = os.path.expanduser(path)
         path = os.path.realpath(path)
+        return path
+
+    def _import(self, path: str) -> OrderedDict:
+        path = self._standardize_path(path)
 
         if path in self._imported_configs:
             return self._imported_configs[path]

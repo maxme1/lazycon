@@ -20,6 +20,9 @@ def position(node: ast.AST):
     return node.lineno, node.col_offset
 
 
+READ_ONLY = {'__file__'}
+
+
 class Semantics(Visitor):
     def __init__(self, name_to_node: ScopeDict, builtins: Iterable[str]):
         self.messages = defaultdict(lambda: defaultdict(set))
@@ -37,9 +40,9 @@ class Semantics(Visitor):
         self.enter_scope(name_to_node)
         self.analyze_current_scope()
 
-    def add_message(self, message, content):
-        assert self._source_paths
-        self.messages[message][self._source_paths[-1]].add(content)
+    def add_message(self, message, content, source=None):
+        source = source or self._source_paths[-1]
+        self.messages[message][source].add(content)
 
     @staticmethod
     def format(message, elements):
@@ -110,7 +113,11 @@ class Semantics(Visitor):
         self._scopes.extend(tail)
 
     def analyze_current_scope(self):
-        for _, value in self._scopes[-1].items():
+        for name, value in self._scopes[-1].items():
+            if name in READ_ONLY:
+                *pos, source = value[0].position
+                self.add_message('The value is read-only', '"' + name + '" at %d:%d' % tuple(pos), source)
+
             if self.not_visited(value):
                 self.mark_name(value)
 

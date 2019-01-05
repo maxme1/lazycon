@@ -12,7 +12,7 @@ class TestResourceManager(unittest.TestCase):
         rm.string_input('''
 a = [1,2,3]
 b = sum(a)
-        ''')
+''')
         self.assertEqual(6, rm.b)
 
     def test_import(self):
@@ -95,7 +95,7 @@ b = sum(a)
 def f(x):
     x = 1
     return 2
-            ''')
+''')
 
     def test_bindings_names(self):
         with self.assertRaises(SemanticError):
@@ -281,4 +281,10 @@ b = a
 def f():
     x = 1
     return 2
+''')
+
+    def test_read_only(self):
+        with self.assertRaises(SemanticError):
+            read_string('''
+__file__ = 1
 ''')

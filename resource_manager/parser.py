@@ -94,7 +94,6 @@ class Normalizer(Visitor):
         if not isinstance(ret, ast.Return):
             throw('Functions must end with a return statement.', self.get_position(ret))
 
-        # TODO: add docstrings support?
         # TODO: add assertions?
         # bindings
         bindings = []
@@ -108,7 +107,7 @@ class Normalizer(Visitor):
 
             bindings.extend(Normalizer.normalize(statement, stop, self.lines, self.source_path))
 
-        # expression
+        # return statement
         value = ret.value
         body = self.get_body(ret)
         assert body[:6] == 'return'

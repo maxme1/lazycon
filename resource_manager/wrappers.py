@@ -7,8 +7,7 @@ from typing import Iterable, Sequence
 class Wrapper(ast.AST):
     def __init__(self, position):
         super().__init__()
-        self.position = position
-        self.line, self.column, self.source_path = position
+        self.line, self.column, self.source_path = self.position = position
 
     def to_str(self, *args):
         raise NotImplementedError
