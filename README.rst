@@ -51,7 +51,7 @@ Function definitions
 You can define functions inside configs, however their local scope is also lazy, thus the same
 constraints hold.
 
-A function body consists of several value or function definitions followed by a return statement:
+A function body consists of several value or function definitions or assertions followed by a return statement:
 
 .. code:: python
 

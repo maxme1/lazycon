@@ -115,6 +115,12 @@ def f(x):
         self.assertEqual(2, rm.returner(2)())
         self.assertEqual(1, rm.h_with_defaults(0, n=3))
 
+    def test_assertions(self):
+        rm = read_config('statements/funcdef.config')
+        self.assertEqual(True, rm.assertion(True))
+        with self.assertRaises(AssertionError):
+            rm.assertion(False)
+
     def test_decorators(self):
         rm = read_config('statements/funcdef.config')
         self.assertEqual(1, rm.one(0))

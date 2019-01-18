@@ -99,18 +99,20 @@ class Normalizer(Visitor):
         if raw_bindings and isinstance(raw_bindings[0], ast.Str):
             raw_bindings = raw_bindings[1:]
 
-        # TODO: add assertions?
         # bindings
-        bindings = []
+        bindings, assertions = [], []
         for statement, stop in zip(raw_bindings, node.body[1:]):
-            if not isinstance(statement, (ast.Assign, ast.FunctionDef)):
-                throw('A function definition must consist of value or function definitions '
+            if not isinstance(statement, (ast.Assign, ast.FunctionDef, ast.Assert)):
+                throw('A function definition must consist of value or function definitions or assertions '
                       'followed by a return statement.', self.get_position(statement))
 
             if isinstance(statement, ast.Assign) and len(statement.targets) != 1:
                 throw('Assignments inside function must have a single target.', self.get_position(statement))
 
-            bindings.extend(Normalizer.normalize(statement, stop, self.lines, self.source_path))
+            if isinstance(statement, ast.Assert):
+                assertions.append(AssertionWrapper(statement.test, statement.msg, self.get_position(statement)))
+            else:
+                bindings.extend(Normalizer.normalize(statement, stop, self.lines, self.source_path))
 
         # return statement
         expression = ExpressionWrapper(ret.value, self.get_position(ret.value))
@@ -155,7 +157,9 @@ class Normalizer(Visitor):
                 break
 
         yield node.name, Function(
-            Signature(parameters), bindings, expression, decorators, node.name, (start, stop), self.get_position(node))
+            Signature(parameters), bindings, expression, decorators, assertions,
+            node.name, (start, stop), self.get_position(node)
+        )
 
 
 def parse(source: str, source_path: str):

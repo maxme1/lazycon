@@ -4,7 +4,7 @@ import sys
 from inspect import Parameter
 
 from .visitor import Visitor
-from .wrappers import ExpressionWrapper, UnifiedImport, Function
+from .wrappers import ExpressionWrapper, UnifiedImport, Function, AssertionWrapper
 from . import scope
 
 
@@ -12,13 +12,16 @@ class Renderer(Visitor):
     def __init__(self, global_scope):
         self.global_scope = global_scope
 
+    def _compile_run(self, expression, source_path):
+        code = compile(ast.Expression(expression), source_path, 'eval')
+        return eval(code, scope.ScopeWrapper(self.global_scope))
+
     @staticmethod
     def render(node, global_scope):
         return Renderer(global_scope).visit(node)
 
     def visit_expression_wrapper(self, node: ExpressionWrapper):
-        code = compile(ast.Expression(node.expression), node.source_path, 'eval')
-        return eval(code, scope.ScopeWrapper(self.global_scope))
+        return self._compile_run(node.expression, node.source_path)
 
     visit_expression_statement = visit_expression_wrapper
 
@@ -42,6 +45,14 @@ class Renderer(Visitor):
             pass
         return importlib.import_module(from_ + '.' + what)
 
+    def visit_assertion_wrapper(self, node: AssertionWrapper):
+        if not self._compile_run(node.test, node.source_path):
+            exception = AssertionError
+            if node.message is not None:
+                exception = AssertionError(self._compile_run(node.message, node.source_path))
+
+            raise exception
+
     def visit_function(self, node: Function):
         def function_(*args, **kwargs):
             arguments = signature.bind_partial(*args, **kwargs)
@@ -57,6 +68,8 @@ class Renderer(Visitor):
             for name, value in arguments.arguments.items():
                 local_scope.add_value(name, value)
 
+            for assertion in node.assertions:
+                Renderer.render(assertion, local_scope)
             return Renderer.render(node.expression, local_scope)
 
         parameters = []

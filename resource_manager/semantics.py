@@ -1,4 +1,5 @@
 from collections import defaultdict, OrderedDict
+from inspect import Parameter
 
 from .scope import ScopeDict
 from .visitor import Visitor
@@ -281,6 +282,13 @@ class Semantics(Visitor):
         for test in node.ifs:
             self.visit(test)
 
+    # statements
+
+    def visit_assertion_wrapper(self, node: AssertionWrapper):
+        self.visit(node.test)
+        if node.message:
+            self.visit(node.message)
+
     # imports
 
     visit_unified_import = _ignore_node
@@ -302,11 +310,12 @@ class Semantics(Visitor):
 
         self._visit_sequence(node.decorators)
 
-        # for parameter in node.signature.parameters.values():
-        #     if parameter.default is not Parameter.empty:
-        #         parameter.default.render(self)
+        for parameter in node.signature.parameters.values():
+            if parameter.default is not Parameter.empty:
+                self.visit(parameter.default)
 
         self.enter_scope(bindings, names)
+        self._visit_sequence(node.assertions)
         self.visit(node.expression)
 
         for value in self._scopes[-1].values():

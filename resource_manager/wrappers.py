@@ -30,6 +30,13 @@ class ExpressionWrapper(Wrapper):
         self.expression = expression
 
 
+class AssertionWrapper(Wrapper):
+    def __init__(self, test, message, position):
+        super().__init__(position)
+        self.message = message
+        self.test = test
+
+
 def dotted(x):
     return '.'.join(x)
 
@@ -93,8 +100,9 @@ class UnifiedImport(BaseImport):
 class Function(Wrapper):
     def __init__(self, signature: inspect.Signature, bindings: Sequence[Tuple[str, Wrapper]],
                  expression: ExpressionWrapper, decorators: Sequence[ExpressionWrapper],
-                 original_name: str, body: Tuple[str, str], position):
+                 assertions: Sequence[AssertionWrapper], original_name: str, body: Tuple[str, str], position):
         super().__init__(position)
+        self.assertions = assertions
         self.body = body
         self.decorators = decorators
         self.original_name = original_name
