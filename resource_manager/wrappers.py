@@ -1,7 +1,7 @@
 import ast
 import inspect
 import os
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Tuple
 
 
 class Wrapper(ast.AST):
@@ -13,7 +13,7 @@ class Wrapper(ast.AST):
         raise NotImplementedError
 
 
-class ExpressionWrapper(Wrapper):
+class ExpressionStatement(Wrapper):
     def __init__(self, expression: ast.AST, body, position):
         super().__init__(position)
         self.body = body
@@ -22,6 +22,12 @@ class ExpressionWrapper(Wrapper):
     def to_str(self, names, level: int = 0):
         # TODO: keep information about newline
         return '    ' * level + ' = '.join(names) + ' = ' + self.body + '\n'
+
+
+class ExpressionWrapper(Wrapper):
+    def __init__(self, expression: ast.AST, position):
+        super().__init__(position)
+        self.expression = expression
 
 
 def dotted(x):
@@ -85,22 +91,19 @@ class UnifiedImport(BaseImport):
 
 
 class Function(Wrapper):
-    def __init__(self, signature: inspect.Signature, bindings: [(str, Wrapper)], expression: ExpressionWrapper,
-                 decorators: Sequence[ExpressionWrapper], original_name: str, position):
+    def __init__(self, signature: inspect.Signature, bindings: Sequence[Tuple[str, Wrapper]],
+                 expression: ExpressionWrapper, decorators: Sequence[ExpressionWrapper],
+                 original_name: str, body: Tuple[str, str], position):
         super().__init__(position)
+        self.body = body
         self.decorators = decorators
         self.original_name = original_name
         self.bindings = bindings
         self.expression = expression
         self.signature = signature
 
-    def _to_str(self, name, level: int = 0):
-        result = ''.join('    ' * level + '@' + decorator.body + '\n' for decorator in self.decorators)
-        result += '    ' * level + 'def ' + name + str(self.signature) + ':\n'
-        for local_name, binding in self.bindings:
-            result += binding.to_str([local_name], level + 1)
-        return result + '    ' * (level + 1) + 'return ' + self.expression.body + '\n\n'
+    def _to_str(self, name):
+        return self.body[0] + ' ' + name + self.body[1]
 
-    def to_str(self, names, level: int = 0):
-        sep = '\n' + '    ' * level
-        return sep + sep.join(self._to_str(name, level) for name in names).strip() + '\n\n'
+    def to_str(self, names):
+        return '\n' + '\n'.join(self._to_str(name) for name in names).strip() + '\n\n'

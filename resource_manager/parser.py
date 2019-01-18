@@ -14,11 +14,11 @@ def throw(message, position):
     raise SyntaxError(message + '\n  at %d:%d in %s' % position)
 
 
-def get_body(lines, start: ast.AST, stop_line, stop_col) -> str:
-    lines = list(lines[start.lineno - 1:stop_line])
+def get_substring(lines, start_line, start_col, stop_line=None, stop_col=None) -> str:
+    lines = list(lines[start_line - 1:stop_line])
 
     lines[-1] = lines[-1][:stop_col]
-    lines[0] = lines[0][start.col_offset:]
+    lines[0] = lines[0][start_col:]
 
     return '\n'.join(lines).strip()
 
@@ -35,11 +35,11 @@ class Normalizer(Visitor):
 
     def get_body(self, start: ast.AST):
         if self.stop is None:
-            stop_line = stop_col = None
+            stop = None, None
         else:
-            stop_line, stop_col = self.stop.lineno, self.stop.col_offset
+            stop = self.stop.lineno, self.stop.col_offset
 
-        return get_body(self.lines, start, stop_line, stop_col)
+        return get_substring(self.lines, start.lineno, start.col_offset, *stop)
 
     def get_position(self, node: ast.AST):
         return node.lineno, node.col_offset, self.source_path
@@ -61,7 +61,7 @@ class Normalizer(Visitor):
         assert body[0] == '='
         body = body[1:].lstrip()
 
-        expression = ExpressionWrapper(node.value, body, position)
+        expression = ExpressionStatement(node.value, body, position)
 
         for target in node.targets:
             if not isinstance(target, ast.Name):
@@ -94,6 +94,11 @@ class Normalizer(Visitor):
         if not isinstance(ret, ast.Return):
             throw('Functions must end with a return statement.', self.get_position(ret))
 
+        # TODO: docstring is simply ignored for now
+        # docstring
+        if raw_bindings and isinstance(raw_bindings[0], ast.Str):
+            raw_bindings = raw_bindings[1:]
+
         # TODO: add assertions?
         # bindings
         bindings = []
@@ -108,49 +113,49 @@ class Normalizer(Visitor):
             bindings.extend(Normalizer.normalize(statement, stop, self.lines, self.source_path))
 
         # return statement
-        value = ret.value
-        body = self.get_body(ret)
-        assert body[:6] == 'return'
-        body = body[6:].lstrip()
-        expression = ExpressionWrapper(value, body, self.get_position(value))
-
-        # TODO: add defaults
-        if node.args.defaults or not all(d is None for d in node.args.kw_defaults):
-            throw('Function default argument values are not supported.', self.get_position(node))
+        expression = ExpressionWrapper(ret.value, self.get_position(ret.value))
 
         # parameters
         args = node.args
         parameters = []
-        for arg in args.args:
-            parameters.append(Parameter(arg.arg, Parameter.POSITIONAL_OR_KEYWORD))
+        for arg, default in zip(args.args, [None] * (len(args.args) - len(args.defaults)) + args.defaults):
+            if default is None:
+                default = Parameter.empty
+            else:
+                default = ExpressionWrapper(default, self.get_position(default))
+            parameters.append(Parameter(arg.arg, Parameter.POSITIONAL_OR_KEYWORD, default=default))
+
         if args.vararg is not None:
             parameters.append(Parameter(args.vararg.arg, Parameter.VAR_POSITIONAL))
-        for arg in args.kwonlyargs:
-            parameters.append(Parameter(arg.arg, Parameter.KEYWORD_ONLY))
+
+        for arg, default in zip(args.kwonlyargs, args.kw_defaults):
+            if default is None:
+                default = Parameter.empty
+            else:
+                default = ExpressionWrapper(default, self.get_position(default))
+            parameters.append(Parameter(arg.arg, Parameter.KEYWORD_ONLY, default=default))
+
         if args.kwarg is not None:
             parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_KEYWORD))
 
         # decorators
         decorators = []
-        for decorator, stop in zip(node.decorator_list, node.decorator_list[1:]):
-            body = get_body(self.lines, decorator, stop.lineno, stop.col_offset)
-            assert body.endswith('@')
-            body = body[:-1].strip()
-            decorators.append(ExpressionWrapper(decorator, body, self.get_position(decorator)))
+        for decorator in node.decorator_list:
+            decorators.append(ExpressionWrapper(decorator, self.get_position(decorator)))
 
-        if node.decorator_list:
-            # get the `def` token position
-            for token in tokenize_string(self.get_body(node)):
-                if token.string == 'def':
-                    break
+        # body
+        body = self.get_body(node)
+        for token in tokenize_string(body):
+            if token.string == 'def':
+                start = get_substring(body.splitlines(), 1, 0, *token.end)
+                stop = get_substring(body.splitlines(), *token.end)
+                assert stop.startswith(node.name)
+                stop = stop[len(node.name):].strip()
 
-            line, column = token.start
-            decorator = node.decorator_list[-1]
-            body = get_body(self.lines, decorator, line + node.lineno - 1, column)
-            decorators.append(ExpressionWrapper(decorator, body, self.get_position(decorator)))
+                break
 
         yield node.name, Function(
-            Signature(parameters), bindings, expression, decorators, node.name, self.get_position(node))
+            Signature(parameters), bindings, expression, decorators, node.name, (start, stop), self.get_position(node))
 
 
 def parse(source: str, source_path: str):
@@ -175,7 +180,7 @@ def parse(source: str, source_path: str):
             imports.append((name, w))
 
         else:
-            assert isinstance(w, (Function, ExpressionWrapper))
+            assert isinstance(w, (Function, ExpressionStatement))
             definitions.append((name, w))
 
     # TODO: this is legacy

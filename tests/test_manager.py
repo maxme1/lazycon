@@ -113,6 +113,7 @@ def f(x):
         self.assertTupleEqual((2, 1, 1), rm.inc_first(['a', 'b', 'c']))
         self.assertListEqual([1, 2, 3, 10, 10], rm.qsort([2, 1, 3, 10, 10]))
         self.assertEqual(2, rm.returner(2)())
+        self.assertEqual(1, rm.h_with_defaults(0, n=3))
 
     def test_decorators(self):
         rm = read_config('statements/funcdef.config')

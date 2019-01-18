@@ -22,7 +22,7 @@ Because the scopes are lazy, the following code is ambiguous:
 
 
 To avoid ambiguity, each name can be used only once in a config. As a consequence some
-syntactic structures (e.g. `for` loops) are not supported.
+syntactic structures (e.g. ``for`` loops) are not supported.
 
 Statements
 ----------
@@ -86,7 +86,7 @@ You can import from other libraries inside config files just like in regular Pyt
     import math.radians
 
 You can also import from config files, located relative to the main config (in this
-case from `./some_config.config`, `./folder/dataset.config` and `../upper/another.config`):
+case from ``./some_config.config``, ``./folder/dataset.config`` and ``../upper/another.config``):
 
 .. code:: python
 
@@ -94,5 +94,4 @@ case from `./some_config.config`, `./folder/dataset.config` and `../upper/anothe
     from ..upper.another import *
     from .folder.dataset import DataSet as D
 
-Note, that you can use starred imports (`from a import *`) only when importing from another
-config.
+Note, that you can use starred imports (``from a import *``) only when importing from another config.

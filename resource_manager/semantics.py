@@ -103,7 +103,7 @@ class Semantics(Visitor):
 
         # allowing recursion
         if isinstance(node, Function) or (
-                isinstance(node, ExpressionWrapper) and isinstance(node.expression, ast.Lambda)):
+                isinstance(node, ExpressionStatement) and isinstance(node.expression, ast.Lambda)):
             self._mark_name(value)
             self.visit(node)
         else:
@@ -135,8 +135,10 @@ class Semantics(Visitor):
     # visitors
 
     @change_source
-    def visit_expression_wrapper(self, node: ExpressionWrapper):
+    def visit_expression_statement(self, node: ExpressionStatement):
         self.visit(node.expression)
+
+    visit_expression_wrapper = visit_expression_statement
 
     # literals
 

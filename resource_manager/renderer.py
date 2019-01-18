@@ -1,6 +1,7 @@
 import ast
 import importlib
 import sys
+from inspect import Parameter
 
 from .visitor import Visitor
 from .wrappers import ExpressionWrapper, UnifiedImport, Function
@@ -18,6 +19,8 @@ class Renderer(Visitor):
     def visit_expression_wrapper(self, node: ExpressionWrapper):
         code = compile(ast.Expression(node.expression), node.source_path, 'eval')
         return eval(code, scope.ScopeWrapper(self.global_scope))
+
+    visit_expression_statement = visit_expression_wrapper
 
     def visit_unified_import(self, node: UnifiedImport):
         from_ = '.'.join(node.root)
@@ -41,11 +44,12 @@ class Renderer(Visitor):
 
     def visit_function(self, node: Function):
         def function_(*args, **kwargs):
-            arguments = node.signature.bind(*args, **kwargs)
+            arguments = signature.bind_partial(*args, **kwargs)
+            arguments.apply_defaults()
 
-            # not_defined = set(node.signature.parameters.keys()) - set(arguments.arguments)
-            # if not_defined:
-            #     raise TypeError('Undefined argument(s): ' + ', '.join(not_defined))
+            not_defined = set(signature.parameters.keys()) - set(arguments.arguments)
+            if not_defined:
+                raise TypeError('Undefined argument(s): ' + ', '.join(not_defined))
 
             local_scope = scope.Scope(self.global_scope)
             for name, binding in node.bindings:
@@ -55,7 +59,15 @@ class Renderer(Visitor):
 
             return Renderer.render(node.expression, local_scope)
 
-        function_.__signature__ = node.signature
+        parameters = []
+        for parameter in node.signature.parameters.values():
+            if parameter.default is not Parameter.empty:
+                parameter = parameter.replace(default=self.visit(parameter.default))
+
+            parameters.append(parameter)
+
+        signature = node.signature.replace(parameters=parameters)
+        function_.__signature__ = signature
         function_.__name__ = function_.__qualname__ = node.original_name
         for decorator in reversed(node.decorators):
             function_ = self.visit(decorator)(function_)
