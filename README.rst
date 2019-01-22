@@ -57,6 +57,7 @@ A function body consists of several value or function definitions or assertions 
 
     def normalize(x, y, z):
         length = sqrt(x ** 2 + y ** 2 + z ** 2)
+        assert length > 0
         return x / length, y / length, z / length
 
 
@@ -66,11 +67,18 @@ A function body consists of several value or function definitions or assertions 
 
         return wrapper
 
+
     @adder
     def f(x):
         return x
 
 
+    def check_call(seq):
+        assert seq, seq
+        return f(seq[0])
+
+
+Even though the scopes are lazy, all the assertions are always evaluated (just before the return statement).
 
 Imports
 ~~~~~~~
@@ -94,4 +102,4 @@ case from ``./some_config.config``, ``./folder/dataset.config`` and ``../upper/a
     from ..upper.another import *
     from .folder.dataset import DataSet as D
 
-Note, that you can use starred imports (``from a import *``) only when importing from another config.
+Note, that you can use starred imports (e.g. ``from a import *``) only when importing from another config.

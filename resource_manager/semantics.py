@@ -64,7 +64,7 @@ class Semantics(Visitor):
             raise SemanticError(message)
         return tree.leave_time
 
-    def enter_scope(self, names: ScopeDict, visited=()):
+    def enter_scope(self, names: ScopeDict, visited: Iterable[str] = ()):
         scope = OrderedDict()
         for name, value in names.items():
             scope[name] = [value, None]
@@ -267,13 +267,16 @@ class Semantics(Visitor):
 
         def get_names(target):
             assert isinstance(target.ctx, ast.Store)
-            names = []
             if isinstance(target, (ast.Tuple, ast.List)):
+                names = []
                 for elt in target.elts:
                     names.extend(get_names(elt))
                 return names
 
-            assert isinstance(target, ast.Name)
+            if isinstance(target, ast.Starred):
+                return [target.value]
+
+            assert isinstance(target, ast.Name), target
             return [target.id]
 
         self.visit(node.iter)
@@ -286,7 +289,7 @@ class Semantics(Visitor):
 
     def visit_assertion_wrapper(self, node: AssertionWrapper):
         self.visit(node.test)
-        if node.message:
+        if node.message is not None:
             self.visit(node.message)
 
     # imports

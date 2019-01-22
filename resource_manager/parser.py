@@ -15,6 +15,7 @@ def throw(message, position):
 
 
 def get_substring(lines, start_line, start_col, stop_line=None, stop_col=None) -> str:
+    # TODO: remove comments
     lines = list(lines[start_line - 1:stop_line])
 
     lines[-1] = lines[-1][:stop_col]
@@ -44,50 +45,12 @@ class Normalizer(Visitor):
     def get_position(self, node: ast.AST):
         return node.lineno, node.col_offset, self.source_path
 
-    @staticmethod
-    def normalize(node, stop, lines, source_path):
-        return Normalizer(stop, lines, source_path).visit(node)
+    @classmethod
+    def normalize(cls, node, stop, lines, source_path):
+        return cls(stop, lines, source_path).visit(node)
 
     def generic_visit(self, node, *args, **kwargs):
         throw('This syntactic structure is not supported.', self.get_position(node))
-
-    def visit_assign(self, node: ast.Assign):
-        position = self.get_position(node.value)
-
-        last_target = node.targets[-1]
-        body = self.get_body(last_target)
-        assert body[:len(last_target.id)] == last_target.id
-        body = body[len(last_target.id):].lstrip()
-        assert body[0] == '='
-        body = body[1:].lstrip()
-
-        expression = ExpressionStatement(node.value, body, position)
-
-        for target in node.targets:
-            if not isinstance(target, ast.Name):
-                throw('This assignment syntax is not supported.', self.get_position(target))
-            assert isinstance(target.ctx, ast.Store)
-
-            yield target.id, expression
-
-    def visit_import_from(self, node: ast.ImportFrom):
-        names = node.names
-        root = node.module.split('.')
-        position = self.get_position(node)
-        if len(names) == 1 and names[0].name == '*':
-            yield None, ImportStarred(root, node.level, position)
-            return
-
-        for alias in names:
-            name = alias.asname or alias.name
-            yield name, UnifiedImport(root, node.level, alias.name.split(','), alias.asname is not None, position)
-
-    def visit_import(self, node: ast.Import):
-        position = self.get_position(node)
-
-        for alias in node.names:
-            name = alias.asname or alias.name
-            yield name, UnifiedImport('', 0, alias.name.split('.'), alias.asname is not None, position)
 
     def visit_function_def(self, node: ast.FunctionDef):
         *raw_bindings, ret = node.body
@@ -102,20 +65,11 @@ class Normalizer(Visitor):
         # bindings
         bindings, assertions = [], []
         for statement, stop in zip(raw_bindings, node.body[1:]):
-            if not isinstance(statement, (ast.Assign, ast.FunctionDef, ast.Assert)):
-                throw('A function definition must consist of value or function definitions or assertions '
-                      'followed by a return statement.', self.get_position(statement))
-
-            if isinstance(statement, ast.Assign) and len(statement.targets) != 1:
-                throw('Assignments inside function must have a single target.', self.get_position(statement))
-
+            value = LocalNormalizer.normalize(statement, stop, self.lines, self.source_path)
             if isinstance(statement, ast.Assert):
-                assertions.append(AssertionWrapper(statement.test, statement.msg, self.get_position(statement)))
+                assertions.extend(value)
             else:
-                bindings.extend(Normalizer.normalize(statement, stop, self.lines, self.source_path))
-
-        # return statement
-        expression = ExpressionWrapper(ret.value, self.get_position(ret.value))
+                bindings.extend(value)
 
         # parameters
         args = node.args
@@ -157,9 +111,65 @@ class Normalizer(Visitor):
                 break
 
         yield node.name, Function(
-            Signature(parameters), bindings, expression, decorators, assertions,
-            node.name, (start, stop), self.get_position(node)
+            Signature(parameters), bindings, ExpressionWrapper(ret.value, self.get_position(ret.value)),
+            decorators, assertions, node.name, (start, stop), self.get_position(node)
         )
+
+
+class LocalNormalizer(Normalizer):
+    def visit_assert(self, node: ast.Assert):
+        yield AssertionWrapper(node.test, node.msg, self.get_position(node))
+
+    def visit_assign(self, node: ast.Assign):
+        if len(node.targets) != 1:
+            throw('Assignments inside functions must have a single target.', self.get_position(node))
+
+        expression = ExpressionWrapper(node.value, self.get_position(node.value))
+
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            throw('This assignment syntax is not supported.', self.get_position(target))
+        assert isinstance(target.ctx, ast.Store)
+        yield target.id, expression
+
+
+class GlobalNormalizer(Normalizer):
+    def visit_assign(self, node: ast.Assign):
+        position = self.get_position(node.value)
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                throw('This assignment syntax is not supported.', self.get_position(target))
+            assert isinstance(target.ctx, ast.Store)
+
+        last_target = node.targets[-1]
+        body = self.get_body(last_target)
+        assert body[:len(last_target.id)] == last_target.id
+        body = body[len(last_target.id):].lstrip()
+        assert body[0] == '='
+        body = body[1:].lstrip()
+
+        expression = ExpressionStatement(node.value, body, position)
+        for target in node.targets:
+            yield target.id, expression
+
+    def visit_import_from(self, node: ast.ImportFrom):
+        names = node.names
+        root = node.module.split('.')
+        position = self.get_position(node)
+        if len(names) == 1 and names[0].name == '*':
+            yield None, ImportStarred(root, node.level, position)
+            return
+
+        for alias in names:
+            name = alias.asname or alias.name
+            yield name, UnifiedImport(root, node.level, alias.name.split(','), alias.asname is not None, position)
+
+    def visit_import(self, node: ast.Import):
+        position = self.get_position(node)
+
+        for alias in node.names:
+            name = alias.asname or alias.name
+            yield name, UnifiedImport('', 0, alias.name.split('.'), alias.asname is not None, position)
 
 
 def parse(source: str, source_path: str):
@@ -167,7 +177,7 @@ def parse(source: str, source_path: str):
     lines = tuple(source.splitlines())
     wrapped = []
     for statement, stop in zip(statements, statements[1:] + [None]):
-        wrapped.extend(Normalizer.normalize(statement, stop, lines, source_path))
+        wrapped.extend(GlobalNormalizer.normalize(statement, stop, lines, source_path))
 
     parents, imports, definitions = [], [], []
     for name, w in wrapped:
