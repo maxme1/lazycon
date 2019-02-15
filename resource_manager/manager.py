@@ -1,13 +1,11 @@
 import os
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from itertools import starmap
 from pathlib import Path
-from typing import List
 
 from .semantics import Semantics
-from .wrappers import ImportStarred, UnifiedImport
-from .exceptions import ResourceError, ExceptionWrapper
-from .scope import Scope, add_if_missing, Builtins
+from .exceptions import ResourceError, ExceptionWrapper, SemanticError
+from .scope import Scope, Builtins
 from .parser import parse_file, parse_string
 
 
@@ -142,32 +140,32 @@ class ResourceManager:
         self._imported_configs[path] = result
         return result
 
-    def _get_resources(self, parents: List[ImportStarred], imports: List[UnifiedImport], definitions) -> OrderedDict:
-
+    def _get_resources(self, parents, imports, definitions) -> OrderedDict:
         parent_scope = OrderedDict()
         for parent in parents:
             parent_scope.update(self._import(parent.get_path(self._shortcuts)))
 
-        scope = OrderedDict()
-        for name, import_ in imports:
-            if import_.is_config_import(self._shortcuts):
+        scope = []
+        for name, node in imports:
+            if node.is_config_import(self._shortcuts):
                 # TODO: should warn about ambiguous shortcut names:
                 # importlib.util.find_spec(shortcut)
-                local = self._import(import_.get_path(self._shortcuts))
-                what = import_.what
+                local = self._import(node.get_path(self._shortcuts))
+                what = node.what
                 assert len(what) == 1
                 what = what[0]
                 if what not in local:
                     raise NameError('"%s" is not defined in the config it is imported from.\n' % what +
-                                    '  at %d:%d in %s' % import_.position)
+                                    '  at %d:%d in %s' % node.position)
                 node = local[what]
-            else:
-                node = import_
-            # TODO: replace by a list
-            add_if_missing(scope, name, node)
 
-        for name, definition in definitions:
-            add_if_missing(scope, name, definition)
+            scope.append((name, node))
+
+        scope.extend(definitions)
+        duplicates = [name for name, count in Counter(name for name, _ in scope).items() if count > 1]
+        if duplicates:
+            source_path = (imports or definitions)[0][1].source_path
+            raise SemanticError('Duplicate definitions found in %s:\n    %s' % (source_path, ', '.join(duplicates)))
 
         final_scope = OrderedDict(parent_scope.items())
         final_scope.update(scope)

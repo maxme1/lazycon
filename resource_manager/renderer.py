@@ -81,6 +81,7 @@ class Renderer(Visitor):
 
         signature = node.signature.replace(parameters=parameters)
         function_.__signature__ = signature
+        function_.__doc__ = node.docstring
         function_.__name__ = function_.__qualname__ = node.original_name
         for decorator in reversed(node.decorators):
             function_ = self.visit(decorator)(function_)

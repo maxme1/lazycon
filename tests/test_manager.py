@@ -114,6 +114,7 @@ def f(x):
         self.assertListEqual([1, 2, 3, 10, 10], rm.qsort([2, 1, 3, 10, 10]))
         self.assertEqual(2, rm.returner(2)())
         self.assertEqual(1, rm.h_with_defaults(0, n=3))
+        self.assertEqual('docstring', rm.doc.__doc__)
 
     def test_assertions(self):
         rm = read_config('statements/funcdef.config')

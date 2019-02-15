@@ -57,10 +57,10 @@ class Normalizer(Visitor):
         if not isinstance(ret, ast.Return):
             throw('Functions must end with a return statement.', self.get_position(ret))
 
-        # TODO: docstring is simply ignored for now
         # docstring
-        if raw_bindings and isinstance(raw_bindings[0], ast.Str):
-            raw_bindings = raw_bindings[1:]
+        docstring = None
+        if raw_bindings and isinstance(raw_bindings[0], ast.Expr) and isinstance(raw_bindings[0].value, ast.Str):
+            docstring, raw_bindings = raw_bindings[0].value.s, raw_bindings[1:]
 
         # bindings
         bindings, assertions = [], []
@@ -111,7 +111,7 @@ class Normalizer(Visitor):
                 break
 
         yield node.name, Function(
-            Signature(parameters), bindings, ExpressionWrapper(ret.value, self.get_position(ret.value)),
+            Signature(parameters), docstring, bindings, ExpressionWrapper(ret.value, self.get_position(ret.value)),
             decorators, assertions, node.name, (start, stop), self.get_position(node)
         )
 

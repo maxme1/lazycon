@@ -10,12 +10,6 @@ from .exceptions import ResourceError, SemanticError, ExceptionWrapper
 ScopeDict = Dict[str, Wrapper]
 
 
-def add_if_missing(target: dict, name, node):
-    if name in target:
-        raise SemanticError('Duplicate definition of resource "%s" in %s' % (name, node.source_path))
-    target[name] = node
-
-
 class Thunk:
     pass
 
