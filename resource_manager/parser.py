@@ -118,7 +118,7 @@ class Normalizer(Visitor):
 
 class LocalNormalizer(Normalizer):
     def visit_assert(self, node: ast.Assert):
-        yield AssertionWrapper(node.test, node.msg, self.get_position(node))
+        yield AssertionWrapper(node, self.get_position(node))
 
     def visit_assign(self, node: ast.Assign):
         if len(node.targets) != 1:

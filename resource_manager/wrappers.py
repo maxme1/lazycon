@@ -31,10 +31,9 @@ class ExpressionWrapper(Wrapper):
 
 
 class AssertionWrapper(Wrapper):
-    def __init__(self, test, message, position):
+    def __init__(self, assertion: ast.Assert, position):
         super().__init__(position)
-        self.message = message
-        self.test = test
+        self.assertion = assertion
 
 
 def dotted(x):

@@ -288,9 +288,9 @@ class Semantics(Visitor):
     # statements
 
     def visit_assertion_wrapper(self, node: AssertionWrapper):
-        self.visit(node.test)
-        if node.message is not None:
-            self.visit(node.message)
+        self.visit(node.assertion.test)
+        if node.assertion.msg is not None:
+            self.visit(node.assertion.msg)
 
     # imports
 

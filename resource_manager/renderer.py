@@ -12,16 +12,13 @@ class Renderer(Visitor):
     def __init__(self, global_scope):
         self.global_scope = global_scope
 
-    def _compile_run(self, expression, source_path):
-        code = compile(ast.Expression(expression), source_path, 'eval')
-        return eval(code, scope.ScopeWrapper(self.global_scope))
-
     @staticmethod
     def render(node, global_scope):
         return Renderer(global_scope).visit(node)
 
     def visit_expression_wrapper(self, node: ExpressionWrapper):
-        return self._compile_run(node.expression, node.source_path)
+        code = compile(ast.Expression(node.expression), node.source_path, 'eval')
+        return eval(code, scope.ScopeWrapper(self.global_scope))
 
     visit_expression_statement = visit_expression_wrapper
 
@@ -46,12 +43,8 @@ class Renderer(Visitor):
         return importlib.import_module(from_ + '.' + what)
 
     def visit_assertion_wrapper(self, node: AssertionWrapper):
-        if not self._compile_run(node.test, node.source_path):
-            exception = AssertionError
-            if node.message is not None:
-                exception = AssertionError(self._compile_run(node.message, node.source_path))
-
-            raise exception
+        code = compile(ast.Module([node.assertion]), node.source_path, 'exec')
+        return exec(code, scope.ScopeWrapper(self.global_scope))
 
     def visit_function(self, node: Function):
         def function_(*args, **kwargs):
