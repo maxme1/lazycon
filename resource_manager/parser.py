@@ -95,9 +95,7 @@ class Normalizer(Visitor):
             parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_KEYWORD))
 
         # decorators
-        decorators = []
-        for decorator in node.decorator_list:
-            decorators.append(ExpressionWrapper(decorator, self.get_position(decorator)))
+        decorators = [ExpressionWrapper(decorator, self.get_position(decorator)) for decorator in node.decorator_list]
 
         # body
         body = self.get_body(node)

@@ -4,7 +4,7 @@ from itertools import starmap
 from pathlib import Path
 
 from .semantics import Semantics
-from .exceptions import ResourceError, ExceptionWrapper, SemanticError
+from .exceptions import ResourceError, ExceptionWrapper, SemanticError, ConfigImportError
 from .scope import Scope, Builtins
 from .parser import parse_file, parse_string
 
@@ -33,7 +33,7 @@ class ResourceManager:
     def read_config(cls, path: str, shortcuts: dict = None, injections: dict = None):
         """
         Import the config located at `path` and return a ResourceManager instance.
-        Also this methods adds a `__file__ = pathlib.Path(path)` value to the global scope.
+        Also this method adds a `__file__ = pathlib.Path(path)` value to the global scope.
 
         Parameters
         ----------
@@ -147,17 +147,20 @@ class ResourceManager:
 
         scope = []
         for name, node in imports:
-            if node.is_config_import(self._shortcuts):
-                # TODO: should warn about ambiguous shortcut names:
-                # importlib.util.find_spec(shortcut)
-                local = self._import(node.get_path(self._shortcuts))
-                what = node.what
-                assert len(what) == 1
-                what = what[0]
-                if what not in local:
-                    raise NameError('"%s" is not defined in the config it is imported from.\n' % what +
-                                    '  at %d:%d in %s' % node.position)
-                node = local[what]
+            if node.potentially_config():
+                try:
+                    # TODO: should warn about ambiguous shortcut names:
+                    # importlib.util.find_spec(shortcut)
+                    local = self._import(node.get_path(self._shortcuts))
+                    what = node.what
+                    assert len(what) == 1
+                    what = what[0]
+                    if what not in local:
+                        raise NameError('"%s" is not defined in the config it is imported from.\n' % what +
+                                        '  at %d:%d in %s' % node.position)
+                    node = local[what]
+                except ConfigImportError:
+                    pass
 
             scope.append((name, node))
 

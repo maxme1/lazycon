@@ -1,7 +1,10 @@
 import ast
 import inspect
 import os
+import sys
 from typing import Iterable, Sequence, Tuple
+
+from .exceptions import ConfigImportError
 
 
 class Wrapper(ast.AST):
@@ -47,17 +50,30 @@ class BaseImport(Wrapper):
         self.dots = dots
 
     def get_path(self, shortcuts):
-        if self.dots == 0:
-            shortcut, *root = self.root
-            if shortcut not in shortcuts:
-                raise ImportError('Shortcut "%s" is not found while parsing "%s".' % (shortcut, self.source_path))
-
-            prefix = shortcuts[shortcut]
-        else:
+        # relative import
+        if self.dots > 0:
             root = (os.pardir,) * (self.dots - 1) + self.root
             prefix = os.path.dirname(self.source_path)
+            return os.path.join(prefix, *root) + '.config'
 
-        return os.path.join(prefix, *root) + '.config'
+        # import by shortcut
+        shortcut, *root = self.root
+        if shortcut in shortcuts:
+            return os.path.join(shortcuts[shortcut], *root) + '.config'
+
+        # import by sys.path
+        visited = set()
+        for prefix in sys.path:
+            # optimizing disk access
+            if prefix in visited:
+                continue
+            visited.add(prefix)
+
+            path = os.path.join(prefix, *self.root) + '.config'
+            if os.path.exists(path):
+                return path
+
+        raise ConfigImportError('Shortcut "%s" is not found while parsing "%s".' % (shortcut, self.source_path))
 
     def _to_str(self):
         result = ''
@@ -81,8 +97,8 @@ class UnifiedImport(BaseImport):
         self.what = tuple(what)
         self.as_ = as_
 
-    def is_config_import(self, shortcuts):
-        return self.root and (self.dots > 0 or self.root in shortcuts)
+    def potentially_config(self):
+        return bool(self.root)
 
     def import_what(self, name):
         result = dotted(self.what)
