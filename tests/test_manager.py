@@ -33,6 +33,22 @@ b = sum(a)
         self.assertEqual(rm.link_, rm.link)
         self.assertEqual(rm.func_, rm.func)
 
+    def test_update(self):
+        rm = read_string('a = 1').update(a=2)
+        rm2 = read_string('a = 1').string_input('a = 2')
+        self.assertEqual(rm.a, rm2.a)
+
+        rm = read_string('a = 1').update(a=2).string_input('a = 3')
+        self.assertEqual(rm.a, 3)
+
+        with self.assertRaises(RuntimeError):
+            read_string('a = 1').update(a=2).render_config()
+
+        with self.assertRaises(RuntimeError):
+            rm = read_string('a = 1')
+            rm.a
+            rm.update(a=2)
+
     def test_multiple_definitions(self):
         rm = read_config('statements/multiple_definitions.config')
         self.assertEqual('''a = b = c = 1\n\nd = a\n''', rm.render_config())

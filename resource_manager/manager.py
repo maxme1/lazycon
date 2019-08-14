@@ -1,12 +1,14 @@
 import os
 from collections import OrderedDict, Counter
-from itertools import starmap
 from pathlib import Path
+from typing import Union, Dict, Any
 
 from .semantics import Semantics
 from .exceptions import ResourceError, ExceptionWrapper, SemanticError, ConfigImportError
 from .scope import Scope, Builtins
 from .parser import parse_file, parse_string
+
+PathLike = Union[Path, str]
 
 
 class ResourceManager:
@@ -23,14 +25,14 @@ class ResourceManager:
     # restricting setattr to these names
     __slots__ = '_shortcuts', '_imported_configs', '_scope', '_leave_time'
 
-    def __init__(self, shortcuts: dict = None, injections: dict = None):
+    def __init__(self, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._scope = Scope(Builtins(injections or {}))
         self._leave_time = {}
 
     @classmethod
-    def read_config(cls, path: str, shortcuts: dict = None, injections: dict = None):
+    def read_config(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         """
         Import the config located at `path` and return a ResourceManager instance.
         Also this method adds a `__file__ = pathlib.Path(path)` value to the global scope.
@@ -51,13 +53,13 @@ class ResourceManager:
         key = '__file__'
         injections = dict(injections or {})
         if key in injections:
-            raise ValueError('The "__file__" key is not allowed in "injections".')
+            raise ValueError('The "%s" key is not allowed in "injections".' % key)
 
         injections[key] = Path(cls._standardize_path(path))
         return cls(shortcuts, injections).import_config(path)
 
     @classmethod
-    def read_string(cls, source: str, shortcuts: dict = None, injections: dict = None):
+    def read_string(cls, source: str, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         """
         Interpret the `source` and return a ResourceManager instance.
 
@@ -75,7 +77,7 @@ class ResourceManager:
         """
         return cls(shortcuts, injections).string_input(source)
 
-    def import_config(self, path: str):
+    def import_config(self, path: PathLike):
         """Import the config located at `path`."""
         self._update_resources(self._import(path))
         return self
@@ -83,6 +85,11 @@ class ResourceManager:
     def string_input(self, source: str):
         """Interpret the `source`."""
         self._update_resources(self._get_resources(*parse_string(source)))
+        return self
+
+    def update(self, **values: Any):
+        """Update the scope by `values`."""
+        self._scope.update_values(values)
         return self
 
     def render_config(self) -> str:
@@ -113,17 +120,16 @@ class ResourceManager:
             raise e.exception from None
 
     def _update_resources(self, scope: OrderedDict):
-        if self._scope.populated:
-            raise RuntimeError('The scope has already been populated with live objects. Overwriting them might cause '
-                               'undefined behaviour. Please, create another instance of ResourceManager.')
+        self._scope.check_populated()
 
         updated_scope = self._scope.get_name_to_statement()
         updated_scope.update(scope)
         self._leave_time = Semantics.analyze(updated_scope, self._scope.parent)
-        list(starmap(self._scope.update_value, scope.items()))
+        self._scope.update_statements(scope.items())
 
     @staticmethod
-    def _standardize_path(path: str):
+    def _standardize_path(path: PathLike) -> str:
+        path = str(path)
         path = os.path.expanduser(path)
         path = os.path.realpath(path)
         return path

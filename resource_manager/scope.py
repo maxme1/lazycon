@@ -1,4 +1,5 @@
 import builtins
+from ast import NameConstant
 from collections import defaultdict, OrderedDict
 from threading import Lock
 from typing import Dict, Any
@@ -50,13 +51,22 @@ class Scope(OrderedDict):
         super().__init__()
         self.parent = parent
         self._statement_to_thunk = {}
-        self.populated = False
+        self._populated = False
+        self._updated = False
+
+    def check_populated(self):
+        if self._populated:
+            raise RuntimeError('The scope has already been populated with live objects. Overwriting them might cause '
+                               'undefined behaviour. Please, create another instance of ResourceManager.')
 
     def get_name_to_statement(self):
         statements = {v: k for k, v in self._statement_to_thunk.items()}
         return {name: statements[thunk] for name, thunk in self.items()}
 
     def render(self, order: dict):
+        if self._updated:
+            raise RuntimeError('The scope has already been updated by live objects that cannot be rendered properly.')
+
         names = self.get_name_to_statement()
         groups = defaultdict(list)
         for name, statement in names.items():
@@ -101,11 +111,26 @@ class Scope(OrderedDict):
         assert name not in self
         self._set_thunk(name, ValueThunk(value))
 
-    def update_value(self, name, statement):
-        if statement not in self._statement_to_thunk:
-            self._statement_to_thunk[statement] = NodeThunk(statement)
+    # TODO: unify these functions
+    def update_values(self, values: dict):
+        self._updated = True
+        self.check_populated()
 
-        self._set_thunk(name, self._statement_to_thunk[statement])
+        for name, value in values.items():
+            statement = NameConstant(value)
+            if statement not in self._statement_to_thunk:
+                self._statement_to_thunk[statement] = ValueThunk(value)
+
+            self._set_thunk(name, self._statement_to_thunk[statement])
+
+    def update_statements(self, items):
+        self.check_populated()
+
+        for name, statement in items:
+            if statement not in self._statement_to_thunk:
+                self._statement_to_thunk[statement] = NodeThunk(statement)
+
+            self._set_thunk(name, self._statement_to_thunk[statement])
 
     def __setitem__(self, key, value):
         raise NotImplementedError
@@ -121,7 +146,7 @@ class Scope(OrderedDict):
         assert isinstance(thunk, NodeThunk)
         with thunk.lock:
             if not thunk.ready:
-                self.populated = True
+                self._populated = True
                 thunk.value = Renderer.render(thunk.statement, self)
                 thunk.ready = True
 

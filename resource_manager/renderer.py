@@ -56,8 +56,7 @@ class Renderer(Visitor):
                 raise TypeError('Undefined argument(s): ' + ', '.join(not_defined))
 
             local_scope = scope.Scope(self.global_scope)
-            for name, binding in node.bindings:
-                local_scope.update_value(name, binding)
+            local_scope.update_statements(node.bindings)
             for name, value in arguments.arguments.items():
                 local_scope.add_value(name, value)
 
