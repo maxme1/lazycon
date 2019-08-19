@@ -1,3 +1,3 @@
 from .manager import ResourceManager, read_config, read_string
 
-__version__ = '0.9.3'
+__version__ = '0.10.0'

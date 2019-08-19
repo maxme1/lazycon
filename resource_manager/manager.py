@@ -155,8 +155,6 @@ class ResourceManager:
         for name, node in imports:
             if node.potentially_config():
                 try:
-                    # TODO: should warn about ambiguous shortcut names:
-                    # importlib.util.find_spec(shortcut)
                     local = self._import(node.get_path(self._shortcuts))
                     what = node.what
                     assert len(what) == 1
