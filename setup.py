@@ -26,10 +26,11 @@ setup(
         'config', 'lazy', 'interpreter'
     ],
     classifiers=classifiers.splitlines(),
-    install_requires=[],
+    install_requires=['autocommand'],
     entry_points={
         'console_scripts': [
             'run-config = resource_manager.console:render_config_resource',
+            'build-config = resource_manager.console:build_config'
         ],
     },
 )

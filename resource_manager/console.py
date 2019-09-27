@@ -1,5 +1,7 @@
 import argparse
 
+from autocommand import autocommand
+
 from resource_manager import read_config
 
 
@@ -13,3 +15,10 @@ def render_config_resource():
     value = read_config(args.config).get_resource(args.name)
     if value is not None:
         print(value)
+
+
+def build_config():
+    @autocommand(True)
+    def _build_config(source, target):
+        """Expand all config imports in `source` to create a single config with all resources and put it to `target`."""
+        read_config(source).save_config(target)
