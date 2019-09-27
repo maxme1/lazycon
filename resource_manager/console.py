@@ -1,7 +1,5 @@
 import argparse
 
-from autocommand import autocommand
-
 from resource_manager import read_config
 
 
@@ -18,7 +16,9 @@ def render_config_resource():
 
 
 def build_config():
-    @autocommand(True)
-    def _build_config(source, target):
-        """Expand all config imports in `source` to create a single config with all resources and put it to `target`."""
-        read_config(source).save_config(target)
+    parser = argparse.ArgumentParser(description='Expand all config imports in `source` to create a single config '
+                                                 'with all resources and put it to `target`.')
+    parser.add_argument('source')
+    parser.add_argument('target')
+    args = parser.parse_args()
+    read_config(args.source).save_config(args.target)
