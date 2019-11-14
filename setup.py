@@ -30,6 +30,7 @@ setup(
     entry_points={
         'console_scripts': [
             'run-config = resource_manager.console:render_config_resource',
+            'build-config = resource_manager.console:build_config'
         ],
     },
 )
