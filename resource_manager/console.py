@@ -1,5 +1,7 @@
 import argparse
 
+from pathlib import Path
+
 from resource_manager import read_config
 
 
@@ -22,4 +24,7 @@ def build_config():
     parser.add_argument('input', help='Path to the input config file.')
     parser.add_argument('output', help='Path to the output config file.')
     args = parser.parse_args()
-    read_config(args.input).save_config(args.output)
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    read_config(args.input).save_config(output)
