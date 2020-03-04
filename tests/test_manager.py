@@ -185,6 +185,13 @@ def f(x):
         except BaseException:
             self.fail()
 
+    def test_eval(self):
+        rm = read_config('statements/funcdef.config')
+        assert rm.eval('f') == rm.f
+        assert rm.eval('f()') == 1
+        assert rm.eval('qsort([4,2,1,3])') == [1, 2, 3, 4]
+        assert rm.eval('returner(10)')() == 10
+
     def test_literals(self):
         rm = read_config('expressions/literals.config')
         self.assertListEqual([

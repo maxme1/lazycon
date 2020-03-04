@@ -1,13 +1,9 @@
-import re
 from inspect import Parameter, Signature
 from io import BytesIO
-from tokenize import tokenize, tok_name
+from tokenize import tokenize
 
 from .visitor import Visitor
-from .exceptions import DeprecationError
 from .wrappers import *
-
-PARTIAL = re.compile(r'^#\s*(lazy|partial)\s*$')
 
 
 def throw(message, position):
@@ -211,12 +207,6 @@ def parse(source: str, source_path: str):
         else:
             assert isinstance(w, (Function, ExpressionStatement))
             definitions.append((name, w))
-
-    # TODO: this is legacy
-    for token in tokenize_string(source):
-        if tok_name[token.type] == 'COMMENT' and PARTIAL.match(token.string.strip()):
-            raise DeprecationError('The "# partial" syntax is not supported anymore.\n'
-                                   '    Your config contains such a comment in %s' % source_path)
 
     return parents, imports, definitions
 

@@ -1,7 +1,3 @@
-class DeprecationError(Exception):
-    pass
-
-
 class SemanticError(SyntaxError):
     pass
 

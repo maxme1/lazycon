@@ -5,7 +5,7 @@ from typing import Union, Dict, Any
 
 from .semantics import Semantics
 from .exceptions import ResourceError, ExceptionWrapper, SemanticError, ConfigImportError
-from .scope import Scope, Builtins
+from .scope import Scope, Builtins, ScopeWrapper
 from .parser import parse_file, parse_string, flatten_assignment
 
 PathLike = Union[Path, str]
@@ -116,6 +116,13 @@ class ResourceManager:
     def get_resource(self, name: str):
         try:
             return self._scope[name]
+        except ExceptionWrapper as e:
+            raise e.exception from None
+
+    def eval(self, expression: str):
+        """Evaluate the given `expression`."""
+        try:
+            return eval(expression, ScopeWrapper(self._scope))
         except ExceptionWrapper as e:
             raise e.exception from None
 
