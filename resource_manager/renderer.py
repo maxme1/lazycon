@@ -4,7 +4,7 @@ import sys
 from inspect import Parameter
 
 from .visitor import Visitor
-from .wrappers import ExpressionWrapper, UnifiedImport, Function, AssertionWrapper
+from .wrappers import ExpressionWrapper, UnifiedImport, Function, AssertionWrapper, PatternAssignment
 from . import scope
 
 
@@ -19,6 +19,12 @@ class Renderer(Visitor):
     def visit_expression_wrapper(self, node: ExpressionWrapper):
         code = compile(ast.Expression(node.expression), node.source_path, 'eval')
         return eval(code, scope.ScopeWrapper(self.global_scope))
+
+    def visit_pattern_assignment(self, node: PatternAssignment):
+        value = self.visit_expression_wrapper(node)
+        if not isinstance(node.pattern, str):
+            value = tuple(value)
+        return value
 
     visit_expression_statement = visit_expression_wrapper
 

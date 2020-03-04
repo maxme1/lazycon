@@ -6,7 +6,7 @@ from typing import Union, Dict, Any
 from .semantics import Semantics
 from .exceptions import ResourceError, ExceptionWrapper, SemanticError, ConfigImportError
 from .scope import Scope, Builtins
-from .parser import parse_file, parse_string
+from .parser import parse_file, parse_string, flatten_assignment
 
 PathLike = Union[Path, str]
 
@@ -156,9 +156,7 @@ class ResourceManager:
             if node.potentially_config():
                 try:
                     local = self._import(node.get_path(self._shortcuts))
-                    what = node.what
-                    assert len(what) == 1
-                    what = what[0]
+                    what, = node.what
                     if what not in local:
                         raise NameError('"%s" is not defined in the config it is imported from.\n' % what +
                                         '  at %d:%d in %s' % node.position)
@@ -169,7 +167,10 @@ class ResourceManager:
             scope.append((name, node))
 
         scope.extend(definitions)
-        duplicates = [name for name, count in Counter(name for name, _ in scope).items() if count > 1]
+        duplicates = [
+            name for name, count in
+            Counter(sum([flatten_assignment(pattern) for pattern, _ in scope], [])).items() if count > 1
+        ]
         if duplicates:
             source_path = (imports or definitions)[0][1].source_path
             raise SemanticError('Duplicate definitions found in %s:\n    %s' % (source_path, ', '.join(duplicates)))

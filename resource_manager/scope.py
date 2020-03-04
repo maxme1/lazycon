@@ -4,7 +4,7 @@ from collections import defaultdict, OrderedDict
 from threading import Lock
 from typing import Dict, Any
 
-from .wrappers import Wrapper, UnifiedImport
+from .wrappers import Wrapper, UnifiedImport, PatternAssignment
 from .renderer import Renderer
 from .exceptions import ResourceError, SemanticError, ExceptionWrapper
 
@@ -12,14 +12,18 @@ ScopeDict = Dict[str, Wrapper]
 
 
 class Thunk:
-    pass
+    def match(self, name):
+        raise NotImplementedError
 
 
 class ValueThunk(Thunk):
     def __init__(self, value):
         assert not isinstance(value, Thunk)
-        self.value = value
+        self._value = value
         self.ready = True
+
+    def match(self, name):
+        return self._value
 
 
 class NodeThunk(Thunk):
@@ -27,7 +31,52 @@ class NodeThunk(Thunk):
         self.lock = Lock()
         self.statement = statement
         self.ready = False
-        self.value = None
+        self._value = None
+
+    @staticmethod
+    def _match(name, pattern):
+        if isinstance(pattern, str):
+            yield name == pattern, []
+            return
+
+        assert isinstance(pattern, tuple)
+        min_size = max_size = len(pattern)
+        for idx, entry in enumerate(pattern):
+            level = idx, min_size, max_size
+            for match, levels in NodeThunk._match(name, entry):
+                yield match, [level] + levels
+
+    def set(self, value):
+        assert not self.ready
+        self._value = value
+        self.ready = True
+
+    def match(self, name):
+        assert self.ready
+        value = self._value
+        # TODO: probably need a subclass
+        if not isinstance(self.statement, PatternAssignment):
+            return value
+
+        pattern = self.statement.pattern
+        if isinstance(pattern, str):
+            return value
+
+        for match, levels in self._match(name, pattern):
+            if match:
+                for idx, min_size, max_size in levels:
+                    size = len(value)
+                    if size < min_size:
+                        raise ValueError('not enough values to unpack (expected %d)' % max_size)
+                    if size > max_size:
+                        raise ValueError('too many values to unpack (expected %d)' % max_size)
+
+                    value = value[idx]
+
+                return value
+
+        # unreachable code
+        assert False
 
 
 class Builtins(dict):
@@ -67,13 +116,14 @@ class Scope(OrderedDict):
         if self._updated:
             raise RuntimeError('The scope has already been updated by live objects that cannot be rendered properly.')
 
+        # grouping imports
         names = self.get_name_to_statement()
         groups = defaultdict(list)
         for name, statement in names.items():
             groups[statement].append(name)
 
         import_groups, imports, definitions = defaultdict(list), [], []
-        for statement, names in sorted(groups.items(), key=lambda x: min(order[name] for name in x[1])):
+        for statement, names in sorted(groups.items(), key=lambda x: min(order[n] for n in x[1])):
             pair = sorted(names), statement
             if isinstance(statement, UnifiedImport):
                 if statement.root:
@@ -141,16 +191,15 @@ class Scope(OrderedDict):
 
         thunk = super().__getitem__(name)
         if thunk.ready:
-            return thunk.value
+            return thunk.match(name)
 
         assert isinstance(thunk, NodeThunk)
         with thunk.lock:
             if not thunk.ready:
                 self._populated = True
-                thunk.value = Renderer.render(thunk.statement, self)
-                thunk.ready = True
+                thunk.set(Renderer.render(thunk.statement, self))
 
-            return thunk.value
+            return thunk.match(name)
 
 
 class ScopeWrapper(Dict[str, Any]):

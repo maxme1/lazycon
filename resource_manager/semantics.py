@@ -139,7 +139,7 @@ class Semantics(Visitor):
     def visit_expression_statement(self, node: ExpressionStatement):
         self.visit(node.expression)
 
-    visit_expression_wrapper = visit_expression_statement
+    visit_pattern_assignment = visit_expression_wrapper = visit_expression_statement
 
     # literals
 

@@ -33,6 +33,12 @@ class ExpressionWrapper(Wrapper):
         self.expression = expression
 
 
+class PatternAssignment(ExpressionWrapper):
+    def __init__(self, expression: ast.AST, pattern, position):
+        super().__init__(expression, position)
+        self.pattern = pattern
+
+
 class AssertionWrapper(Wrapper):
     def __init__(self, assertion: ast.Assert, position):
         super().__init__(position)
