@@ -138,6 +138,24 @@ def f(x):
         with self.assertRaises(AssertionError):
             rm.assertion(False)
 
+    def test_unpacking(self):
+        rm = read_config('statements/funcdef.config')
+        self.assertEqual(3, rm.unpack([1, 2]))
+        self.assertEqual((1, 2, 3), rm.nested_unpack([1, [2, 3]]))
+        self.assertEqual((1, 2), rm.deep_unpack([[[[[[1]]]]], 2]))
+        self.assertEqual([[1]], rm.single_unpack([[[1]]]))
+        with self.assertRaises(TypeError):
+            rm.unpack(1)
+        with self.assertRaises(ValueError):
+            rm.unpack([1])
+        with self.assertRaises(ValueError):
+            rm.unpack([1, 2, 3])
+
+        with self.assertRaises(SyntaxError):
+            read_string('a, b = 1, 2')
+        with self.assertRaises(SyntaxError):
+            read_string('def f(x): a, *b = x; return a')
+
     def test_decorators(self):
         rm = read_config('statements/funcdef.config')
         self.assertEqual(1, rm.one(0))

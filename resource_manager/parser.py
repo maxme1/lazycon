@@ -28,6 +28,16 @@ def tokenize_string(source):
     return tokenize(BytesIO(source.encode()).readline)
 
 
+def flatten_assignment(pattern):
+    if isinstance(pattern, str):
+        return [pattern]
+
+    result = []
+    for x in pattern:
+        result.extend(flatten_assignment(x))
+    return result
+
+
 class Normalizer(Visitor):
     def __init__(self, stop, lines, source_path):
         self.lines = lines
@@ -115,6 +125,17 @@ class Normalizer(Visitor):
 
 
 class LocalNormalizer(Normalizer):
+    def get_assignment_pattern(self, target):
+        assert isinstance(target.ctx, ast.Store)
+
+        if isinstance(target, ast.Name):
+            return target.id
+        if isinstance(target, ast.Starred):
+            throw('Starred unpacking is not supported.', self.get_position(target))
+
+        assert isinstance(target, (ast.Tuple, ast.List))
+        return tuple(self.get_assignment_pattern(elt) for elt in target.elts)
+
     def visit_assert(self, node: ast.Assert):
         yield AssertionWrapper(node, self.get_position(node))
 
@@ -122,13 +143,10 @@ class LocalNormalizer(Normalizer):
         if len(node.targets) != 1:
             throw('Assignments inside functions must have a single target.', self.get_position(node))
 
-        expression = ExpressionWrapper(node.value, self.get_position(node.value))
-
-        target = node.targets[0]
-        if not isinstance(target, ast.Name):
-            throw('This assignment syntax is not supported.', self.get_position(target))
-        assert isinstance(target.ctx, ast.Store)
-        yield target.id, expression
+        pattern = self.get_assignment_pattern(node.targets[0])
+        expression = PatternAssignment(node.value, pattern, self.get_position(node.value))
+        for name in flatten_assignment(pattern):
+            yield name, expression
 
 
 class GlobalNormalizer(Normalizer):
@@ -179,7 +197,6 @@ def parse(source: str, source_path: str):
 
     parents, imports, definitions = [], [], []
     for name, w in wrapped:
-        # TODO: this is ugly
         if isinstance(w, ImportStarred):
             assert name is None
             if imports or definitions:
