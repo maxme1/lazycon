@@ -143,7 +143,7 @@ class Semantics(Visitor):
 
     # literals
 
-    visit_name_constant = visit_ellipsis = visit_bytes = visit_num = visit_str = _ignore_node
+    visit_constant = visit_name_constant = visit_ellipsis = visit_bytes = visit_num = visit_str = _ignore_node
 
     def visit_formatted_value(self, node):
         assert node.format_spec is None
