@@ -80,6 +80,10 @@ class Normalizer(Visitor):
         # parameters
         args = node.args
         parameters = []
+        # TODO: support
+        if len(getattr(args, 'posonlyargs', [])) > 0:
+            throw('Positional-only arguments are not supported.', self.get_position(node))
+
         for arg, default in zip(args.args, [None] * (len(args.args) - len(args.defaults)) + args.defaults):
             if default is None:
                 default = Parameter.empty
