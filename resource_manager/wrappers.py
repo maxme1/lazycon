@@ -23,8 +23,7 @@ class ExpressionStatement(Wrapper):
         self.expression = expression
 
     def to_str(self, names, level: int = 0):
-        # TODO: keep information about newline
-        return '    ' * level + ' = '.join(names) + ' = ' + self.body + '\n'
+        return '    ' * level + ' = '.join(names) + ' = ' + self.body
 
 
 class ExpressionWrapper(Wrapper):

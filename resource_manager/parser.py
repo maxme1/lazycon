@@ -10,14 +10,35 @@ def throw(message, position):
     raise SyntaxError(message + '\n  at %d:%d in %s' % position)
 
 
-def get_substring(lines, start_line, start_col, stop_line=None, stop_col=None) -> str:
-    # TODO: remove comments
+def get_substring(lines: Sequence[str], start_line: int, start_col: int, stop_line: int = None,
+                  stop_col: int = None, lstrip: bool = True, rstrip: bool = True, keep_line: bool = True) -> str:
     lines = list(lines[start_line - 1:stop_line])
 
     lines[-1] = lines[-1][:stop_col]
     lines[0] = lines[0][start_col:]
+    empty = 0
 
-    return '\n'.join(lines).strip()
+    # remove comments
+    if lstrip:
+        line = lines[0].strip()
+        while line.startswith('#') or not line:
+            lines.pop(0)
+            line = lines[0].strip()
+
+    if rstrip:
+        line = lines[-1].strip()
+        while line.startswith('#') or not line:
+            if not line:
+                empty += 1
+
+            lines.pop()
+            line = lines[-1].strip()
+
+    body = '\n'.join(lines).strip()
+    if keep_line and empty > 1:
+        body += '\n'
+
+    return body
 
 
 def tokenize_string(source):

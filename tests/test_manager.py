@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from resource_manager.exceptions import ResourceError, SemanticError
 from resource_manager import ResourceManager, read_config, read_string
@@ -13,11 +14,11 @@ class TestResourceManager(unittest.TestCase):
 a = [1,2,3]
 b = sum(a)
 ''')
-        self.assertEqual(6, rm.b)
+        assert rm.b == 6
 
     def test_import(self):
         rm = read_config('imports/imports.config')
-        self.assertEqual(rm.numpy, np)
+        assert rm.numpy == np
         try:
             rm.r
             rm.os
@@ -28,39 +29,39 @@ b = sum(a)
 
     def test_import_partial(self):
         rm = read_config('imports/import_from_config.config')
-        self.assertListEqual([1, 2], rm.one)
+        assert rm.one == [1, 2]
         rm = read_config('imports/import_twice.config')
-        self.assertEqual(rm.link_, rm.link)
-        self.assertEqual(rm.func_, rm.func)
+        assert rm.link_ == rm.link
+        assert rm.func_ == rm.func
 
     def test_update(self):
         rm = read_string('a = 1').update(a=2)
         rm2 = read_string('a = 1').string_input('a = 2')
-        self.assertEqual(rm.a, rm2.a)
+        assert rm.a == rm2.a
 
         rm = read_string('a = 1').update(a=2).string_input('a = 3')
-        self.assertEqual(rm.a, 3)
+        assert rm.a == 3
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             read_string('a = 1').update(a=2).render_config()
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             rm = read_string('a = 1')
             rm.a
             rm.update(a=2)
 
     def test_multiple_definitions(self):
         rm = read_config('statements/multiple_definitions.config')
-        self.assertEqual('''a = b = c = 1\n\nd = a\n''', rm.render_config())
+        assert '''a = b = c = 1\nd = a\n''' == rm.render_config()
         rm = read_config('statements/import_from_multiple.config')
-        self.assertEqual('''a = 2\n\nb = c = 1\n\nd = a\n''', rm.render_config())
+        assert '''a = 2\nb = c = 1\nd = a\n''' == rm.render_config()
 
     def test_import_partial_upper(self):
         rm = read_config('imports/folder/upper_partial.config')
-        self.assertIsNone(rm.numpy)
-        self.assertEqual(np, rm.np)
+        assert rm.numpy is None
+        assert np == rm.np
         rm = read_config('imports/folder/child/third.config')
-        self.assertListEqual([1, 2, 1], rm.a)
+        assert rm.a == [1, 2, 1]
 
     def test_cycle_import(self):
         try:
@@ -70,32 +71,32 @@ b = sum(a)
 
     def test_inheritance_order(self):
         rm = read_config('imports/order1.config')
-        self.assertIsNotNone(rm.literals)
+        assert rm.literals is not None
         rm = read_config('imports/order2.config')
-        self.assertIsNone(rm.literals)
+        assert rm.literals is None
 
     def test_import_in_string(self):
         rm = read_string('from .expressions.literals import *')
-        self.assertTrue(rm.literals[0])
+        assert rm.literals[0]
 
     def test_upper_import(self):
         rm = read_config('imports/folder/upper_import.config')
-        self.assertEqual('just override os', rm.os)
-        self.assertEqual(np, rm.numpy)
+        assert 'just override os' == rm.os
+        assert np == rm.numpy
 
     def test_attr_error(self):
         rm = read_config('imports/imports.config')
-        with self.assertRaises(AttributeError):
+        with pytest.raises(AttributeError):
             rm.undefined_value
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             rm['undefined_value']
-        with self.assertRaises(ResourceError):
+        with pytest.raises(ResourceError):
             rm.get_resource('undefined_value')
 
     def test_items(self):
         rm = read_config('expressions/tail.config')
-        self.assertEqual(rm.part, 6)
-        self.assertTupleEqual((1, 2), rm.value)
+        assert rm.part == 6
+        assert rm.value == (1, 2)
         np.testing.assert_array_equal(rm.another_part, [1, 2, 3])
 
     def test_tail(self):
@@ -103,10 +104,10 @@ b = sum(a)
         np.testing.assert_array_equal(rm.mean, [2, 5])
         np.testing.assert_array_equal(rm.mean2, [2, 5])
         np.testing.assert_array_almost_equal(rm.std(), [0.81, 0.81], decimal=2)
-        self.assertEqual(rm.random.shape, (1, 1, 2, 2))
+        assert rm.random.shape == (1, 1, 2, 2)
 
     def test_bindings_clash(self):
-        with self.assertRaises(SemanticError):
+        with pytest.raises(SemanticError):
             ResourceManager().string_input('''
 def f(x):
     x = 1
@@ -114,7 +115,7 @@ def f(x):
 ''')
 
     def test_bindings_names(self):
-        with self.assertRaises(SemanticError):
+        with pytest.raises(SemanticError):
             ResourceManager().string_input('''
 def f(x):
     x = 1

@@ -1,7 +1,12 @@
-import os
 import unittest
+from pathlib import Path
 
+import pytest
+
+from resource_manager import read_config
 from resource_manager.parser import parse_string
+
+TESTS_PATH = Path(__file__).parent
 
 
 def standardize(source):
@@ -9,35 +14,35 @@ def standardize(source):
     result = '\n'.join(imp.to_str() for imp in parents) + '\n'
     result += '\n'.join(imp.to_str([name]) for name, imp in imports) + '\n'
     for name, definition in definitions:
-        result += definition.to_str([name])
+        result += definition.to_str([name]) + '\n'
     return result
 
 
 class TestParser(unittest.TestCase):
     def test_idempotency(self):
-        folder = os.path.dirname(__file__)
+        for path in TESTS_PATH.glob('**/*.config'):
+            with self.subTest(filename=path.name):
+                with open(path, 'r') as file:
+                    source = file.read()
+                temp = standardize(source)
+                self.assertEqual(temp, standardize(temp))
 
-        for root, _, files in os.walk(folder):
-            for filename in files:
-                # if filename != 'funcdef.config':
-                #     continue
+    def test_comments(self):
+        config = read_config(TESTS_PATH / 'statements/comments.config')
 
-                if filename.endswith('.config'):
-                    path = os.path.join(root, filename)
-                    with self.subTest(filename=filename):
-                        with open(path, 'r') as file:
-                            source = file.read()
-                        temp = standardize(source)
-                        self.assertEqual(temp, standardize(temp))
+        with open(TESTS_PATH / 'statements/no_comments.config', 'r') as file:
+            source = file.read()
+
+        assert source == config.render_config()
 
     def test_unexpected_token(self):
-        with self.assertRaises(SyntaxError):
+        with pytest.raises(SyntaxError):
             parse_string('a = [1, 2 3]')
 
     def test_unexpected_eof(self):
-        with self.assertRaises(SyntaxError):
+        with pytest.raises(SyntaxError):
             parse_string('a = [1, 2')
 
     def test_unrecognized_token(self):
-        with self.assertRaises(SyntaxError):
+        with pytest.raises(SyntaxError):
             parse_string('$')
