@@ -5,7 +5,10 @@ from resource_manager import __version__
 classifiers = '''Development Status :: 5 - Production/Stable
 Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
-Programming Language :: Python :: 3.6'''
+Programming Language :: Python :: 3.6
+Programming Language :: Python :: 3.7
+Programming Language :: Python :: 3.8
+Programming Language :: Python :: 3.9'''
 
 with open('README.rst', encoding='utf-8') as file:
     long_description = file.read()

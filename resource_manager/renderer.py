@@ -49,7 +49,13 @@ class Renderer(Visitor):
         return importlib.import_module(from_ + '.' + what)
 
     def visit_assertion_wrapper(self, node: AssertionWrapper):
-        code = compile(ast.Module([node.assertion]), node.source_path, 'exec')
+        if sys.version_info[:2] >= (3, 8):
+            # handling `type_ignores`
+            args = [node.assertion], []
+        else:
+            args = [node.assertion],
+
+        code = compile(ast.Module(*args), node.source_path, 'exec')
         return exec(code, scope.ScopeWrapper(self.global_scope))
 
     def visit_function(self, node: Function):

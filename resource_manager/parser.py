@@ -1,3 +1,4 @@
+import bisect
 from inspect import Parameter, Signature
 from io import BytesIO
 from tokenize import tokenize
@@ -56,30 +57,16 @@ def flatten_assignment(pattern):
 
 
 class Normalizer(Visitor):
-    def __init__(self, stop, lines, source_path):
-        self.lines = lines
-        self.stop = stop
+    def __init__(self, source_path):
         self.source_path = source_path
-
-    def get_body(self, start: ast.AST):
-        if self.stop is None:
-            stop = None, None
-        else:
-            stop = self.stop.lineno, self.stop.col_offset
-
-        return get_substring(self.lines, start.lineno, start.col_offset, *stop)
 
     def get_position(self, node: ast.AST):
         return node.lineno, node.col_offset, self.source_path
 
-    @classmethod
-    def normalize(cls, node, stop, lines, source_path):
-        return cls(stop, lines, source_path).visit(node)
-
     def generic_visit(self, node, *args, **kwargs):
         throw('This syntactic structure is not supported.', self.get_position(node))
 
-    def visit_function_def(self, node: ast.FunctionDef):
+    def _prepare_function(self, node: ast.FunctionDef):
         *raw_bindings, ret = node.body
         if not isinstance(ret, ast.Return):
             throw('Functions must end with a return statement.', self.get_position(ret))
@@ -92,7 +79,7 @@ class Normalizer(Visitor):
         # bindings
         bindings, assertions = [], []
         for statement, stop in zip(raw_bindings, node.body[1:]):
-            value = LocalNormalizer.normalize(statement, stop, self.lines, self.source_path)
+            value = LocalNormalizer(self.source_path).visit(statement)
             if isinstance(statement, ast.Assert):
                 assertions.extend(value)
             else:
@@ -127,21 +114,9 @@ class Normalizer(Visitor):
 
         # decorators
         decorators = [ExpressionWrapper(decorator, self.get_position(decorator)) for decorator in node.decorator_list]
-
-        # body
-        body = self.get_body(node)
-        for token in tokenize_string(body):
-            if token.string == 'def':
-                start = get_substring(body.splitlines(), 1, 0, *token.end)
-                stop = get_substring(body.splitlines(), *token.end)
-                assert stop.startswith(node.name)
-                stop = stop[len(node.name):].strip()
-
-                break
-
-        yield node.name, Function(
+        return node.name, Function(
             Signature(parameters), docstring, bindings, ExpressionWrapper(ret.value, self.get_position(ret.value)),
-            decorators, assertions, node.name, (start, stop), self.get_position(node)
+            decorators, assertions, node.name, self.get_position(node),
         )
 
 
@@ -157,6 +132,9 @@ class LocalNormalizer(Normalizer):
         assert isinstance(target, (ast.Tuple, ast.List))
         return tuple(self.get_assignment_pattern(elt) for elt in target.elts)
 
+    def visit_function_def(self, node: ast.FunctionDef):
+        yield self._prepare_function(node)
+
     def visit_assert(self, node: ast.Assert):
         yield AssertionWrapper(node, self.get_position(node))
 
@@ -171,6 +149,29 @@ class LocalNormalizer(Normalizer):
 
 
 class GlobalNormalizer(Normalizer):
+    def __init__(self, start, stop, lines, source_path):
+        super().__init__(source_path)
+        self.lines = lines
+        self.start = start
+        self.stop = stop
+
+    def visit_function_def(self, node: ast.FunctionDef):
+        name, func = self._prepare_function(node)
+
+        # body
+        body = get_substring(self.lines, *self.start, *self.stop)
+        for token in tokenize_string(body):
+            if token.string == 'def':
+                start = get_substring(body.splitlines(), 1, 0, *token.end)
+                stop = get_substring(body.splitlines(), *token.end)
+                assert stop.startswith(node.name)
+                stop = stop[len(node.name):].strip()
+                func.body = start, stop
+                break
+
+        assert func.body is not None
+        yield name, func
+
     def visit_assign(self, node: ast.Assign):
         position = self.get_position(node.value)
         for target in node.targets:
@@ -179,7 +180,7 @@ class GlobalNormalizer(Normalizer):
             assert isinstance(target.ctx, ast.Store)
 
         last_target = node.targets[-1]
-        body = self.get_body(last_target)
+        body = get_substring(self.lines, last_target.lineno, last_target.col_offset, *self.stop)
         assert body[:len(last_target.id)] == last_target.id
         body = body[len(last_target.id):].lstrip()
         assert body[0] == '='
@@ -209,12 +210,41 @@ class GlobalNormalizer(Normalizer):
             yield name, UnifiedImport('', 0, alias.name.split('.'), alias.asname is not None, position)
 
 
+# need this function, because in >=3.8 the function start is considered from `def` token
+#   rather then from the first decorator
+def find_body_limits(source: str, source_path: str):
+    def _pos(node):
+        return node.lineno, node.col_offset
+
+    statements = sorted(ast.parse(source, source_path).body, key=_pos, reverse=True)
+    tokens = list(tokenize_string(source))
+    if not tokens:
+        return
+
+    indices = [t.start for t in tokens]
+    stop = tokens[-1].end
+
+    for statement in statements:
+        start = _pos(statement)
+        if isinstance(statement, ast.FunctionDef) and statement.decorator_list:
+            dec = statement.decorator_list[0]
+            start = _pos(dec)
+            idx = bisect.bisect_left(indices, start)
+            token = tokens[idx]
+            assert token.start == start
+            token = tokens[idx - 1]
+            assert token.string == '@'
+            start = token.start
+
+        yield statement, start, stop
+        stop = start
+
+
 def parse(source: str, source_path: str):
-    statements = ast.parse(source, source_path).body
-    lines = tuple(source.splitlines())
+    lines = tuple(source.splitlines() + [''])
     wrapped = []
-    for statement, stop in zip(statements, statements[1:] + [None]):
-        wrapped.extend(GlobalNormalizer.normalize(statement, stop, lines, source_path))
+    for statement, start, stop in reversed(list(find_body_limits(source, source_path))):
+        wrapped.extend(GlobalNormalizer(start, stop, lines, source_path).visit(statement))
 
     parents, imports, definitions = [], [], []
     for name, w in wrapped:
