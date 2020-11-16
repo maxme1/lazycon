@@ -25,7 +25,7 @@ class TestParser(unittest.TestCase):
                 with open(path, 'r') as file:
                     source = file.read()
                 temp = standardize(source)
-                self.assertEqual(temp, standardize(temp))
+                assert temp == standardize(temp)
 
     def test_comments(self):
         config = read_config(TESTS_PATH / 'statements/comments.config')
