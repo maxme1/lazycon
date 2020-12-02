@@ -8,6 +8,8 @@ from .exceptions import ConfigImportError
 
 
 class Wrapper(ast.AST):
+    """Wraps ast nodes used to define names in configs."""
+
     def __init__(self, position):
         super().__init__()
         self.line, self.column, self.source_path = self.position = position
@@ -17,6 +19,8 @@ class Wrapper(ast.AST):
 
 
 class ExpressionStatement(Wrapper):
+    """Wraps the right part of an `=` assignment."""
+
     def __init__(self, expression: ast.AST, body, position):
         super().__init__(position)
         self.body = body
@@ -27,12 +31,18 @@ class ExpressionStatement(Wrapper):
 
 
 class ExpressionWrapper(Wrapper):
+    """
+    Wraps expressions inside functions, such as decorators, return value, defaults.
+    """
+
     def __init__(self, expression: ast.AST, position):
         super().__init__(position)
         self.expression = expression
 
 
 class PatternAssignment(ExpressionWrapper):
+    """Wraps an unpacked assignment: a, b = c."""
+
     def __init__(self, expression: ast.AST, pattern, position):
         super().__init__(expression, position)
         self.pattern = pattern
@@ -49,6 +59,8 @@ def dotted(x):
 
 
 class BaseImport(Wrapper):
+    """Wrapper for all import statements."""
+
     def __init__(self, root: Iterable[str], dots: int, position):
         super().__init__(position)
         self.root = tuple(root)

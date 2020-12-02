@@ -1,7 +1,7 @@
 import os
 from collections import OrderedDict, Counter
 from pathlib import Path
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Sequence
 
 from .semantics import Semantics
 from .exceptions import ResourceError, ExceptionWrapper, SemanticError, ConfigImportError
@@ -23,13 +23,13 @@ class ResourceManager:
         a dict with default values that will be used in case the config doesn't define them.
     """
     # restricting setattr to these names
-    __slots__ = '_shortcuts', '_imported_configs', '_scope', '_leave_time'
+    __slots__ = '_shortcuts', '_imported_configs', '_scope', '_node_parents'
 
     def __init__(self, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._scope = Scope(Builtins(injections or {}))
-        self._leave_time = {}
+        self._node_parents = {}
 
     @classmethod
     def read_config(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
@@ -92,9 +92,9 @@ class ResourceManager:
         self._scope.update_values(values)
         return self
 
-    def render_config(self) -> str:
+    def render_config(self, entry_points: Sequence[str] = None) -> str:
         """Generate a string containing definitions of all the resources in the current scope."""
-        return '\n'.join(self._scope.render(self._leave_time)).strip() + '\n'
+        return '\n'.join(self._scope.render(self._node_parents, entry_points)).strip() + '\n'
 
     def save_config(self, path: str):
         """Render the config and save it to `path`."""
@@ -131,7 +131,7 @@ class ResourceManager:
 
         updated_scope = self._scope.get_name_to_statement()
         updated_scope.update(scope)
-        self._leave_time = Semantics.analyze(updated_scope, self._scope.parent)
+        self._node_parents = Semantics.analyze(updated_scope, self._scope.parent)
         self._scope.update_statements(scope.items())
 
     @staticmethod
