@@ -2,8 +2,9 @@ import builtins
 from ast import NameConstant
 from collections import defaultdict, OrderedDict
 from threading import Lock
-from typing import Dict, Any
+from typing import Dict, Any, Set, Sequence
 
+from .utils import reverse_mapping
 from .wrappers import Wrapper, UnifiedImport, PatternAssignment
 from .renderer import Renderer
 from .exceptions import ResourceError, SemanticError, ExceptionWrapper
@@ -112,12 +113,45 @@ class Scope(OrderedDict):
         statements = {v: k for k, v in self._statement_to_thunk.items()}
         return {name: statements[thunk] for name, thunk in self.items()}
 
-    def render(self, order: dict):
+    def _get_leave_time(self, parents: Dict[Wrapper, Set[Wrapper]], entry_points: Sequence[str]):
+        def find_leave_time(node):
+            nonlocal current
+            if node in visited:
+                return
+
+            visited.add(node)
+            for parent in parents[node]:
+                find_leave_time(parent)
+
+            for name in statements[node]:
+                leave_time[name] = current
+                current += 1
+
+        leave_time = {}
+        visited = set()
+        current = 0
+
+        names = self.get_name_to_statement()
+        statements = reverse_mapping(names)
+        if entry_points is None:
+            entry_points = list(names)
+        else:
+            delta = set(entry_points) - set(names)
+            if delta:
+                raise ValueError(f'The names {delta} are not defined, and cannot be used as entry points.')
+
+        for n in entry_points:
+            find_leave_time(names[n])
+
+        names = {n: names[n] for n in leave_time}
+        return names, leave_time
+
+    def render(self, parents: Dict[Wrapper, Set[Wrapper]], entry_points: Sequence[str] = None):
         if self._updated:
             raise RuntimeError('The scope has already been updated by live objects that cannot be rendered properly.')
 
         # grouping imports
-        names = self.get_name_to_statement()
+        names, order = self._get_leave_time(parents, entry_points)
         groups = defaultdict(list)
         for name, statement in names.items():
             groups[statement].append(name)
