@@ -147,4 +147,4 @@ class Function(Wrapper):
         return self.body[0] + ' ' + name + self.body[1]
 
     def to_str(self, names):
-        return '\n' + '\n'.join(self._to_str(name) for name in names).strip() + '\n\n'
+        return '\n' + '\n\n\n'.join(self._to_str(name) for name in names).strip() + '\n\n'
