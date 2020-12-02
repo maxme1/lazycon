@@ -23,8 +23,9 @@ def build_config():
                     'an `output` config without dependencies.')
     parser.add_argument('input', help='Path to the input config file.')
     parser.add_argument('output', help='Path to the output config file.')
+    parser.add_argument('entry_points', nargs='*', help='Names that should be kept during rendering.')
     args = parser.parse_args()
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    read_config(args.input).save_config(output)
+    read_config(args.input).save_config(output, args.entry_points or None)

@@ -14,6 +14,17 @@ b = sum(a)
     assert rm.b == 6
 
 
+def test_entry_points(subtests, tests_path):
+    for path in tests_path.glob('**/*.config'):
+        with subtests.test(filename=path.name):
+            config = read_config(path)
+            # for each entry point the config must be readable and give the same results
+            for name in config._scope.keys():
+                source = config.render_config(name)
+                assert config.render_config(name) == source
+                assert read_string(source).render_config() == source, path
+
+
 def test_import():
     rm = read_config('imports/imports.config')
     assert rm.numpy == np
@@ -295,15 +306,8 @@ def test_overwrite():
         rm.import_config('expressions/literals.config')
 
     rm = read_config('expressions/literals.config').string_input('a = 2')
-    try:
-        rm.string_input('b = a + 1')
-    except:
-        pytest.fail()
-
-    try:
-        rm.literals
-    except:
-        pytest.fail()
+    rm.string_input('b = a + 1')
+    rm.literals
 
 
 def test_injections():

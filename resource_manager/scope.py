@@ -114,22 +114,24 @@ class Scope(OrderedDict):
         return {name: statements[thunk] for name, thunk in self.items()}
 
     def _get_leave_time(self, parents: Dict[Wrapper, Set[Wrapper]], entry_points: Sequence[str]):
-        def find_leave_time(node):
+        def mark_name(name):
             nonlocal current
-            if node in visited:
-                return
+            if name not in leave_time:
+                leave_time[name] = current
+                current += 1
 
+        def visit_parents(node):
             visited.add(node)
             for parent in parents[node]:
                 find_leave_time(parent)
 
-            for name in statements[node]:
-                leave_time[name] = current
-                current += 1
+        def find_leave_time(node):
+            if node in visited:
+                return
 
-        leave_time = {}
-        visited = set()
-        current = 0
+            visit_parents(node)
+            for name in statements[node]:
+                mark_name(name)
 
         names = self.get_name_to_statement()
         statements = reverse_mapping(names)
@@ -140,8 +142,14 @@ class Scope(OrderedDict):
             if delta:
                 raise ValueError(f'The names {delta} are not defined, and cannot be used as entry points.')
 
+        leave_time = {}
+        visited = set()
+        current = 0
+        # we can't just visit the first-level nodes because some of them may have several names
+        #  we need to drop such cases
         for n in entry_points:
-            find_leave_time(names[n])
+            visit_parents(names[n])
+            mark_name(n)
 
         names = {n: names[n] for n in leave_time}
         return names, leave_time
@@ -250,5 +258,6 @@ class ScopeWrapper(Dict[str, Any]):
         except ResourceError:
             pass
 
-        assert name in self, name
+        if name not in self:
+            raise NameError(f'The name "{name}" is not defined.')
         return super().__getitem__(name)

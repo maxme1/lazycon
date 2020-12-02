@@ -1,11 +1,10 @@
 import ast
 from collections import defaultdict, OrderedDict
 from inspect import Parameter
-from typing import Iterable, List, Dict, Set
+from typing import Iterable, List, Dict
 
 from ..utils import reverse_mapping
 from ..wrappers import ExpressionStatement, Function, Wrapper
-
 from ..scope import ScopeDict
 from ..exceptions import SemanticError
 from .visitor import SemanticVisitor
@@ -37,7 +36,8 @@ class Semantics(SemanticVisitor):
         self.leave_time = {}
         self._current_time = 0
         self._statements: List[Wrapper] = []
-        self._parents: Dict[Wrapper, Set[Wrapper]] = defaultdict(set)
+        # TODO: use ordered set
+        self._parents: Dict[Wrapper, List[Wrapper]] = defaultdict(list)
 
         self.node_to_names = reverse_mapping(name_to_node)
         self.enter_scope(name_to_node)
@@ -64,26 +64,6 @@ class Semantics(SemanticVisitor):
             message += tree.format(msg, elements)
         if message:
             raise SemanticError(message)
-
-        leave = {}
-        visited = set()
-        current = 0
-
-        def find_leave_time(node):
-            nonlocal current
-            if node in visited:
-                return
-            visited.add(node)
-
-            for parent in tree._parents[node]:
-                find_leave_time(parent)
-
-            for name in tree.node_to_names[node]:
-                leave[name] = current
-                current += 1
-
-        list(map(find_leave_time, tree.node_to_names))
-        assert tree.leave_time == leave
         return tree._parents
 
     def enter_scope(self, names: ScopeDict, visited: Iterable[str] = ()):
@@ -163,7 +143,7 @@ class Semantics(SemanticVisitor):
                 # track dependencies
                 if level == len(self._scopes) - 1:
                     assert value.node in self.node_to_names
-                    self._parents[self._statements[-1]].add(value.node)
+                    self._parents[self._statements[-1]].append(value.node)
                 return
 
         if name not in self._builtins:

@@ -92,14 +92,24 @@ class ResourceManager:
         self._scope.update_values(values)
         return self
 
-    def render_config(self, entry_points: Sequence[str] = None) -> str:
-        """Generate a string containing definitions of all the resources in the current scope."""
+    def render_config(self, entry_points: Union[Sequence[str], str] = None) -> str:
+        """
+        Generate a string containing definitions of resources in the current scope.
+
+        Parameters
+        ----------
+        entry_points
+            the definitions that should be kept (along with their dependencies).
+            If None - all the definitions are rendered.
+        """
+        if isinstance(entry_points, str):
+            entry_points = [entry_points]
         return '\n'.join(self._scope.render(self._node_parents, entry_points)).strip() + '\n'
 
-    def save_config(self, path: str):
-        """Render the config and save it to `path`."""
+    def save_config(self, path: str, entry_points: Union[Sequence[str], str] = None):
+        """Render the config and save it to `path`. See `render_config` for details."""
         with open(path, 'w') as file:
-            file.write(self.render_config())
+            file.write(self.render_config(entry_points))
 
     def __getattr__(self, name: str):
         try:
