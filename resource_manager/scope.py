@@ -261,3 +261,6 @@ class ScopeWrapper(Dict[str, Any]):
         if name not in self:
             raise NameError(f'The name "{name}" is not defined.')
         return super().__getitem__(name)
+
+    def __contains__(self, name):
+        return name in self.scope or super().__contains__(name)
