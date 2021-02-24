@@ -1,10 +1,8 @@
 from distutils.core import setup
 from setuptools import find_packages
-from resource_manager import __version__
+from lazycon import __version__
 
 classifiers = '''Development Status :: 5 - Production/Stable
-Programming Language :: Python :: 3.4
-Programming Language :: Python :: 3.5
 Programming Language :: Python :: 3.6
 Programming Language :: Python :: 3.7
 Programming Language :: Python :: 3.8
@@ -14,26 +12,28 @@ with open('README.rst', encoding='utf-8') as file:
     long_description = file.read()
 
 setup(
-    name='resource-manager',
-    packages=find_packages(include=('resource_manager',)),
+    name='lazycon',
+    packages=find_packages(include=('lazycon',)),
     include_package_data=True,
     version=__version__,
-    description='A small resource manager for config files',
+    description='An interpreter for lazy configs in Python',
     long_description=long_description,
     author='maxme1',
     author_email='maxs987@gmail.com',
     license='MIT',
-    url='https://github.com/maxme1/resource-manager',
-    download_url='https://github.com/maxme1/resource-manager/archive/%s.tar.gz' % __version__,
+    url='https://github.com/maxme1/lazycon',
+    download_url='https://github.com/maxme1/lazycon/archive/v%s.tar.gz' % __version__,
     keywords=[
         'config', 'lazy', 'interpreter'
     ],
     classifiers=classifiers.splitlines(),
     install_requires=[],
-    entry_points={
-        'console_scripts': [
-            'run-config = resource_manager.console:render_config_resource',
-            'build-config = resource_manager.console:build_config'
-        ],
-    },
+    python_requires='>=3.6',
+    # entry_points={
+    #     'console_scripts': [
+    # TODO: 'lazycon = lazycon.console:main',
+    # 'run-config = lazycon.console:evaluate',
+    # 'build-config = lazycon.console:build',
+    # ],
+    # },
 )

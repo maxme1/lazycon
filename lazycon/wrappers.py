@@ -132,8 +132,9 @@ class UnifiedImport(BaseImport):
 class Function(Wrapper):
     def __init__(self, signature: inspect.Signature, docstring: str, bindings: Sequence[Tuple[str, Wrapper]],
                  expression: ExpressionWrapper, decorators: Sequence[ExpressionWrapper],
-                 assertions: Sequence[AssertionWrapper], original_name: str, position):
+                 assertions: Sequence[AssertionWrapper], original_name: str, node: ast.FunctionDef, position):
         super().__init__(position)
+        self.node = node
         self.docstring = docstring
         self.assertions = assertions
         self.body = None

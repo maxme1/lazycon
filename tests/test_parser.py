@@ -1,7 +1,7 @@
 import pytest
 
-from resource_manager import read_config
-from resource_manager.parser import parse_string
+from lazycon import load
+from lazycon.parser import parse_string
 
 
 def standardize(source):
@@ -23,11 +23,11 @@ def test_idempotency(subtests, tests_path):
 
 
 def test_comments(tests_path):
-    config = read_config(tests_path / 'statements/comments.config')
+    config = load(tests_path / 'statements/comments.config')
     with open(tests_path / 'statements/no_comments.config', 'r') as file:
         source = file.read()
 
-    assert source == config.render_config()
+    assert source == config.dumps()
 
 
 def test_unexpected_token():

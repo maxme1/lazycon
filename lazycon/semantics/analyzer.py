@@ -147,7 +147,7 @@ class Semantics(SemanticVisitor):
                 return
 
         if name not in self._builtins:
-            self.add_message('Undefined resources found, but are required', name)
+            self.add_message('Undefined names found', name)
 
     # global definitions
 

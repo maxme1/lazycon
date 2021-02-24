@@ -4,14 +4,14 @@ from pathlib import Path
 from typing import Union, Dict, Any, Sequence
 
 from .semantics import Semantics
-from .exceptions import ResourceError, ExceptionWrapper, SemanticError, ConfigImportError
-from .scope import Scope, Builtins, ScopeWrapper
+from .exceptions import EntryError, ExceptionWrapper, SemanticError, ConfigImportError
+from .scope import Scope, Builtins, ScopeEval
 from .parser import parse_file, parse_string, flatten_assignment
 
 PathLike = Union[Path, str]
 
 
-class ResourceManager:
+class Config:
     """
     A config interpreter.
 
@@ -32,9 +32,9 @@ class ResourceManager:
         self._node_parents = {}
 
     @classmethod
-    def read_config(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
+    def load(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         """
-        Import the config located at `path` and return a ResourceManager instance.
+        Import the config located at `path` and return a Config instance.
         Also this method adds a `__file__ = pathlib.Path(path)` value to the global scope.
 
         Parameters
@@ -48,8 +48,9 @@ class ResourceManager:
 
         Returns
         -------
-        resource_manager: ResourceManager
+        config: Config
         """
+        # TODO: __folder__
         key = '__file__'
         injections = dict(injections or {})
         if key in injections:
@@ -59,9 +60,9 @@ class ResourceManager:
         return cls(shortcuts, injections).import_config(path)
 
     @classmethod
-    def read_string(cls, source: str, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
+    def loads(cls, source: str, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         """
-        Interpret the `source` and return a ResourceManager instance.
+        Interpret the `source` and return a `Config` instance.
 
         Parameters
         ----------
@@ -73,10 +74,30 @@ class ResourceManager:
 
         Returns
         -------
-        resource_manager: ResourceManager
+        config: Config
         """
         return cls(shortcuts, injections).string_input(source)
 
+    def dumps(self, entry_points: Union[Sequence[str], str] = None) -> str:
+        """
+        Generate a string containing the names from the current scope.
+
+        Parameters
+        ----------
+        entry_points
+            the definitions that should be kept (along with their dependencies).
+            If None - all the definitions are rendered.
+        """
+        if isinstance(entry_points, str):
+            entry_points = [entry_points]
+        return '\n'.join(self._scope.render(self._node_parents, entry_points)).strip() + '\n'
+
+    def dump(self, path: str, entry_points: Union[Sequence[str], str] = None):
+        """ Render the config and save it to `path`. See `dumps` for details. """
+        with open(path, 'w') as file:
+            file.write(self.dumps(entry_points))
+
+    # TODO: rename
     def import_config(self, path: PathLike):
         """Import the config located at `path`."""
         self._update_resources(self._import(path))
@@ -92,38 +113,22 @@ class ResourceManager:
         self._scope.update_values(values)
         return self
 
-    def render_config(self, entry_points: Union[Sequence[str], str] = None) -> str:
-        """
-        Generate a string containing definitions of resources in the current scope.
-
-        Parameters
-        ----------
-        entry_points
-            the definitions that should be kept (along with their dependencies).
-            If None - all the definitions are rendered.
-        """
-        if isinstance(entry_points, str):
-            entry_points = [entry_points]
-        return '\n'.join(self._scope.render(self._node_parents, entry_points)).strip() + '\n'
-
-    def save_config(self, path: str, entry_points: Union[Sequence[str], str] = None):
-        """Render the config and save it to `path`. See `render_config` for details."""
-        with open(path, 'w') as file:
-            file.write(self.render_config(entry_points))
+    def __contains__(self, name: str):
+        return name in self._scope
 
     def __getattr__(self, name: str):
         try:
-            return self.get_resource(name)
-        except ResourceError:
+            return self.get(name)
+        except EntryError:
             raise AttributeError('"%s" is not defined.' % name) from None
 
     def __getitem__(self, name: str):
         try:
-            return self.get_resource(name)
-        except ResourceError:
+            return self.get(name)
+        except EntryError:
             raise KeyError('"%s" is not defined.' % name) from None
 
-    def get_resource(self, name: str):
+    def get(self, name: str):
         try:
             return self._scope[name]
         except ExceptionWrapper as e:
@@ -132,7 +137,7 @@ class ResourceManager:
     def eval(self, expression: str):
         """Evaluate the given `expression`."""
         try:
-            return eval(expression, ScopeWrapper(self._scope))
+            return eval(expression, ScopeEval(self._scope))
         except ExceptionWrapper as e:
             raise e.exception from None
 
@@ -186,6 +191,7 @@ class ResourceManager:
         scope.extend(definitions)
         duplicates = [
             name for name, count in
+            # TODO: chain
             Counter(sum([flatten_assignment(pattern) for pattern, _ in scope], [])).items() if count > 1
         ]
         if duplicates:
@@ -206,8 +212,8 @@ class ResourceManager:
         try:
             super().__setattr__(name, value)
         except AttributeError:
-            raise AttributeError('ResourceManager\'s attribute "%s" is read-only.' % name) from None
+            raise AttributeError('Config\'s attribute "%s" is read-only.' % name) from None
 
 
-read_config = ResourceManager.read_config
-read_string = ResourceManager.read_string
+load = Config.load
+loads = Config.loads
