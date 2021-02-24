@@ -48,9 +48,7 @@ Here are some examples:
 Function definitions
 --------------------
 
-You can define functions inside configs, however their local scope is also lazy, thus the same
-constraints hold.
-
+You can define functions inside configs.
 A function body consists of several value or function definitions or assertions followed by a return statement:
 
 .. code:: python
@@ -77,8 +75,6 @@ A function body consists of several value or function definitions or assertions 
         assert seq, seq
         return f(seq[0])
 
-
-Even though the scopes are lazy, all the assertions are always evaluated (just before the return statement).
 
 Imports
 ~~~~~~~

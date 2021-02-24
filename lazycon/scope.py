@@ -1,83 +1,15 @@
 import builtins
 from ast import NameConstant
 from collections import defaultdict, OrderedDict
-from threading import Lock
 from typing import Dict, Any, Set, Sequence
 
+from .thunk import ValueThunk, NodeThunk
 from .utils import reverse_mapping
-from .wrappers import Wrapper, UnifiedImport, PatternAssignment
+from .wrappers import Wrapper, UnifiedImport
 from .renderer import Renderer
-from .exceptions import ResourceError, SemanticError, ExceptionWrapper
+from .exceptions import EntryError, ExceptionWrapper, SemanticError
 
 ScopeDict = Dict[str, Wrapper]
-
-
-class Thunk:
-    def match(self, name):
-        raise NotImplementedError
-
-
-class ValueThunk(Thunk):
-    def __init__(self, value):
-        assert not isinstance(value, Thunk)
-        self._value = value
-        self.ready = True
-
-    def match(self, name):
-        return self._value
-
-
-class NodeThunk(Thunk):
-    def __init__(self, statement):
-        self.lock = Lock()
-        self.statement = statement
-        self.ready = False
-        self._value = None
-
-    @staticmethod
-    def _match(name, pattern):
-        if isinstance(pattern, str):
-            yield name == pattern, []
-            return
-
-        assert isinstance(pattern, tuple)
-        min_size = max_size = len(pattern)
-        for idx, entry in enumerate(pattern):
-            level = idx, min_size, max_size
-            for match, levels in NodeThunk._match(name, entry):
-                yield match, [level] + levels
-
-    def set(self, value):
-        assert not self.ready
-        self._value = value
-        self.ready = True
-
-    def match(self, name):
-        assert self.ready
-        value = self._value
-        # TODO: probably need a subclass
-        if not isinstance(self.statement, PatternAssignment):
-            return value
-
-        pattern = self.statement.pattern
-        if isinstance(pattern, str):
-            return value
-
-        for match, levels in self._match(name, pattern):
-            if match:
-                for idx, min_size, max_size in levels:
-                    size = len(value)
-                    if size < min_size:
-                        raise ValueError('not enough values to unpack (expected %d)' % max_size)
-                    if size > max_size:
-                        raise ValueError('too many values to unpack (expected %d)' % max_size)
-
-                    value = value[idx]
-
-                return value
-
-        # unreachable code
-        assert False
 
 
 class Builtins(dict):
@@ -93,7 +25,7 @@ class Builtins(dict):
         try:
             return super().__getitem__(name)
         except KeyError:
-            raise ResourceError('"%s" is not defined.' % name) from None
+            raise EntryError('"%s" is not defined.' % name) from None
 
 
 class Scope(OrderedDict):
@@ -107,7 +39,7 @@ class Scope(OrderedDict):
     def check_populated(self):
         if self._populated:
             raise RuntimeError('The scope has already been populated with live objects. Overwriting them might cause '
-                               'undefined behaviour. Please, create another instance of ResourceManager.')
+                               'undefined behaviour. Please, create another instance of Config.')
 
     def get_name_to_statement(self):
         statements = {v: k for k, v in self._statement_to_thunk.items()}
@@ -140,7 +72,7 @@ class Scope(OrderedDict):
         else:
             delta = set(entry_points) - set(names)
             if delta:
-                raise ValueError(f'The names {delta} are not defined, and cannot be used as entry points.')
+                raise ValueError('The names %s are not defined, and cannot be used as entry points.' % delta)
 
         leave_time = {}
         visited = set()
@@ -245,22 +177,77 @@ class Scope(OrderedDict):
 
 
 class ScopeWrapper(Dict[str, Any]):
-    def __init__(self, scope):
+    def __init__(self, scope: Dict[str, Any]):
         super().__init__()
         self.scope = scope
 
+    def __contains__(self, name):
+        return name in self.scope or super().__contains__(name)
+
+    def keys(self):
+        return set(super().keys()) | set(self.scope.keys())
+
+    def values(self):
+        raise NotImplementedError
+
+    def items(self):
+        yield from self.scope.items()
+        for key in set(super().keys()) - set(self.scope):
+            yield key, super().__getitem__(key)
+
+    def get(self, key):
+        raise NotImplementedError
+
+    def __iter__(self):
+        return self.keys()
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def popitem(self):
+        raise NotImplementedError
+
+    def setdefault(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def update(self, **kwargs):
+        raise NotImplementedError
+
+    def __delitem__(self, v):
+        raise NotImplementedError
+
+
+class ScopeEval(ScopeWrapper):
     def __getitem__(self, name):
         try:
             return self.scope[name]
         except KeyError as e:
             # this is needed because KeyError is converted to NameError by `eval`
             raise ExceptionWrapper(e) from e
-        except ResourceError:
+        except EntryError:
             pass
 
         if name not in self:
-            raise NameError(f'The name "{name}" is not defined.')
+            raise NameError('The name "%s" is not defined.' % name)
         return super().__getitem__(name)
 
-    def __contains__(self, name):
-        return name in self.scope or super().__contains__(name)
+    def __setitem__(self, k, v):
+        raise NotImplementedError
+
+
+class ScopeExec(ScopeWrapper):
+    def __init__(self, scope: Dict[str, Any], name: str = None):
+        super().__init__(scope)
+        self.name = name
+
+    def __setitem__(self, name, value):
+        assert self.name is not None and name == self.name
+        super().__setitem__(name, value)
+
+    def get_result(self):
+        return super().pop(self.name)
+
+    def __getitem__(self, name):
+        if name not in self.scope:
+            return super().__getitem__(name)
+        return self.scope[name]

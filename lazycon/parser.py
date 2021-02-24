@@ -116,7 +116,7 @@ class Normalizer(Visitor):
         decorators = [ExpressionWrapper(decorator, self.get_position(decorator)) for decorator in node.decorator_list]
         return node.name, Function(
             Signature(parameters), docstring, bindings, ExpressionWrapper(ret.value, self.get_position(ret.value)),
-            decorators, assertions, node.name, self.get_position(node),
+            decorators, assertions, node.name, node, self.get_position(node),
         )
 
 

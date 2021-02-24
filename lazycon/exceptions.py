@@ -2,7 +2,7 @@ class SemanticError(SyntaxError):
     pass
 
 
-class ResourceError(NameError):
+class EntryError(NameError):
     pass
 
 
