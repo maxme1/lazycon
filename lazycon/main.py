@@ -1,3 +1,4 @@
+import itertools
 import os
 from collections import OrderedDict, Counter
 from pathlib import Path
@@ -54,7 +55,7 @@ class Config:
         key = '__file__'
         injections = dict(injections or {})
         if key in injections:
-            raise ValueError('The "%s" key is not allowed in "injections".' % key)
+            raise ValueError(f'The "{key}" key is not allowed in "injections".')
 
         injections[key] = Path(cls._standardize_path(path))
         return cls(shortcuts, injections).import_config(path)
@@ -120,13 +121,13 @@ class Config:
         try:
             return self.get(name)
         except EntryError:
-            raise AttributeError('"%s" is not defined.' % name) from None
+            raise AttributeError(f'"{name}" is not defined.') from None
 
     def __getitem__(self, name: str):
         try:
             return self.get(name)
         except EntryError:
-            raise KeyError('"%s" is not defined.' % name) from None
+            raise KeyError(f'"{name}" is not defined.') from None
 
     def get(self, name: str):
         try:
@@ -180,8 +181,8 @@ class Config:
                     local = self._import(node.get_path(self._shortcuts))
                     what, = node.what
                     if what not in local:
-                        raise NameError('"%s" is not defined in the config it is imported from.\n' % what +
-                                        '  at %d:%d in %s' % node.position)
+                        raise NameError(f'"{what}" is not defined in the config it is imported from.\n' +
+                                        f'  at {node.line}:{node.column} in {node.source_path}')
                     node = local[what]
                 except ConfigImportError:
                     pass
@@ -191,12 +192,12 @@ class Config:
         scope.extend(definitions)
         duplicates = [
             name for name, count in
-            # TODO: chain
-            Counter(sum([flatten_assignment(pattern) for pattern, _ in scope], [])).items() if count > 1
+            Counter(itertools.chain(*(flatten_assignment(pattern) for pattern, _ in scope))).items() if count > 1
         ]
         if duplicates:
             source_path = (imports or definitions)[0][1].source_path
-            raise SemanticError('Duplicate definitions found in %s:\n    %s' % (source_path, ', '.join(duplicates)))
+            duplicates = ', '.join(duplicates)
+            raise SemanticError(f'Duplicate definitions found in {source_path}:\n    {duplicates}')
 
         final_scope = OrderedDict(parent_scope.items())
         final_scope.update(scope)
@@ -212,7 +213,7 @@ class Config:
         try:
             super().__setattr__(name, value)
         except AttributeError:
-            raise AttributeError('Config\'s attribute "%s" is read-only.' % name) from None
+            raise AttributeError(f'Config\'s attribute "{name}" is read-only.') from None
 
 
 load = Config.load

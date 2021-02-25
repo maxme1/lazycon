@@ -2,10 +2,11 @@ import ast
 import sys
 
 from .visitor import Visitor
-from .wrappers import ExpressionWrapper, UnifiedImport, Function, AssertionWrapper, PatternAssignment
+from .wrappers import UnifiedImport, Function, ExpressionStatement
 from . import scope
 
 
+# TODO: move to node
 class Renderer(Visitor):
     def __init__(self, global_scope):
         self.global_scope = global_scope
@@ -14,26 +15,15 @@ class Renderer(Visitor):
     def render(node, global_scope):
         return Renderer(global_scope).visit(node)
 
-    def visit_expression_wrapper(self, node: ExpressionWrapper):
+    def visit_expression_statement(self, node: ExpressionStatement):
         code = compile(ast.Expression(node.expression), node.source_path, 'eval')
         return eval(code, scope.ScopeEval(self.global_scope))
-
-    def visit_pattern_assignment(self, node: PatternAssignment):
-        value = self.visit_expression_wrapper(node)
-        if not isinstance(node.pattern, str):
-            value = tuple(value)
-        return value
-
-    visit_expression_statement = visit_expression_wrapper
 
     def visit_unified_import(self, node: UnifiedImport):
         name = 'alias'
         wrapper = scope.ScopeExec(self.global_scope, name)
         self._exec(node.to_str([name]), wrapper, node.source_path)
         return wrapper.get_result()
-
-    def visit_assertion_wrapper(self, node: AssertionWrapper):
-        self._exec(self._module([node.assertion]), scope.ScopeExec(self.global_scope), node.source_path)
 
     def visit_function(self, node: Function):
         wrapper = scope.ScopeExec(self.global_scope, node.original_name)

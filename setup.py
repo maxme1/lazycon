@@ -8,7 +8,7 @@ Programming Language :: Python :: 3.7
 Programming Language :: Python :: 3.8
 Programming Language :: Python :: 3.9'''
 
-with open('README.rst', encoding='utf-8') as file:
+with open('README.md', encoding='utf-8') as file:
     long_description = file.read()
 
 setup(
