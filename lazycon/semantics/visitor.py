@@ -1,7 +1,5 @@
 import ast
-from typing import Iterable
 
-from ..wrappers import AssertionWrapper, ExpressionStatement
 from ..visitor import Visitor
 
 
@@ -10,23 +8,12 @@ class SemanticVisitor(Visitor):
 
     # utils
 
-    def _visit_sequence(self, sequence: Iterable):
-        for item in sequence:
-            self.visit(item)
-
     def _visit_valid(self, value):
         if value is not None:
             self.visit(value)
 
     def _ignore_node(self, node):
         pass
-
-    # expressions
-
-    def visit_expression_statement(self, node: ExpressionStatement):
-        self.visit(node.expression)
-
-    visit_pattern_assignment = visit_expression_wrapper = visit_expression_statement
 
     # literals
 
@@ -37,20 +24,20 @@ class SemanticVisitor(Visitor):
         self.visit(node.value)
 
     def visit_joined_str(self, node):
-        self._visit_sequence(node.values)
+        self._iterate_nodes(node.values)
 
     def visit_list(self, node: ast.List):
         assert isinstance(node.ctx, ast.Load)
-        self._visit_sequence(node.elts)
+        self._iterate_nodes(node.elts)
 
     visit_tuple = visit_list
 
     def visit_set(self, node):
-        self._visit_sequence(node.elts)
+        self._iterate_nodes(node.elts)
 
     def visit_dict(self, node):
-        self._visit_sequence(filter(None, node.keys))
-        self._visit_sequence(node.values)
+        self._iterate_nodes(filter(None, node.keys))
+        self._iterate_nodes(node.values)
 
     # variables
 
@@ -67,16 +54,16 @@ class SemanticVisitor(Visitor):
         self.visit(node.right)
 
     def visit_bool_op(self, node: ast.BoolOp):
-        self._visit_sequence(node.values)
+        self._iterate_nodes(node.values)
 
     def visit_compare(self, node: ast.Compare):
         self.visit(node.left)
-        self._visit_sequence(node.comparators)
+        self._iterate_nodes(node.comparators)
 
     def visit_call(self, node: ast.Call):
         self.visit(node.func)
-        self._visit_sequence(node.args)
-        self._visit_sequence(node.keywords)
+        self._iterate_nodes(node.args)
+        self._iterate_nodes(node.keywords)
         self._visit_valid(getattr(node, 'starargs', None))
         self._visit_valid(getattr(node, 'kwargs', None))
 
@@ -108,15 +95,19 @@ class SemanticVisitor(Visitor):
         self._visit_valid(node.step)
 
     def visit_ext_slice(self, node):
-        self._visit_sequence(node.dims)
+        self._iterate_nodes(node.dims)
 
     # statements
 
-    def visit_assertion_wrapper(self, node: AssertionWrapper):
-        self.visit(node.assertion.test)
-        if node.assertion.msg is not None:
-            self.visit(node.assertion.msg)
+    def visit_assert(self, node):
+        self.visit(node.test)
+        self._visit_valid(node.msg)
 
     # imports
 
     visit_unified_import = _ignore_node
+
+    # helpers
+
+    def visit_arguments(self, node: ast.arguments):
+        self._iterate_nodes(node.defaults + list(filter(None, node.kw_defaults)))

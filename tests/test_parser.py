@@ -1,15 +1,15 @@
 import pytest
 
 from lazycon import load
-from lazycon.parser import parse_string
+from lazycon.parser import parse_string, dotted
 
 
 def standardize(source):
     parents, imports, definitions = parse_string(source)
-    result = '\n'.join(imp.to_str() for imp in parents) + '\n'
-    result += '\n'.join(imp.to_str([name]) for name, imp in imports) + '\n'
-    for name, definition in definitions:
-        result += definition.to_str([name]) + '\n'
+    result = '\n'.join(f'from {"." * imp.dots}{dotted(imp.root)} import *' for imp in parents) + '\n'
+    result += '\n'.join(imp.to_str([imp.name]) for imp in imports) + '\n'
+    for definition in definitions:
+        result += definition.to_str([definition.name]) + '\n'
     return result
 
 

@@ -1,10 +1,9 @@
 import bisect
-from inspect import Parameter, Signature
 from io import BytesIO
 from tokenize import tokenize
 
 from .visitor import Visitor
-from .wrappers import *
+from .statements import *
 
 
 def throw(message, position):
@@ -57,8 +56,11 @@ def flatten_assignment(pattern):
 
 
 class Normalizer(Visitor):
-    def __init__(self, source_path):
+    def __init__(self, start, stop, lines, source_path):
         self.source_path = source_path
+        self.lines = lines
+        self.start = start
+        self.stop = stop
 
     def get_position(self, node: ast.AST):
         return node.lineno, node.col_offset, self.source_path
@@ -66,111 +68,9 @@ class Normalizer(Visitor):
     def generic_visit(self, node, *args, **kwargs):
         throw('This syntactic structure is not supported.', self.get_position(node))
 
-    def _prepare_function(self, node: ast.FunctionDef):
-        *raw_bindings, ret = node.body
-        if not isinstance(ret, ast.Return):
-            throw('Functions must end with a return statement.', self.get_position(ret))
-
-        # docstring
-        docstring = None
-        if raw_bindings and isinstance(raw_bindings[0], ast.Expr) and isinstance(raw_bindings[0].value, ast.Str):
-            docstring, raw_bindings = raw_bindings[0].value.s, raw_bindings[1:]
-
-        # bindings
-        bindings, assertions = [], []
-        for statement, stop in zip(raw_bindings, node.body[1:]):
-            value = LocalNormalizer(self.source_path).visit(statement)
-            if isinstance(statement, ast.Assert):
-                assertions.extend(value)
-            else:
-                bindings.extend(value)
-
-        # parameters
-        args = node.args
-        parameters = []
-        # TODO: support
-        if len(getattr(args, 'posonlyargs', [])) > 0:
-            throw('Positional-only arguments are not supported.', self.get_position(node))
-
-        for arg, default in zip(args.args, [None] * (len(args.args) - len(args.defaults)) + args.defaults):
-            if default is None:
-                default = Parameter.empty
-            else:
-                default = ExpressionWrapper(default, self.get_position(default))
-            parameters.append(Parameter(arg.arg, Parameter.POSITIONAL_OR_KEYWORD, default=default))
-
-        if args.vararg is not None:
-            parameters.append(Parameter(args.vararg.arg, Parameter.VAR_POSITIONAL))
-
-        for arg, default in zip(args.kwonlyargs, args.kw_defaults):
-            if default is None:
-                default = Parameter.empty
-            else:
-                default = ExpressionWrapper(default, self.get_position(default))
-            parameters.append(Parameter(arg.arg, Parameter.KEYWORD_ONLY, default=default))
-
-        if args.kwarg is not None:
-            parameters.append(Parameter(args.kwarg.arg, Parameter.VAR_KEYWORD))
-
-        # decorators
-        decorators = [ExpressionWrapper(decorator, self.get_position(decorator)) for decorator in node.decorator_list]
-        return node.name, Function(
-            Signature(parameters), docstring, bindings, ExpressionWrapper(ret.value, self.get_position(ret.value)),
-            decorators, assertions, node.name, node, self.get_position(node),
-        )
-
-
-class LocalNormalizer(Normalizer):
-    def get_assignment_pattern(self, target):
-        assert isinstance(target.ctx, ast.Store)
-
-        if isinstance(target, ast.Name):
-            return target.id
-        if isinstance(target, ast.Starred):
-            throw('Starred unpacking is not supported.', self.get_position(target))
-
-        assert isinstance(target, (ast.Tuple, ast.List))
-        return tuple(self.get_assignment_pattern(elt) for elt in target.elts)
-
     def visit_function_def(self, node: ast.FunctionDef):
-        yield self._prepare_function(node)
-
-    def visit_assert(self, node: ast.Assert):
-        yield AssertionWrapper(node, self.get_position(node))
-
-    def visit_assign(self, node: ast.Assign):
-        if len(node.targets) != 1:
-            throw('Assignments inside functions must have a single target.', self.get_position(node))
-
-        pattern = self.get_assignment_pattern(node.targets[0])
-        expression = PatternAssignment(node.value, pattern, self.get_position(node.value))
-        for name in flatten_assignment(pattern):
-            yield name, expression
-
-
-class GlobalNormalizer(Normalizer):
-    def __init__(self, start, stop, lines, source_path):
-        super().__init__(source_path)
-        self.lines = lines
-        self.start = start
-        self.stop = stop
-
-    def visit_function_def(self, node: ast.FunctionDef):
-        name, func = self._prepare_function(node)
-
-        # body
         body = get_substring(self.lines, *self.start, *self.stop)
-        for token in tokenize_string(body):
-            if token.string == 'def':
-                start = get_substring(body.splitlines(), 1, 0, *token.end)
-                stop = get_substring(body.splitlines(), *token.end)
-                assert stop.startswith(node.name)
-                stop = stop[len(node.name):].strip()
-                func.body = start, stop
-                break
-
-        assert func.body is not None
-        yield name, func
+        yield GlobalFunction(node, body, self.get_position(node))
 
     def visit_assign(self, node: ast.Assign):
         position = self.get_position(node.value)
@@ -186,28 +86,29 @@ class GlobalNormalizer(Normalizer):
         assert body[0] == '='
         body = body[1:].lstrip()
 
-        expression = ExpressionStatement(node.value, body, position)
         for target in node.targets:
-            yield target.id, expression
+            yield GlobalAssign(target.id, node.value, body, position)
 
     def visit_import_from(self, node: ast.ImportFrom):
         names = node.names
         root = node.module.split('.')
         position = self.get_position(node)
+        # starred config import
         if len(names) == 1 and names[0].name == '*':
-            yield None, ImportStarred(root, node.level, position)
+            yield ImportConfig(root, node.level, position)
             return
-
+        # relative imports make no sense, as there is no base module in configs
+        if node.level > 0:
+            throw('Relative imports are only supported for config files.', position)
+        # absolute imports
         for alias in names:
-            name = alias.asname or alias.name
-            yield name, UnifiedImport(root, node.level, alias.name.split(','), alias.asname is not None, position)
+            yield GlobalImportFrom(alias, node.module, position)
 
     def visit_import(self, node: ast.Import):
         position = self.get_position(node)
 
         for alias in node.names:
-            name = alias.asname or alias.name
-            yield name, UnifiedImport('', 0, alias.name.split('.'), alias.asname is not None, position)
+            yield GlobalImport(alias, position)
 
 
 # need this function, because in >=3.8 the function start is considered from `def` token
@@ -244,24 +145,24 @@ def parse(source: str, source_path: str):
     lines = tuple(source.splitlines() + [''])
     wrapped = []
     for statement, start, stop in reversed(list(find_body_limits(source, source_path))):
-        wrapped.extend(GlobalNormalizer(start, stop, lines, source_path).visit(statement))
+        wrapped.extend(Normalizer(start, stop, lines, source_path).visit(statement))
 
     parents, imports, definitions = [], [], []
-    for name, w in wrapped:
-        if isinstance(w, ImportStarred):
-            assert name is None
+    # TODO: move this to normalizer?
+    for entry in wrapped:
+        if isinstance(entry, ImportConfig):
             if imports or definitions:
-                throw('Starred imports are only allowed at the top of the config.', w.position)
-            parents.append(w)
+                throw('Starred imports are only allowed at the top of the config.', entry.position)
+            parents.append(entry)
 
-        elif isinstance(w, UnifiedImport):
+        elif isinstance(entry, ImportBase):
             if definitions:
-                throw('Imports are only allowed before definitions.', w.position)
-            imports.append((name, w))
+                throw('Imports are only allowed before definitions.', entry.position)
+            imports.append(entry)
 
         else:
-            assert isinstance(w, (Function, ExpressionStatement))
-            definitions.append((name, w))
+            assert isinstance(entry, (GlobalAssign, GlobalFunction))
+            definitions.append(entry)
 
     return parents, imports, definitions
 

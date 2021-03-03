@@ -1,51 +1,46 @@
 import ast
-from collections import defaultdict, OrderedDict
-from inspect import Parameter
-from typing import Iterable, List, Dict
+from collections import defaultdict
+from enum import Enum
+from typing import Iterable, List, Dict, Sequence, Optional
 
-from ..utils import reverse_mapping
-from ..wrappers import ExpressionStatement, Function, Wrapper
-from ..scope import ScopeDict
+from .locals import LocalsGatherer, extract_assign_targets
+from ..statements import GlobalStatement, GlobalFunction, GlobalAssign, GlobalImport
 from ..exceptions import SemanticError
 from .visitor import SemanticVisitor
-
-
-def global_definition(method):
-    def wrapper(self, node, *args, **kwargs):
-        self._source_paths.append(node.source_path)
-        value = method(self, node, *args, **kwargs)
-        self._source_paths.pop()
-        return value
-
-    return wrapper
 
 
 def position(node: ast.AST):
     return node.lineno, node.col_offset
 
 
+# TODO: __folder__
 READ_ONLY = {'__file__'}
+NodeParents = Dict[GlobalStatement, List[GlobalStatement]]
 
 
 class Semantics(SemanticVisitor):
-    def __init__(self, name_to_node: ScopeDict, builtins: Iterable[str]):
+    def __init__(self, statements: Sequence[GlobalStatement], builtins: Iterable[str]):
         self.messages = defaultdict(lambda: defaultdict(set))
-        self._scopes: List[Dict[str, MarkedNode]] = []
-        self._source_paths = []
+
+        # scopes
         self._builtins = builtins
-        self.leave_time = {}
-        self._current_time = 0
-        self._statements: List[Wrapper] = []
+        self._global_scope: Dict[str, MarkedValue] = {
+            statement.name: MarkedValue(statement) for statement in statements
+        }
+        self._local_scopes: List[Dict[str, Marked]] = []
+
+        # tracking
+        self._global_statement: Optional[GlobalStatement] = None
         # TODO: use ordered set
-        self._parents: Dict[Wrapper, List[Wrapper]] = defaultdict(list)
+        self.parents: NodeParents = defaultdict(list)
 
-        self.node_to_names = reverse_mapping(name_to_node)
-        self.enter_scope(name_to_node)
-        self.analyze_global_scope()
+        # analysis
+        for name, value in self._global_scope.items():
+            if name in READ_ONLY:
+                *pos, source = value.value.position
+                self.add_message('The value is read-only', '"' + name + '" at %d:%d' % tuple(pos), source)
 
-    def add_message(self, message, content, source=None):
-        source = source or self._source_paths[-1]
-        self.messages[message][source].add(content)
+            self.visit(value.value)
 
     @staticmethod
     def format(message, elements):
@@ -56,139 +51,142 @@ class Semantics(SemanticVisitor):
             message += '\n'
         return message
 
-    @classmethod
-    def analyze(cls, scope: ScopeDict, builtins: Iterable[str]):
-        tree = cls(scope, builtins)
+    def check(self):
         message = ''
-        for msg, elements in tree.messages.items():
-            message += tree.format(msg, elements)
+        for msg, elements in self.messages.items():
+            message += self.format(msg, elements)
         if message:
             raise SemanticError(message)
-        return tree._parents
 
-    def enter_scope(self, names: ScopeDict, visited: Iterable[str] = ()):
-        scope = OrderedDict()
-        for name, value in names.items():
-            scope[name] = MarkedNode(False, value)
+    def add_message(self, message, content, source=None):
+        # TODO: move line info here?
+        source = source or self._global_statement.source_path
+        self.messages[message][source].add(content)
+
+    # scope management
+
+    def enter_scope(self, names: Iterable[str], visited: Iterable[str] = ()):
+        scope = {}
+        for name in names:
+            scope[name] = Marked(VisitState.Undefined)
         for name in visited:
-            scope[name] = MarkedNode(True)
-        self._scopes.append(scope)
+            scope[name] = Marked(VisitState.Defined)
+        self._local_scopes.append(scope)
 
     def leave_scope(self):
-        self._scopes.pop()
+        self._local_scopes.pop()
 
-    def _mark_name(self, value: 'MarkedNode'):
-        node = value.node
-        if node in self.node_to_names:
-            # if global
-            assert len(self._scopes) == 1
-            scope = self._scopes[0]
-            for name in self.node_to_names[node]:
-                scope[name].leave()
-                self.leave_time[name] = self._current_time
-                self._current_time += 1
-            assert value.visited
+    def enter(self, name: str):
+        if self._local_scopes:
+            value = self._local_scopes[-1][name]
+            # allow multiple definitions
+            if value.state is not VisitState.Defined:
+                value.enter()
+
         else:
-            # if local
-            value.leave()
+            self._global_scope[name].enter()
 
-    def _visit_definition(self, value: 'MarkedNode', level=0):
-        node = value.node
-        assert isinstance(node, Wrapper)
-        assert not value.visited and not value.visiting
+    def leave(self, name: str):
+        if self._local_scopes:
+            value = self._local_scopes[-1][name]
+            # allow multiple definitions
+            if value.state is not VisitState.Defined:
+                value.leave()
 
-        n = len(self._scopes) - level
-        self._scopes, tail = self._scopes[:n], self._scopes[n:]
-        is_global = len(self._scopes) == 1
-        value.enter()
-        if is_global:
-            # new global definition
-            assert value.node in self.node_to_names
-            self._statements.append(value.node)
-
-        # allowing recursion
-        if isinstance(node, Function) or (
-                isinstance(node, ExpressionStatement) and isinstance(node.expression, ast.Lambda)):
-            self._mark_name(value)
-            self.visit(node)
         else:
-            self.visit(node)
-            self._mark_name(value)
+            self._global_scope[name].leave()
 
-        if is_global:
-            self._statements.pop()
-        self._scopes.extend(tail)
-
-    def analyze_global_scope(self):
-        for name, value in self._scopes[-1].items():
-            if name in READ_ONLY:
-                *pos, source = value.node.position
-                self.add_message('The value is read-only', '"' + name + '" at %d:%d' % tuple(pos), source)
-
-            if not value.visited:
-                self._visit_definition(value)
+    # the most important part - variable resolving
 
     def visit_name(self, node: ast.Name):
         assert isinstance(node.ctx, ast.Load)
         name = node.id
-        for level, scope in enumerate(reversed(self._scopes)):
+        # local scopes
+        for level, scope in enumerate(reversed(self._local_scopes)):
             if name in scope:
                 value = scope[name]
-                if value.visiting:
-                    self.add_message('Values are referenced before being completely defined (cyclic dependency)',
+                # allow late binding
+                if level == 0 and value.state is not VisitState.Defined:
+                    self.add_message('Local variables referenced before being defined',
                                      '"' + name + '" at %d:%d' % position(node))
-                elif not value.visited:
-                    self._visit_definition(value, level)
-
-                # track dependencies
-                if level == len(self._scopes) - 1:
-                    assert value.node in self.node_to_names
-                    self._parents[self._statements[-1]].append(value.node)
                 return
 
+        # global scope
+        if name in self._global_scope:
+            value = self._global_scope[name]
+            if value.state is VisitState.Defining:
+                self.add_message('Values are referenced before being completely defined (cyclic dependency)',
+                                 '"' + name + '" at %d:%d' % position(node))
+
+            self.parents[self._global_statement].append(value.value)
+            return
+
+            # builtins
         if name not in self._builtins:
             self.add_message('Undefined names found', name)
 
     # global definitions
 
-    @global_definition
-    def visit_expression_statement(self, node: ExpressionStatement):
-        self.visit(node.expression)
+    def visit_global_assign(self, statement: GlobalAssign):
+        assert self._global_statement is None
+        self._global_statement = statement
 
-    @global_definition
-    def visit_function(self, node: Function):
-        bindings = {name: binding for name, binding in node.bindings}
-        if len(bindings) != len(node.bindings):
-            self.add_message('Duplicate binding names in function definition', 'at %d:%d' % node.position[:2])
+        self.enter(statement.name)
+        self.visit(statement.expression)
+        self.leave(statement.name)
 
-        names = [parameter.name for parameter in node.signature.parameters.values()]
-        assert len(names) == len(set(names))
+        self._global_statement = None
 
-        if set(names) & set(bindings):
-            self.add_message('Binding names clash with argument names in function definition',
-                             'at %d:%d' % node.position[:2])
+    def visit_global_function(self, statement: GlobalFunction):
+        assert self._global_statement is None
+        self._global_statement = statement
 
-        self._visit_sequence(node.decorators)
+        self.visit(statement.node)
 
-        for parameter in node.signature.parameters.values():
-            if parameter.default is not Parameter.empty:
-                self.visit(parameter.default)
+        self._global_statement = None
 
-        self.enter_scope(bindings, names)
-        self._visit_sequence(node.assertions)
-        self.visit(node.expression)
+    def visit_global_import(self, statement: GlobalImport):
+        self.enter(statement.name)
+        self.leave(statement.name)
 
-        for value in self._scopes[-1].values():
-            if not value.visited:
-                self.add_message('Definition is never used', 'at %d:%d' % value.node.position[:2])
+    visit_global_import_from = visit_global_import
 
+    # local definitions
+
+    def visit_assign(self, node: ast.Assign):
+        names = extract_assign_targets(node.targets)
+        for name in names:
+            self.enter(name)
+
+        self.visit(node.value)
+
+        for name in names:
+            self.leave(name)
+
+    def visit_function_def(self, node: ast.FunctionDef):
+        self.enter(node.name)
+        self.visit(node.args)
+        # TODO: type annotations?
+        self._iterate_nodes(node.decorator_list)
+        self.leave(node.name)
+
+        # ignore docstring
+        body = node.body
+        if isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Str):
+            body = body[1:]
+
+        self.enter_scope(LocalsGatherer.gather(body), self._gather_arg_names(node.args))
+        self._iterate_nodes(body)
         self.leave_scope()
 
-    @global_definition
-    def visit_unified_import(self, node):
-        pass
-
     # other stuff that manages scope
+
+    def visit_lambda(self, node: ast.Lambda):
+        self.visit(node.args)
+
+        self.enter_scope([], self._gather_arg_names(node.args))
+        self.visit(node.body)
+        self.leave_scope()
 
     def visit_list_comp(self, node):
         for comp in node.generators:
@@ -234,38 +232,39 @@ class Semantics(SemanticVisitor):
         for test in node.ifs:
             self.visit(test)
 
-    def visit_lambda(self, node: ast.Lambda):
-        args = node.args
-        names = [arg.arg for arg in args.args + args.kwonlyargs]
-        if args.vararg:
-            names.append(args.vararg.arg)
-        if args.kwarg:
-            names.append(args.kwarg.arg)
+    # function-related stuff
 
-        self._visit_sequence(args.defaults + list(filter(None, args.kw_defaults)))
+    def visit_return(self, node: ast.Return):
+        self.visit(node.value)
 
-        self.enter_scope({}, names)
-        self.visit(node.body)
-        self.leave_scope()
+    @staticmethod
+    def _gather_arg_names(node: ast.arguments):
+        args = getattr(node, 'posonlyargs', []) + node.args + node.kwonlyargs
+        if node.vararg is not None:
+            args.append(node.vararg)
+        if node.kwarg is not None:
+            args.append(node.kwarg)
+        return [arg.arg for arg in args]
 
 
-class MarkedNode:
-    def __init__(self, visited: bool, node: ast.AST = None):
-        self.node = node
-        self.status = visited
+class VisitState(Enum):
+    Undefined, Defining, Defined = 0, 1, 2
 
-    @property
-    def visited(self):
-        return bool(self.status)
 
-    @property
-    def visiting(self):
-        return self.status is None
+class Marked:
+    def __init__(self, status: VisitState):
+        self.state = status
 
     def enter(self):
-        assert self.status is False
-        self.status = None
+        assert self.state is VisitState.Undefined
+        self.state = VisitState.Defining
 
     def leave(self):
-        assert not self.visited
-        self.status = True
+        assert self.state is not VisitState.Defined
+        self.state = VisitState.Defined
+
+
+class MarkedValue(Marked):
+    def __init__(self, value):
+        super().__init__(VisitState.Undefined)
+        self.value = value

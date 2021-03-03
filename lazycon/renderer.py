@@ -2,7 +2,7 @@ import ast
 import sys
 
 from .visitor import Visitor
-from .wrappers import UnifiedImport, Function, ExpressionStatement
+from .statements import GlobalFunction, GlobalAssign, GlobalImport
 from . import scope
 
 
@@ -15,18 +15,20 @@ class Renderer(Visitor):
     def render(node, global_scope):
         return Renderer(global_scope).visit(node)
 
-    def visit_expression_statement(self, node: ExpressionStatement):
+    def visit_global_assign(self, node: GlobalAssign):
         code = compile(ast.Expression(node.expression), node.source_path, 'eval')
         return eval(code, scope.ScopeEval(self.global_scope))
 
-    def visit_unified_import(self, node: UnifiedImport):
-        name = 'alias'
+    def visit_global_import(self, node: GlobalImport):
+        name = node.name
         wrapper = scope.ScopeExec(self.global_scope, name)
         self._exec(node.to_str([name]), wrapper, node.source_path)
         return wrapper.get_result()
 
-    def visit_function(self, node: Function):
-        wrapper = scope.ScopeExec(self.global_scope, node.original_name)
+    visit_global_import_from = visit_global_import
+
+    def visit_global_function(self, node: GlobalFunction):
+        wrapper = scope.ScopeExec(self.global_scope, node.name)
         self._exec(self._module([node.node]), wrapper, node.source_path)
         return wrapper.get_result()
 

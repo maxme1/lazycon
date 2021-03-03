@@ -1,13 +1,12 @@
-import itertools
 import os
 from collections import OrderedDict, Counter
 from pathlib import Path
 from typing import Union, Dict, Any, Sequence
 
 from .semantics import Semantics
-from .exceptions import EntryError, ExceptionWrapper, SemanticError, ConfigImportError
+from .exceptions import EntryError, ExceptionWrapper, SemanticError
 from .scope import Scope, Builtins, ScopeEval
-from .parser import parse_file, parse_string, flatten_assignment
+from .parser import parse_file, parse_string
 
 PathLike = Union[Path, str]
 
@@ -24,12 +23,13 @@ class Config:
         a dict with default values that will be used in case the config doesn't define them.
     """
     # restricting setattr to these names
-    __slots__ = '_shortcuts', '_imported_configs', '_scope', '_node_parents'
+    __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope', '_node_parents'
 
     def __init__(self, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
-        self._scope = Scope(Builtins(injections or {}))
+        self._builtins = Builtins(injections or {})
+        self._scope: Scope = Scope([], self._builtins, {})
         self._node_parents = {}
 
     @classmethod
@@ -91,7 +91,7 @@ class Config:
         """
         if isinstance(entry_points, str):
             entry_points = [entry_points]
-        return '\n'.join(self._scope.render(self._node_parents, entry_points)).strip() + '\n'
+        return '\n'.join(self._scope.render(entry_points)).strip() + '\n'
 
     def dump(self, path: str, entry_points: Union[Sequence[str], str] = None):
         """ Render the config and save it to `path`. See `dumps` for details. """
@@ -99,17 +99,17 @@ class Config:
             file.write(self.dumps(entry_points))
 
     # TODO: rename
-    def import_config(self, path: PathLike):
+    def import_config(self, path: PathLike) -> 'Config':
         """Import the config located at `path`."""
-        self._update_resources(self._import(path))
+        self._update_scope(self._import(path))
         return self
 
-    def string_input(self, source: str):
+    def string_input(self, source: str) -> 'Config':
         """Interpret the `source`."""
-        self._update_resources(self._get_resources(*parse_string(source)))
+        self._update_scope(self._make_scope(*parse_string(source)))
         return self
 
-    def update(self, **values: Any):
+    def update(self, **values: Any) -> 'Config':
         """Update the scope by `values`."""
         self._scope.update_values(values)
         return self
@@ -121,7 +121,7 @@ class Config:
         try:
             return self.get(name)
         except EntryError:
-            raise AttributeError(f'"{name}" is not defined.') from None
+            raise AttributeError(f'"{name}" is not defined.')  # from None
 
     def __getitem__(self, name: str):
         try:
@@ -142,13 +142,18 @@ class Config:
         except ExceptionWrapper as e:
             raise e.exception from None
 
-    def _update_resources(self, scope: OrderedDict):
+    def _update_scope(self, scope: OrderedDict):
         self._scope.check_populated()
-
-        updated_scope = self._scope.get_name_to_statement()
-        updated_scope.update(scope)
-        self._node_parents = Semantics.analyze(updated_scope, self._scope.parent)
-        self._scope.update_statements(scope.items())
+        # update
+        statements = self._scope.statements
+        new_scope = {statement.name: statement for statement in statements}
+        new_scope.update(scope)
+        statements = list(new_scope.values())
+        # analysis
+        tree = Semantics(statements, self._builtins)
+        tree.check()
+        # building
+        self._scope = Scope(statements, self._builtins, tree.parents)
 
     @staticmethod
     def _standardize_path(path: PathLike) -> str:
@@ -165,42 +170,28 @@ class Config:
         # avoiding cycles
         self._imported_configs[path] = {}
 
-        result = self._get_resources(*parse_file(path))
+        result = self._make_scope(*parse_file(path))
         self._imported_configs[path] = result
         return result
 
-    def _get_resources(self, parents, imports, definitions) -> OrderedDict:
+    def _make_scope(self, parents, imports, definitions) -> OrderedDict:
         parent_scope = OrderedDict()
         for parent in parents:
             parent_scope.update(self._import(parent.get_path(self._shortcuts)))
 
-        scope = []
-        for name, node in imports:
-            if node.potentially_config():
-                try:
-                    local = self._import(node.get_path(self._shortcuts))
-                    what, = node.what
-                    if what not in local:
-                        raise NameError(f'"{what}" is not defined in the config it is imported from.\n' +
-                                        f'  at {node.line}:{node.column} in {node.source_path}')
-                    node = local[what]
-                except ConfigImportError:
-                    pass
-
-            scope.append((name, node))
-
-        scope.extend(definitions)
+        # TODO: unify
+        scope = imports + definitions
         duplicates = [
             name for name, count in
-            Counter(itertools.chain(*(flatten_assignment(pattern) for pattern, _ in scope))).items() if count > 1
+            Counter(x.name for x in scope).items() if count > 1
         ]
         if duplicates:
-            source_path = (imports or definitions)[0][1].source_path
+            source_path = scope[0].source_path
             duplicates = ', '.join(duplicates)
             raise SemanticError(f'Duplicate definitions found in {source_path}:\n    {duplicates}')
 
         final_scope = OrderedDict(parent_scope.items())
-        final_scope.update(scope)
+        final_scope.update((x.name, x) for x in scope)
         return final_scope
 
     def __dir__(self):

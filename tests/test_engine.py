@@ -37,14 +37,6 @@ def test_import():
         pytest.fail()
 
 
-def test_import_partial():
-    rm = load('imports/import_from_config.config')
-    assert rm.one == [1, 2]
-    rm = load('imports/import_twice.config')
-    assert rm.link_ == rm.link
-    assert rm.func_ == rm.func
-
-
 def test_update():
     rm = loads('a = 1').update(a=2)
     rm2 = loads('a = 1').string_input('a = 2')
@@ -67,14 +59,6 @@ def test_multiple_definitions():
     assert '''a = b = c = 1\nd = a\n''' == rm.dumps()
     rm = load('statements/import_from_multiple.config')
     assert '''a = 2\nb = c = 1\nd = a\n''' == rm.dumps()
-
-
-def test_import_partial_upper():
-    rm = load('imports/folder/upper_partial.config')
-    assert rm.numpy is None
-    assert np == rm.np
-    rm = load('imports/folder/child/third.config')
-    assert rm.a == [1, 2, 1]
 
 
 def test_cycle_import():
@@ -127,24 +111,17 @@ def test_tail():
     assert rm.random.shape == (1, 1, 2, 2)
 
 
-def test_bindings_clash():
-    with pytest.raises(SemanticError):
-        Config().string_input('''
-def f(x):
+def test_local_duplicates():
+    assert loads('''
+def f():
+    x = 1
+    x = 2
+    return x
+    
+def g(x):
     x = 1
     return 2
-''')
-
-
-def test_bindings_names():
-    with pytest.raises(SemanticError):
-        Config().string_input('''
-def f(x):
-    x = 1
-    y = 2
-    x = 3
-    return 2
-''')
+    ''').f() == 2
 
 
 def test_func_def():
@@ -179,8 +156,8 @@ def test_unpacking():
 
     with pytest.raises(SyntaxError):
         loads('a, b = 1, 2')
-    with pytest.raises(SyntaxError):
-        loads('def f(x): a, *b = x; return a')
+
+    assert loads('def f(x): a, *b = x; return a').f((1, 2, 3)) == 1
 
 
 def test_decorators():
@@ -350,11 +327,6 @@ a = 11
 ''')
 
 
-def test_bad_import():
-    with pytest.raises(NameError):
-        loads('from .expressions.literals import a')
-
-
 def test_exception_type():
     with pytest.raises(KeyError):
         loads('''
@@ -370,8 +342,8 @@ def test_setattr():
 
 
 def test_unused():
-    with pytest.raises(SemanticError):
-        loads('''
+    # unused names are ok now
+    loads('''
 def f():
     x = 1
     return 2
