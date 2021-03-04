@@ -189,7 +189,7 @@ class ScopeWrapper(Dict[str, Any]):
         return name in self.scope or super().__contains__(name)
 
     def keys(self):
-        return set(super().keys()) | set(self.scope.keys())
+        return list(set(super().keys()) | set(self.scope.keys()))
 
     def values(self):
         raise NotImplementedError
@@ -201,13 +201,13 @@ class ScopeWrapper(Dict[str, Any]):
         #     yield key, super().__getitem__(key)
 
     def get(self, key):
-        raise NotImplementedError
+        return self[key]
 
     def __iter__(self):
-        return self.keys()
+        yield from self.keys()
 
     def __len__(self):
-        raise NotImplementedError
+        return len(self.keys())
 
     def popitem(self):
         raise NotImplementedError
