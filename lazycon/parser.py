@@ -57,11 +57,12 @@ def flatten_assignment(pattern):
 
 
 class Normalizer(Visitor):
-    def __init__(self, start, stop, lines, source_path):
+    def __init__(self, start, stop, lines, source_path, extension):
         self.source_path = source_path
         self.lines = lines
         self.start = start
         self.stop = stop
+        self.extension = extension
 
     def get_position(self, node: ast.AST):
         return node.lineno, node.col_offset, self.source_path
@@ -96,7 +97,7 @@ class Normalizer(Visitor):
         position = self.get_position(node)
         # starred config import
         if len(names) == 1 and names[0].name == '*':
-            yield ImportConfig(root, node.level, position)
+            yield ImportConfig(root, node.level, self.extension, position)
             return
         # relative imports make no sense, as there is no base module in configs
         if node.level > 0:
@@ -142,11 +143,11 @@ def find_body_limits(source: str, source_path: str):
         stop = start
 
 
-def parse(source: str, source_path: str) -> Tuple[Sequence[ImportConfig], Sequence[GlobalStatement]]:
+def parse(source: str, source_path: str, extension: str) -> Tuple[Sequence[ImportConfig], Sequence[GlobalStatement]]:
     lines = tuple(source.splitlines() + [''])
     wrapped = []
     for statement, start, stop in reversed(list(find_body_limits(source, source_path))):
-        wrapped.extend(Normalizer(start, stop, lines, source_path).visit(statement))
+        wrapped.extend(Normalizer(start, stop, lines, source_path, extension).visit(statement))
 
     parents, imports, definitions = [], [], []
     # TODO: move this to normalizer?
@@ -168,10 +169,10 @@ def parse(source: str, source_path: str) -> Tuple[Sequence[ImportConfig], Sequen
     return parents, imports + definitions
 
 
-def parse_file(config_path):
+def parse_file(config_path, extension):
     with open(config_path, 'r') as file:
-        return parse(file.read(), config_path)
+        return parse(file.read(), config_path, extension)
 
 
-def parse_string(source):
-    return parse(source, '<string input>')
+def parse_string(source, extension):
+    return parse(source, '<string input>', extension)

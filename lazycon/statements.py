@@ -93,12 +93,12 @@ class GlobalFunction(GlobalStatement):
 
 
 class ImportConfig(Wrapper):
-    def __init__(self, root: Sequence[str], dots: int, position):
+    def __init__(self, root: Sequence[str], dots: int, extension: str, position):
         super().__init__(position)
         self.dots = dots
         self.root = tuple(root)
         self.position = position
-        self.extension = '.config'
+        self.extension = extension
 
     def get_path(self, shortcuts):
         # relative import

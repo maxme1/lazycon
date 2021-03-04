@@ -5,7 +5,7 @@ from lazycon.parser import parse_string
 
 
 def standardize(source):
-    parents, scope = parse_string(source)
+    parents, scope = parse_string(source, '.config')
     result = '\n'.join(f'from {"." * imp.dots}{".".join(imp.root)} import *' for imp in parents) + '\n'
     return result + '\n'.join(x.to_str([x.name]) for x in scope) + '\n'
 
@@ -29,14 +29,14 @@ def test_comments(tests_path):
 
 def test_unexpected_token():
     with pytest.raises(SyntaxError):
-        parse_string('a = [1, 2 3]')
+        parse_string('a = [1, 2 3]', '.config')
 
 
 def test_unexpected_eof():
     with pytest.raises(SyntaxError):
-        parse_string('a = [1, 2')
+        parse_string('a = [1, 2', '.config')
 
 
 def test_unrecognized_token():
     with pytest.raises(SyntaxError):
-        parse_string('$')
+        parse_string('$', '.config')

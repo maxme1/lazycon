@@ -11,13 +11,13 @@ def test_correctness(subtests, tests_path):
     for path in tests_path.glob('**/*.config'):
         with subtests.test(path=path):
             with open(path, 'r') as file:
-                parents, scope = parse_string(file.read())
+                parents, scope = parse_string(file.read(), '.config')
                 if not parents:
                     Semantics(scope, set(vars(builtins))).check()
 
 
 def validate_config(source: str):
-    parents, scope = parse_string(source)
+    parents, scope = parse_string(source, '.config')
     assert not parents
     Semantics(scope, set(vars(builtins))).check()
 

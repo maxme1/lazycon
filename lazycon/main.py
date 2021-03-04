@@ -24,13 +24,14 @@ class Config:
         a dict with default values that will be used in case the config doesn't define them.
     """
     # restricting setattr to these names
-    __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope'
+    __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope', '_extension'
 
     def __init__(self, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._builtins = Builtins(injections or {})
         self._scope: Scope = Scope([], self._builtins, {})
+        self._extension = '.config'
 
     @classmethod
     def load(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
@@ -40,7 +41,7 @@ class Config:
 
         Parameters
         ----------
-        path: str
+        path: str, pathlib.Path
             path to the config to import
         shortcuts: dict, optional
             a dict that maps keywords to paths. It is used to resolve paths during import.
@@ -105,7 +106,7 @@ class Config:
 
     def string_input(self, source: str) -> 'Config':
         """Interpret the `source`."""
-        self._update_scope(self._make_scope(*parse_string(source)))
+        self._update_scope(self._make_scope(*parse_string(source, self._extension)))
         return self
 
     def update(self, **values: Any) -> 'Config':
@@ -175,7 +176,7 @@ class Config:
         # avoiding cycles
         self._imported_configs[path] = {}
 
-        result = self._make_scope(*parse_file(path))
+        result = self._make_scope(*parse_file(path, self._extension))
         self._imported_configs[path] = result
         return result
 
