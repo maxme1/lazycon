@@ -96,6 +96,9 @@ class Semantics(SemanticVisitor):
         else:
             self._global_scope[name].leave()
 
+    def generic_visit(self, node: ast.AST, *args, **kwargs):
+        self.add_message('This syntactic structure is not supported', type(node).__name__)
+
     # the most important part - variable resolving
 
     def visit_name(self, node: ast.Name):
@@ -235,7 +238,7 @@ class Semantics(SemanticVisitor):
     # function-related stuff
 
     def visit_return(self, node: ast.Return):
-        self.visit(node.value)
+        self._visit_valid(node.value)
 
     @staticmethod
     def _gather_arg_names(node: ast.arguments):

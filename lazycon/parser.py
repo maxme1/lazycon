@@ -1,6 +1,7 @@
 import bisect
 from io import BytesIO
 from tokenize import tokenize
+from typing import Tuple
 
 from .visitor import Visitor
 from .statements import *
@@ -141,7 +142,7 @@ def find_body_limits(source: str, source_path: str):
         stop = start
 
 
-def parse(source: str, source_path: str):
+def parse(source: str, source_path: str) -> Tuple[Sequence[ImportConfig], Sequence[GlobalStatement]]:
     lines = tuple(source.splitlines() + [''])
     wrapped = []
     for statement, start, stop in reversed(list(find_body_limits(source, source_path))):
@@ -164,7 +165,7 @@ def parse(source: str, source_path: str):
             assert isinstance(entry, (GlobalAssign, GlobalFunction))
             definitions.append(entry)
 
-    return parents, imports, definitions
+    return parents, imports + definitions
 
 
 def parse_file(config_path):

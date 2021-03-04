@@ -7,6 +7,7 @@ from .semantics import Semantics
 from .exceptions import EntryError, ExceptionWrapper, SemanticError
 from .scope import Scope, Builtins, ScopeEval
 from .parser import parse_file, parse_string
+from .statements import ImportConfig, GlobalStatement
 
 PathLike = Union[Path, str]
 
@@ -23,14 +24,13 @@ class Config:
         a dict with default values that will be used in case the config doesn't define them.
     """
     # restricting setattr to these names
-    __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope', '_node_parents'
+    __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope'
 
     def __init__(self, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._builtins = Builtins(injections or {})
         self._scope: Scope = Scope([], self._builtins, {})
-        self._node_parents = {}
 
     @classmethod
     def load(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
@@ -58,7 +58,7 @@ class Config:
             raise ValueError(f'The "{key}" key is not allowed in "injections".')
 
         injections[key] = Path(cls._standardize_path(path))
-        return cls(shortcuts, injections).import_config(path)
+        return cls(shortcuts, injections).file_input(path)
 
     @classmethod
     def loads(cls, source: str, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
@@ -98,8 +98,7 @@ class Config:
         with open(path, 'w') as file:
             file.write(self.dumps(entry_points))
 
-    # TODO: rename
-    def import_config(self, path: PathLike) -> 'Config':
+    def file_input(self, path: PathLike) -> 'Config':
         """Import the config located at `path`."""
         self._update_scope(self._import(path))
         return self
@@ -122,6 +121,12 @@ class Config:
             return self.get(name)
         except EntryError:
             raise AttributeError(f'"{name}" is not defined.')  # from None
+
+    def keys(self):
+        return self._scope.keys()
+
+    def __iter__(self):
+        yield from self.keys()
 
     def __getitem__(self, name: str):
         try:
@@ -174,17 +179,12 @@ class Config:
         self._imported_configs[path] = result
         return result
 
-    def _make_scope(self, parents, imports, definitions) -> OrderedDict:
+    def _make_scope(self, parents: Sequence[ImportConfig], scope: Sequence[GlobalStatement]) -> OrderedDict:
         parent_scope = OrderedDict()
         for parent in parents:
             parent_scope.update(self._import(parent.get_path(self._shortcuts)))
 
-        # TODO: unify
-        scope = imports + definitions
-        duplicates = [
-            name for name, count in
-            Counter(x.name for x in scope).items() if count > 1
-        ]
+        duplicates = [name for name, count in Counter(x.name for x in scope).items() if count > 1]
         if duplicates:
             source_path = scope[0].source_path
             duplicates = ', '.join(duplicates)
@@ -198,7 +198,7 @@ class Config:
         return list(set(self._scope.keys()) | set(super().__dir__()))
 
     def _ipython_key_completions_(self):
-        return self._scope.keys()
+        return list(self._scope.keys())
 
     def __setattr__(self, name, value):
         try:

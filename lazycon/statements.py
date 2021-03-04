@@ -43,51 +43,33 @@ class ImportBase(GlobalStatement):
 
 class GlobalImport(ImportBase):
     def __init__(self, alias: ast.alias, position):
-        # TODO: smarter name inference
-        super().__init__(alias.asname or alias.name, alias, position)
+        super().__init__(alias.asname or alias.name.split('.', 1)[0], alias, position)
         self.alias = alias
 
-    def to_str(self, names):
-        # FIXME
-        assert len(names) == 1
-        name, = names
-        assert name == self.name
-
-        result = 'import ' + self.alias.name
-        what = self.alias.name.split('.')
-        if len(what) > 1 or what[0] != name:
-            result += ' as ' + name
-
-        return result
-
-
-class GlobalImportFrom(ImportBase):
-    def __init__(self, alias: ast.alias, root: str, position):
-        # TODO: smarter name inference
-        super().__init__(alias.asname or alias.name, alias, position)
-        self.root = root
-        self.alias = alias
-
-    def to_str(self, names):
+    def _import_what(self, names):
         # FIXME
         assert len(names) == 1, names
         name, = names
         assert name == self.name
 
-        result = 'from ' + self.root + ' import ' + self.alias.name
-        what = self.alias.name.split('.')
-        if len(what) > 1 or what[0] != name:
-            result += ' as ' + name
-
-        return result
-
-    def _import_what(self, name):
         result = self.alias.name
         what = result.split('.')
         if len(what) > 1 or what[0] != name:
             result += ' as ' + name
 
         return result
+
+    def to_str(self, names):
+        return f'import {self._import_what(names)}'
+
+
+class GlobalImportFrom(GlobalImport):
+    def __init__(self, alias: ast.alias, root: str, position):
+        super().__init__(alias, position)
+        self.root = root
+
+    def to_str(self, names):
+        return f'from {self.root} {super().to_str(names)}'
 
     @staticmethod
     def group_to_str(statements: Sequence['GlobalImportFrom']):
@@ -116,18 +98,19 @@ class ImportConfig(Wrapper):
         self.dots = dots
         self.root = tuple(root)
         self.position = position
+        self.extension = '.config'
 
     def get_path(self, shortcuts):
         # relative import
         if self.dots > 0:
             root = (os.pardir,) * (self.dots - 1) + self.root
             prefix = os.path.dirname(self.source_path)
-            return os.path.join(prefix, *root) + '.config'
+            return os.path.join(prefix, *root) + self.extension
 
         # import by shortcut
         shortcut, *root = self.root
         if shortcut in shortcuts:
-            return os.path.join(shortcuts[shortcut], *root) + '.config'
+            return os.path.join(shortcuts[shortcut], *root) + self.extension
 
         # import by sys.path
         visited = set()
@@ -137,12 +120,8 @@ class ImportConfig(Wrapper):
                 continue
             visited.add(prefix)
 
-            path = os.path.join(prefix, *self.root) + '.config'
+            path = os.path.join(prefix, *self.root) + self.extension
             if os.path.exists(path):
                 return path
 
         raise ConfigImportError(f'Parent config not found while parsing "{self.source_path}".')
-
-
-def dotted(x):
-    return '.'.join(x)

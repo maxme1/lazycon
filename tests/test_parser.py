@@ -1,16 +1,13 @@
 import pytest
 
 from lazycon import load
-from lazycon.parser import parse_string, dotted
+from lazycon.parser import parse_string
 
 
 def standardize(source):
-    parents, imports, definitions = parse_string(source)
-    result = '\n'.join(f'from {"." * imp.dots}{dotted(imp.root)} import *' for imp in parents) + '\n'
-    result += '\n'.join(imp.to_str([imp.name]) for imp in imports) + '\n'
-    for definition in definitions:
-        result += definition.to_str([definition.name]) + '\n'
-    return result
+    parents, scope = parse_string(source)
+    result = '\n'.join(f'from {"." * imp.dots}{".".join(imp.root)} import *' for imp in parents) + '\n'
+    return result + '\n'.join(x.to_str([x.name]) for x in scope) + '\n'
 
 
 def test_idempotency(subtests, tests_path):

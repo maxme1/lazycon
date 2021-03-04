@@ -11,15 +11,15 @@ def test_correctness(subtests, tests_path):
     for path in tests_path.glob('**/*.config'):
         with subtests.test(path=path):
             with open(path, 'r') as file:
-                parents, imports, definitions = parse_string(file.read())
+                parents, scope = parse_string(file.read())
                 if not parents:
-                    Semantics(imports + definitions, set(vars(builtins))).check()
+                    Semantics(scope, set(vars(builtins))).check()
 
 
 def validate_config(source: str):
-    parents, imports, definitions = parse_string(source)
+    parents, scope = parse_string(source)
     assert not parents
-    Semantics(imports + definitions, set(vars(builtins))).check()
+    Semantics(scope, set(vars(builtins))).check()
 
 
 def test_undefined():

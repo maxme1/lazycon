@@ -103,11 +103,8 @@ class SemanticVisitor(Visitor):
         self.visit(node.test)
         self._visit_valid(node.msg)
 
-    # imports
-
-    visit_unified_import = _ignore_node
-
     # helpers
 
     def visit_arguments(self, node: ast.arguments):
-        self._iterate_nodes(node.defaults + list(filter(None, node.kw_defaults)))
+        self._iterate_nodes(node.defaults)
+        self._iterate_nodes(filter(None, node.kw_defaults))

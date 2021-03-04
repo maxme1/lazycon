@@ -142,9 +142,7 @@ class Scope:
             raise RuntimeError('The scope has already been updated by live objects that cannot be rendered properly.')
 
         # grouping imports
-
         statements, order = self._get_leave_time(entry_points)
-
         # here we want a statement -> names mapping, obtained through target
         groups = defaultdict(list)
         target_to_statement = {}

@@ -14,27 +14,26 @@ b = sum(a)
     assert rm.b == 6
 
 
-def test_entry_points(subtests, tests_path):
+def test_dumps(subtests, tests_path):
     for path in tests_path.glob('**/*.config'):
-        with subtests.test(filename=path.name):
+        with subtests.test(path=path):
             config = load(path)
             # for each entry point the config must be readable and give the same results
-            for name in config._scope.keys():
+            for name in list(config) + [None, []]:
                 source = config.dumps(name)
-                assert config.dumps(name) == source
+                assert config.dumps(name) == source, path
                 assert loads(source).dumps() == source, path
 
 
 def test_import():
     rm = load('imports/imports.config')
     assert rm.numpy == np
-    try:
-        rm.r
-        rm.os
-        rm.std
-        rm.mean
-    except BaseException:
-        pytest.fail()
+    rm.r
+    rm.os
+    rm.std
+    rm.mean
+    rm = loads('import numpy.linalg; inv = numpy.linalg.inv')
+    rm.inv
 
 
 def test_update():
@@ -87,7 +86,7 @@ def test_upper_import():
 
 
 def test_attr_error():
-    rm = load('imports/imports.config')
+    rm = Config()
     with pytest.raises(AttributeError):
         rm.undefined_value
     with pytest.raises(KeyError):
@@ -191,10 +190,7 @@ def test_lambda_args():
     assert rm.keyword(y=1) == ((), 1)
     with pytest.raises(TypeError):
         rm.b(1, 2)
-    try:
-        rm.vararg(x=1)
-    except BaseException:
-        pytest.fail()
+    rm.vararg(x=1)
 
 
 def test_eval():
@@ -280,7 +276,7 @@ def test_overwrite():
     rm = load('expressions/literals.config').string_input('literals = 1')
     rm.literals
     with pytest.raises(RuntimeError):
-        rm.import_config('expressions/literals.config')
+        rm.file_input('expressions/literals.config')
 
     rm = load('expressions/literals.config').string_input('a = 2')
     rm.string_input('b = a + 1')
