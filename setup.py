@@ -29,11 +29,9 @@ setup(
     classifiers=classifiers.splitlines(),
     install_requires=[],
     python_requires='>=3.6',
-    # entry_points={
-    #     'console_scripts': [
-    # TODO: 'lazycon = lazycon.console:main',
-    # 'run-config = lazycon.console:evaluate',
-    # 'build-config = lazycon.console:build',
-    # ],
-    # },
+    entry_points={
+        'console_scripts': [
+            'lazycon = lazycon.console:main',
+        ],
+    },
 )
