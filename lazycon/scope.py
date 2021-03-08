@@ -200,8 +200,10 @@ class ScopeWrapper(Dict[str, Any]):
         # for key in set(super().keys()) - set(self.scope):
         #     yield key, super().__getitem__(key)
 
-    def get(self, key):
-        return self[key]
+    def get(self, key, default=None):
+        if key in self:
+            return self[key]
+        return default
 
     def __iter__(self):
         yield from self.keys()
