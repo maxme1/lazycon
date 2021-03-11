@@ -18,6 +18,7 @@ setup(
     version=__version__,
     description='An interpreter for lazy configs in Python',
     long_description=long_description,
+    long_description_content_type='text/markdown',
     author='maxme1',
     author_email='maxs987@gmail.com',
     license='MIT',
