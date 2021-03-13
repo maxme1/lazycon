@@ -104,13 +104,17 @@ class Normalizer(Visitor):
             throw('Relative imports are only supported for config files.', position)
         # absolute imports
         for alias in names:
-            yield GlobalImportFrom(alias, node.module, position)
+            local = ast.ImportFrom(node.module, [alias], 0)
+            ast.copy_location(local, node)
+            yield GlobalImportFrom(local, position)
 
     def visit_import(self, node: ast.Import):
         position = self.get_position(node)
 
         for alias in node.names:
-            yield GlobalImport(alias, position)
+            local = ast.Import([alias])
+            ast.copy_location(local, node)
+            yield GlobalImport(local, position)
 
 
 # need this function, because in >=3.8 the function start is considered from `def` token

@@ -5,8 +5,9 @@ from typing import Union, Dict, Any, Sequence
 
 from .semantics import Semantics
 from .exceptions import EntryError, ExceptionWrapper, SemanticError
-from .scope import Scope, Builtins, ScopeEval
+from .scope import Scope, Builtins
 from .parser import parse_file, parse_string
+from .render import ScopeEval
 from .statements import ImportConfig, GlobalStatement
 
 PathLike = Union[Path, str]

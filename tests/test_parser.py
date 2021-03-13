@@ -7,7 +7,7 @@ from lazycon.parser import parse_string
 def standardize(source):
     parents, scope = parse_string(source, '.config')
     result = '\n'.join(f'from {"." * imp.dots}{".".join(imp.root)} import *' for imp in parents) + '\n'
-    return result + '\n'.join(x.to_str([x.name]) for x in scope) + '\n'
+    return result + '\n'.join(x.to_str() for x in scope) + '\n'
 
 
 def test_idempotency(subtests, tests_path):

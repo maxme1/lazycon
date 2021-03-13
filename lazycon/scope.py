@@ -7,8 +7,7 @@ from .semantics.analyzer import NodeParents
 from .thunk import ValueThunk, NodeThunk, Thunk
 from .utils import reverse_mapping
 from .statements import GlobalStatement, GlobalImport, GlobalImportFrom
-from .renderer import Renderer
-from .exceptions import EntryError, ExceptionWrapper, SemanticError
+from .exceptions import EntryError, SemanticError
 
 ScopeDict = Dict[str, GlobalStatement]
 
@@ -54,6 +53,7 @@ class Scope:
         for statement in statements:
             target = statement.target
             if target not in self._node_to_thunk:
+                # TODO: maybe the thunk should hold the target?
                 self._node_to_thunk[target] = NodeThunk(statement)
 
             self._name_to_thunk[statement.name] = self._node_to_thunk[target]
@@ -71,7 +71,7 @@ class Scope:
         with thunk.lock:
             if not thunk.ready:
                 self._populated = True
-                thunk.set(Renderer.render(thunk.statement, self))
+                thunk.set(thunk.statement.render(self))
 
             return thunk.value
 
@@ -134,35 +134,26 @@ class Scope:
             visit_parents(names[n])
             mark_name(n)
 
-        names = [names[n] for n in leave_time]
-        return names, leave_time
+        return [names[n] for n in leave_time], {names[n]: t for n, t in leave_time.items()}
 
     def render(self, entry_points: Sequence[str] = None):
         if self._updated:
             raise RuntimeError('The scope has already been updated by live objects that cannot be rendered properly.')
 
-        # grouping imports
         statements, order = self._get_leave_time(entry_points)
-        # here we want a statement -> names mapping, obtained through target
-        groups = defaultdict(list)
-        target_to_statement = {}
-        for statement in statements:
-            target_to_statement[statement.target] = statement
-            groups[statement.target].append(statement.name)
-        groups = {target_to_statement[target]: names for target, names in groups.items()}
 
+        # imports
         import_groups, imports, definitions = defaultdict(list), [], []
-        for statement, names in sorted(groups.items(), key=lambda x: min(order[n] for n in x[1])):
-            pair = sorted(names), statement
+        for statement in sorted(statements, key=lambda s: order[s]):
             if isinstance(statement, GlobalImportFrom):
-                import_groups[statement.root].append(pair)
+                import_groups[statement.root].append(statement)
             elif isinstance(statement, GlobalImport):
-                imports.append(pair)
+                imports.append(statement)
             else:
-                definitions.append(pair)
+                definitions.append(statement)
 
-        for names, statement in imports:
-            yield statement.to_str(names)
+        for statement in imports:
+            yield statement.to_str()
 
         if imports:
             yield ''
@@ -173,88 +164,14 @@ class Scope:
         if import_groups or imports:
             yield '\n'
 
-        for names, statement in definitions:
-            yield statement.to_str(names)
+        # definitions
+        groups = defaultdict(list)
+        for statement in definitions:
+            groups[statement.target].append(statement)
+
+        for _, group in sorted(groups.items(), key=lambda x: min(order[s] for s in x[1])):
+            assert len(set(map(type, group))) == 1
+            yield group[0].group_to_str(group)
 
     def __setitem__(self, key, value):
         raise NotImplementedError
-
-
-class ScopeWrapper(Dict[str, Any]):
-    def __init__(self, scope: Scope):
-        super().__init__()
-        self.scope = scope
-
-    def __contains__(self, name):
-        return name in self.scope or super().__contains__(name)
-
-    def keys(self):
-        return list(set(super().keys()) | set(self.scope.keys()))
-
-    def values(self):
-        raise NotImplementedError
-
-    def items(self):
-        raise NotImplementedError
-        # yield from self.scope.items()
-        # for key in set(super().keys()) - set(self.scope):
-        #     yield key, super().__getitem__(key)
-
-    def get(self, key, default=None):
-        if key in self:
-            return self[key]
-        return default
-
-    def __iter__(self):
-        yield from self.keys()
-
-    def __len__(self):
-        return len(self.keys())
-
-    def popitem(self):
-        raise NotImplementedError
-
-    def setdefault(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def update(self, **kwargs):
-        raise NotImplementedError
-
-    def __delitem__(self, v):
-        raise NotImplementedError
-
-
-class ScopeEval(ScopeWrapper):
-    def __getitem__(self, name):
-        try:
-            return self.scope[name]
-        except KeyError as e:
-            # this is needed because KeyError is converted to NameError by `eval`
-            raise ExceptionWrapper(e) from e
-        except EntryError:
-            pass
-
-        if name not in self:
-            raise NameError(f'The name "{name}" is not defined.')
-        return super().__getitem__(name)
-
-    def __setitem__(self, k, v):
-        raise NotImplementedError
-
-
-class ScopeExec(ScopeWrapper):
-    def __init__(self, scope: Scope, name: str = None):
-        super().__init__(scope)
-        self.name = name
-
-    def __setitem__(self, name, value):
-        assert self.name is not None and name == self.name
-        super().__setitem__(name, value)
-
-    def get_result(self):
-        return super().pop(self.name)
-
-    def __getitem__(self, name):
-        if name in self.scope:
-            return self.scope[name]
-        return super().__getitem__(name)
