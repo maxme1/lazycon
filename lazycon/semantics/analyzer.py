@@ -15,6 +15,7 @@ def position(node: ast.AST):
 
 # TODO: __folder__
 READ_ONLY = {'__file__'}
+IGNORE_NAME = '_'
 NodeParents = Dict[GlobalStatement, List[GlobalStatement]]
 
 
@@ -97,13 +98,18 @@ class Semantics(SemanticVisitor):
             self._global_scope[name].leave()
 
     def generic_visit(self, node: ast.AST, *args, **kwargs):
-        self.add_message('This syntactic structure is not supported', type(node).__name__)
+        self.add_message('This syntactic structure is not supported',
+                         f'{type(node).__name__} at %d:%d' % position(node))
 
     # the most important part - variable resolving
 
     def visit_name(self, node: ast.Name):
         assert isinstance(node.ctx, ast.Load)
         name = node.id
+        if name == IGNORE_NAME:
+            self.add_message(f'The name "{IGNORE_NAME}" can only be used as wildcard during unpacking',
+                             'at %d:%d' % position(node))
+
         # local scopes
         for level, scope in enumerate(reversed(self._local_scopes)):
             if name in scope:

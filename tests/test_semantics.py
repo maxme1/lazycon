@@ -58,3 +58,8 @@ def f(x):
         return x + y
     y = 1
     ''')
+
+
+def test_wildcard():
+    with pytest.raises(SemanticError):
+        validate_config('_ = 1; a = _, 2')
