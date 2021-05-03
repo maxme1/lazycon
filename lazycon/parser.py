@@ -79,13 +79,13 @@ class Normalizer(Visitor):
         for target in node.targets:
             if not isinstance(target, ast.Name):
                 throw('This assignment syntax is not supported.', self.get_position(target))
-            assert isinstance(target.ctx, ast.Store)
+            assert isinstance(target.ctx, ast.Store), target.ctx
 
         last_target = node.targets[-1]
         body = get_substring(self.lines, last_target.lineno, last_target.col_offset, *self.stop)
-        assert body[:len(last_target.id)] == last_target.id
+        assert body[:len(last_target.id)] == last_target.id, (body, last_target.id)
         body = body[len(last_target.id):].lstrip()
-        assert body[0] == '='
+        assert body[0] == '=', body
         body = body[1:].lstrip()
 
         for target in node.targets:
@@ -138,9 +138,9 @@ def find_body_limits(source: str, source_path: str):
             start = _pos(dec)
             idx = bisect.bisect_left(indices, start)
             token = tokens[idx]
-            assert token.start == start
+            assert token.start == start, (token, start)
             token = tokens[idx - 1]
-            assert token.string == '@'
+            assert token.string == '@', token
             start = token.start
 
         yield statement, start, stop
