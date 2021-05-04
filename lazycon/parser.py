@@ -1,10 +1,15 @@
+import sys
+import ast
 import bisect
 from io import BytesIO
 from tokenize import tokenize
-from typing import Tuple
+from typing import Tuple, Sequence
 
 from .visitor import Visitor
-from .statements import *
+from .statements import GlobalFunction, GlobalAssign, ImportConfig, GlobalImportFrom, GlobalImport, ImportBase, \
+    GlobalStatement
+
+NO_DECORATORS = sys.version_info[:2] > (3, 7)
 
 
 def throw(message, position):
@@ -133,7 +138,7 @@ def find_body_limits(source: str, source_path: str):
 
     for statement in statements:
         start = _pos(statement)
-        if isinstance(statement, ast.FunctionDef) and statement.decorator_list:
+        if NO_DECORATORS and isinstance(statement, ast.FunctionDef) and statement.decorator_list:
             dec = statement.decorator_list[0]
             start = _pos(dec)
             idx = bisect.bisect_left(indices, start)

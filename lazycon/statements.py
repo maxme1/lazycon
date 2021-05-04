@@ -152,4 +152,5 @@ class ImportConfig(Wrapper):
             if os.path.exists(path):
                 return path
 
-        raise ConfigImportError(f'Parent config not found while parsing "{self.source_path}".')
+        root = '.'.join(self.root)
+        raise ConfigImportError(f'Parent config "{root}" not found while parsing "{self.source_path}".')

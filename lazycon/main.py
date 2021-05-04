@@ -95,7 +95,7 @@ class Config:
             entry_points = [entry_points]
         return '\n'.join(self._scope.render(entry_points)).strip() + '\n'
 
-    def dump(self, path: str, entry_points: Union[Sequence[str], str] = None):
+    def dump(self, path: PathLike, entry_points: Union[Sequence[str], str] = None):
         """ Render the config and save it to `path`. See `dumps` for details. """
         with open(path, 'w') as file:
             file.write(self.dumps(entry_points))
