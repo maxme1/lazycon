@@ -59,7 +59,7 @@ class Config:
         if key in injections:
             raise ValueError(f'The "{key}" key is not allowed in "injections".')
 
-        injections[key] = Path(cls._standardize_path(path))
+        injections[key] = cls._standardize_path(path)
         return cls(shortcuts, injections).file_input(path)
 
     @classmethod
