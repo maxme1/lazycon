@@ -60,6 +60,7 @@ def test_multiple_definitions():
     assert '''a = 2\nb = c = 1\nd = a\n''' == rm.dumps()
 
 
+@pytest.mark.xfail
 def test_same_line():
     cf = loads('a = 1; b = 2; c = a + b')
     assert cf.c == 3
