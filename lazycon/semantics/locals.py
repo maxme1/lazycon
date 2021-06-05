@@ -1,6 +1,7 @@
 import ast
 
 from .visitor import SemanticVisitor
+from ..parser import extract_assign_targets
 
 
 class LocalsGatherer(SemanticVisitor):
@@ -21,24 +22,3 @@ class LocalsGatherer(SemanticVisitor):
 
     def generic_visit(self, node: ast.AST, *args, **kwargs):
         pass
-
-
-def extract_assign_targets(targets):
-    def _extract(target):
-        assert isinstance(target.ctx, ast.Store)
-
-        if isinstance(target, ast.Name):
-            yield target.id
-        elif isinstance(target, ast.Starred):
-            yield from _extract(target.value)
-        elif isinstance(target, (ast.Tuple, ast.List)):
-            for elt in target.elts:
-                yield from _extract(elt)
-
-        else:
-            assert False, 'unreachable code'
-
-    result = set()
-    for t in targets:
-        result.update(_extract(t))
-    return result

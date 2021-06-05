@@ -6,8 +6,8 @@ from tokenize import tokenize
 from typing import Tuple, Sequence
 
 from .visitor import Visitor
-from .statements import GlobalFunction, GlobalAssign, ImportConfig, GlobalImportFrom, GlobalImport, ImportBase, \
-    GlobalStatement
+from .statements import GlobalFunction, GlobalAssign, ImportConfig, GlobalImportFrom, GlobalImport, Definition, \
+    IGNORE_NAME, Definitions
 
 NO_DECORATORS = sys.version_info[:2] > (3, 7)
 
@@ -51,13 +51,24 @@ def tokenize_string(source):
     return tokenize(BytesIO(source.encode()).readline)
 
 
-def flatten_assignment(pattern):
-    if isinstance(pattern, str):
-        return [pattern]
+def extract_assign_targets(targets):
+    def _extract(target):
+        assert isinstance(target.ctx, ast.Store)
+
+        if isinstance(target, ast.Name):
+            yield target.id
+        elif isinstance(target, ast.Starred):
+            yield from _extract(target.value)
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            for elt in target.elts:
+                yield from _extract(elt)
+
+        else:
+            assert False, 'unreachable code'
 
     result = []
-    for x in pattern:
-        result.extend(flatten_assignment(x))
+    for t in targets:
+        result.extend(_extract(t))
     return result
 
 
@@ -77,24 +88,25 @@ class Normalizer(Visitor):
 
     def visit_function_def(self, node: ast.FunctionDef):
         body = get_substring(self.lines, *self.start, *self.stop)
-        yield GlobalFunction(node, body, self.get_position(node))
+        yield Definition(node.name, GlobalFunction(node, body, self.get_position(node)))
 
     def visit_assign(self, node: ast.Assign):
         position = self.get_position(node.value)
-        for target in node.targets:
-            if not isinstance(target, ast.Name):
-                throw('This assignment syntax is not supported.', self.get_position(target))
-            assert isinstance(target.ctx, ast.Store), target.ctx
 
         last_target = node.targets[-1]
         body = get_substring(self.lines, last_target.lineno, last_target.col_offset, *self.stop)
-        assert body[:len(last_target.id)] == last_target.id, (body, last_target.id)
-        body = body[len(last_target.id):].lstrip()
-        assert body[0] == '=', body
-        body = body[1:].lstrip()
+        # TODO: use a tokenizer
+        body = body[body.index('=') + 1:].lstrip()
 
+        statement = GlobalAssign(node, body, position)
         for target in node.targets:
-            yield GlobalAssign(target.id, node.value, body, position)
+            names = list(extract_assign_targets([target]))
+            if set(names) == {IGNORE_NAME}:
+                throw('The assignment target cannot completely consist of the `_` wildcard', self.get_position(target))
+
+            for name in names:
+                if name != IGNORE_NAME:
+                    yield Definition(name, statement)
 
     def visit_import_from(self, node: ast.ImportFrom):
         names = node.names
@@ -109,17 +121,17 @@ class Normalizer(Visitor):
             throw('Relative imports are only supported for config files.', position)
         # absolute imports
         for alias in names:
-            local = ast.ImportFrom(node.module, [alias], 0)
-            ast.copy_location(local, node)
-            yield GlobalImportFrom(local, position)
+            local = ast.copy_location(ast.ImportFrom(node.module, [alias], 0), node)
+            statement = GlobalImportFrom(local, position)
+            yield Definition(statement.name, statement)
 
     def visit_import(self, node: ast.Import):
         position = self.get_position(node)
 
         for alias in node.names:
-            local = ast.Import([alias])
-            ast.copy_location(local, node)
-            yield GlobalImport(local, position)
+            local = ast.copy_location(ast.Import([alias]), node)
+            statement = GlobalImport(local, position)
+            yield Definition(statement.name, statement)
 
 
 # need this function, because in >=3.8 the function start is considered from `def` token
@@ -152,7 +164,7 @@ def find_body_limits(source: str, source_path: str):
         stop = start
 
 
-def parse(source: str, source_path: str, extension: str) -> Tuple[Sequence[ImportConfig], Sequence[GlobalStatement]]:
+def parse(source: str, source_path: str, extension: str) -> Tuple[Sequence[ImportConfig], Definitions]:
     lines = tuple(source.splitlines() + [''])
     wrapped = []
     for statement, start, stop in reversed(list(find_body_limits(source, source_path))):
@@ -166,13 +178,13 @@ def parse(source: str, source_path: str, extension: str) -> Tuple[Sequence[Impor
                 throw('Starred imports are only allowed at the top of the config.', entry.position)
             parents.append(entry)
 
-        elif isinstance(entry, ImportBase):
+        elif isinstance(entry.statement, GlobalImport):
             if definitions:
-                throw('Imports are only allowed before definitions.', entry.position)
+                throw('Imports are only allowed before definitions.', entry.statement.position)
             imports.append(entry)
 
         else:
-            assert isinstance(entry, (GlobalAssign, GlobalFunction))
+            assert isinstance(entry.statement, (GlobalAssign, GlobalFunction))
             definitions.append(entry)
 
     return parents, imports + definitions

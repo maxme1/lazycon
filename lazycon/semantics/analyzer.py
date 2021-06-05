@@ -1,10 +1,11 @@
 import ast
 from collections import defaultdict
 from enum import Enum
-from typing import Iterable, List, Dict, Sequence, Optional
+from typing import Iterable, List, Dict, Optional
 
-from .locals import LocalsGatherer, extract_assign_targets
-from ..statements import GlobalStatement, GlobalFunction, GlobalAssign, GlobalImport
+from .locals import LocalsGatherer
+from ..parser import IGNORE_NAME, extract_assign_targets
+from ..statements import GlobalStatement, GlobalFunction, GlobalAssign, GlobalImport, Definitions
 from ..exceptions import SemanticError
 from .visitor import SemanticVisitor
 
@@ -15,33 +16,40 @@ def position(node: ast.AST):
 
 # TODO: __folder__
 READ_ONLY = {'__file__'}
-IGNORE_NAME = '_'
-NodeParents = Dict[GlobalStatement, List[GlobalStatement]]
+NodeParents = Dict[str, List[str]]
 
 
 class Semantics(SemanticVisitor):
-    def __init__(self, statements: Sequence[GlobalStatement], builtins: Iterable[str]):
+    def __init__(self, definitions: Definitions, builtins: Iterable[str]):
         self.messages = defaultdict(lambda: defaultdict(set))
 
         # scopes
         self._builtins = builtins
-        self._global_scope: Dict[str, MarkedValue] = {
-            statement.name: MarkedValue(statement) for statement in statements
-        }
+        self._global_scope: Dict[str, MarkedValue] = {}
+        self._statement_names: Dict[GlobalStatement, List[str]] = defaultdict(list)
         self._local_scopes: List[Dict[str, Marked]] = []
+
+        marks = {}
+        for definition in definitions:
+            self._global_scope[definition.name] = marks.setdefault(
+                definition.statement, MarkedValue(definition.statement))
+            self._statement_names[definition.statement].append(definition.name)
+
+            *pos, source = definition.statement.position
+
+            if definition.name in READ_ONLY:
+                self.add_message('The value is read-only', f'"{definition.name}" at %d:%d' % tuple(pos), source)
+
+        self._statement_names = dict(self._statement_names)
 
         # tracking
         self._global_statement: Optional[GlobalStatement] = None
         # TODO: use ordered set
-        self.parents: NodeParents = defaultdict(list)
+        self.parents: NodeParents = {d.name: [] for d in definitions}
 
         # analysis
-        for name, value in self._global_scope.items():
-            if name in READ_ONLY:
-                *pos, source = value.value.position
-                self.add_message('The value is read-only', '"' + name + '" at %d:%d' % tuple(pos), source)
-
-            self.visit(value.value)
+        for statement in marks:
+            self.visit(statement)
 
     @staticmethod
     def format(message, elements):
@@ -104,7 +112,7 @@ class Semantics(SemanticVisitor):
     # the most important part - variable resolving
 
     def visit_name(self, node: ast.Name):
-        assert isinstance(node.ctx, ast.Load)
+        assert isinstance(node.ctx, ast.Load), node.ctx
         name = node.id
         if name == IGNORE_NAME:
             self.add_message(f'The name "{IGNORE_NAME}" can only be used as wildcard during unpacking',
@@ -127,7 +135,8 @@ class Semantics(SemanticVisitor):
                 self.add_message('Values are referenced before being completely defined (cyclic dependency)',
                                  '"' + name + '" at %d:%d' % position(node))
 
-            self.parents[self._global_statement].append(value.value)
+            for current in self._statement_names[self._global_statement]:
+                self.parents[current].append(name)
             return
 
             # builtins
@@ -140,9 +149,10 @@ class Semantics(SemanticVisitor):
         assert self._global_statement is None
         self._global_statement = statement
 
-        self.enter(statement.name)
-        self.visit(statement.expression)
-        self.leave(statement.name)
+        # we can just pick the first name - the rest will enter the same state automatically
+        self.enter(self._statement_names[statement][0])
+        self.visit(statement.node.value)
+        self.leave(self._statement_names[statement][0])
 
         self._global_statement = None
 
@@ -265,11 +275,11 @@ class Marked:
         self.state = status
 
     def enter(self):
-        assert self.state is VisitState.Undefined
+        assert self.state is VisitState.Undefined, self.state
         self.state = VisitState.Defining
 
     def leave(self):
-        assert self.state is not VisitState.Defined
+        assert self.state is not VisitState.Defined, self.state
         self.state = VisitState.Defined
 
 

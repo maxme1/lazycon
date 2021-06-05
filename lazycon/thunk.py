@@ -1,9 +1,7 @@
 from threading import Lock
-from typing import Dict, Any
+from typing import Any
 
 from .statements import GlobalStatement
-
-ScopeDict = Dict[str, GlobalStatement]
 
 
 class Thunk:
@@ -12,15 +10,15 @@ class Thunk:
 
 
 class ValueThunk(Thunk):
-    def __init__(self, value):
+    def __init__(self, value: Any):
         assert not isinstance(value, Thunk)
         self.value = value
         self.ready = True
 
 
 class NodeThunk(Thunk):
-    def __init__(self, statement):
-        self.lock = Lock()
+    def __init__(self, statement: GlobalStatement, lock: Lock):
+        self.lock = lock
         self.statement = statement
         self.ready = False
         self._value = None

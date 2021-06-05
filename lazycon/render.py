@@ -10,8 +10,18 @@ class ScopeWrapper(Dict[str, Any]):
         super().__init__()
         self.scope = scope
 
-    def __contains__(self, name):
-        return name in self.scope or super().__contains__(name)
+    def __getitem__(self, name):
+        try:
+            return self.scope[name]
+        except KeyError as e:
+            # this is needed because KeyError is converted to NameError by `eval/exec`
+            raise ExceptionWrapper(e) from e
+        except EntryError:
+            pass
+
+        if name not in self:
+            raise NameError(f'The name "{name}" is not defined.')
+        return super().__getitem__(name)
 
     def keys(self):
         return list(set(super().keys()) | set(self.scope.keys()))
@@ -21,9 +31,6 @@ class ScopeWrapper(Dict[str, Any]):
 
     def items(self):
         raise NotImplementedError
-        # yield from self.scope.items()
-        # for key in set(super().keys()) - set(self.scope):
-        #     yield key, super().__getitem__(key)
 
     def get(self, key, default=None):
         if key in self:
@@ -50,39 +57,26 @@ class ScopeWrapper(Dict[str, Any]):
 
 
 class ScopeEval(ScopeWrapper):
-    def __getitem__(self, name):
-        try:
-            return self.scope[name]
-        except KeyError as e:
-            # this is needed because KeyError is converted to NameError by `eval`
-            raise ExceptionWrapper(e) from e
-        except EntryError:
-            pass
-
-        if name not in self:
-            raise NameError(f'The name "{name}" is not defined.')
-        return super().__getitem__(name)
+    def __contains__(self, name):
+        return name in self.scope or super().__contains__(name)
 
     def __setitem__(self, k, v):
         raise NotImplementedError
 
 
 class ScopeExec(ScopeWrapper):
-    def __init__(self, scope, name: str = None):
-        super().__init__(scope)
-        self.name = name
-
     def __setitem__(self, name, value):
-        assert self.name is not None and name == self.name
+        assert not super().__contains__(name)
         super().__setitem__(name, value)
 
-    def get_result(self):
-        return super().pop(self.name)
+    def get_results(self, names):
+        values = []
+        for name in names:
+            values.append(super().pop(name))
+        return values
 
-    def __getitem__(self, name):
-        if name in self.scope:
-            return self.scope[name]
-        return super().__getitem__(name)
+    def __contains__(self, name):
+        return name in self.scope or super().__contains__(name)
 
 
 def execute(statement, global_scope, source):

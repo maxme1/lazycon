@@ -1,10 +1,12 @@
 import ast
 import os
 import sys
-from typing import Sequence
+from typing import Sequence, NamedTuple, Any, Tuple
 
 from .exceptions import ConfigImportError
-from .render import ScopeEval, ScopeExec, execute
+from .render import ScopeExec, execute
+
+IGNORE_NAME = '_'
 
 
 class Wrapper:
@@ -17,73 +19,100 @@ class GlobalStatement(Wrapper):
     Wraps ast nodes used to define names in configs and maps a single name to a ast node.
     """
 
-    def __init__(self, name: str, target: ast.AST, position):
+    def __init__(self, node: ast.AST, position):
         super().__init__(position)
-        self.name = name
-        self.target = target
+        self.node = node
 
-    def to_str(self):
-        raise NotImplementedError
+    def render(self, global_scope, names: Sequence[str]) -> Sequence[Any]:
+        wrapper = ScopeExec(global_scope)
+        execute(self.node, wrapper, self.source_path)
+        return wrapper.get_results(names)
 
-    def render(self, global_scope):
-        raise NotImplementedError
+
+class Definition(NamedTuple):
+    name: str
+    statement: GlobalStatement
+
+
+Definitions = Sequence[Definition]
 
 
 class GlobalAssign(GlobalStatement):
-    """ A single `name = value` statement. """
+    """ A single `target = value` statement. """
 
-    def __init__(self, name: str, expression: ast.AST, body: str, position):
-        super().__init__(name, expression, position)
-        self.expression = expression
+    def __init__(self, node: ast.Assign, body: str, position):
+        super().__init__(node, position)
         self.body = body
 
-    def to_str(self):
-        return f'{self.name} = {self.body}'
+    @staticmethod
+    def _group_to_str(pattern, names, level) -> Tuple[str, bool]:
+        if isinstance(pattern, ast.Name):
+            name = pattern.id if pattern.id in names else IGNORE_NAME
+            # the name could already have been IGNORE_NAME
+            return name, name != IGNORE_NAME
+
+        if isinstance(pattern, ast.Starred):
+            child, contains = GlobalAssign._group_to_str(pattern.value, names, level + 1)
+            return '*' + child, contains
+
+        assert isinstance(pattern, (ast.Tuple, ast.List))
+        joined, contains = [], False
+        for elt in pattern.elts:
+            child, local = GlobalAssign._group_to_str(elt, names, level + 1)
+            contains = contains or local
+            joined.append(child)
+        joined = ', '.join(joined)
+
+        if isinstance(pattern, ast.Tuple):
+            if len(pattern.elts) == 1:
+                joined += ','
+            if level > 0:
+                joined = f'({joined})'
+
+        else:
+            joined = f'[{joined}]'
+
+        return joined, contains
 
     @staticmethod
-    def group_to_str(statements: Sequence['GlobalAssign']):
-        assert len({statement.target for statement in statements}) == 1
+    def group_to_str(definitions: Definitions):
+        assert len({d.statement for d in definitions}) == 1
+        statement: GlobalAssign = definitions[0].statement
+        names = {d.name for d in definitions}
 
-        *statements, base = statements
         result = ''
-        for statement in statements:
-            result += f'{statement.name} = '
-        return result + base.to_str()
+        for target in statement.node.targets:
+            target, contains = GlobalAssign._group_to_str(target, names, 0)
+            if contains:
+                result += target + ' = '
 
-    def render(self, global_scope):
-        code = compile(ast.Expression(self.expression), self.source_path, 'eval')
-        return eval(code, ScopeEval(global_scope))
+        return result + statement.body
 
 
 class GlobalFunction(GlobalStatement):
     def __init__(self, node: ast.FunctionDef, body: str, position):
-        super().__init__(node.name, node, position)
+        super().__init__(node, position)
         self.body = body
-        self.node = node
 
     def to_str(self):
         return '\n' + self.body.strip() + '\n\n'
 
     @staticmethod
-    def group_to_str(statements: Sequence['GlobalFunction']):
-        assert len(statements) == 1
-        return statements[0].to_str()
+    def group_to_str(definitions: Definitions):
+        assert len(definitions) == 1
+        return definitions[0].statement.to_str()
 
-    def render(self, global_scope):
-        wrapper = ScopeExec(global_scope, self.name)
-        execute(self.target, wrapper, self.source_path)
-        return wrapper.get_result()
-
-
-class ImportBase(GlobalStatement):
-    pass
+    def render(self, global_scope, names: Sequence[str]) -> Sequence[Any]:
+        assert len(names) == 1 and self.node.name == names[0]
+        return super().render(global_scope, names)
 
 
-class GlobalImport(ImportBase):
+class GlobalImport(GlobalStatement):
     def __init__(self, node: ast.Import, position):
+        super().__init__(node, position)
         alias, = node.names
-        super().__init__(alias.asname or alias.name.split('.', 1)[0], node, position)
         self.alias = alias
+        self.name = alias.asname or alias.name.split('.', 1)[0]
 
     def _import_what(self):
         alias = self.alias
@@ -96,10 +125,9 @@ class GlobalImport(ImportBase):
     def to_str(self):
         return f'import {self._import_what()}'
 
-    def render(self, global_scope):
-        wrapper = ScopeExec(global_scope, self.name)
-        execute(self.target, wrapper, self.source_path)
-        return wrapper.get_result()
+    def render(self, global_scope, names: Sequence[str]) -> Sequence[Any]:
+        assert len(names) == 1 and self.name == names[0]
+        return super().render(global_scope, names)
 
 
 class GlobalImportFrom(GlobalImport):

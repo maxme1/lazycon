@@ -62,4 +62,4 @@ def f(x):
 
 def test_wildcard():
     with pytest.raises(SemanticError):
-        validate_config('_ = 1; a = _, 2')
+        validate_config('x, _ = 1, 1; a = _, 2')

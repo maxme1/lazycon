@@ -2,12 +2,13 @@ import pytest
 
 from lazycon import load
 from lazycon.parser import parse_string
+from lazycon.scope import render_scope
 
 
 def standardize(source):
     parents, scope = parse_string(source, '.config')
     result = '\n'.join(f'from {"." * imp.dots}{".".join(imp.root)} import *' for imp in parents) + '\n'
-    return result + '\n'.join(x.to_str() for x in scope) + '\n'
+    return result + '\n'.join(render_scope(scope, {v: i for i, v in enumerate(scope)})) + '\n'
 
 
 def test_idempotency(subtests, tests_path):

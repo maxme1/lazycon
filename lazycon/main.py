@@ -8,7 +8,7 @@ from .exceptions import EntryError, ExceptionWrapper, SemanticError
 from .scope import Scope, Builtins
 from .parser import parse_file, parse_string
 from .render import ScopeEval
-from .statements import ImportConfig, GlobalStatement
+from .statements import ImportConfig, Definitions
 
 PathLike = Union[Path, str]
 
@@ -152,15 +152,15 @@ class Config:
     def _update_scope(self, scope: OrderedDict):
         self._scope.check_populated()
         # update
-        statements = self._scope.statements
-        new_scope = {statement.name: statement for statement in statements}
+        definitions = self._scope.definitions
+        new_scope = OrderedDict((statement.name, statement) for statement in definitions)
         new_scope.update(scope)
-        statements = list(new_scope.values())
+        definitions = list(new_scope.values())
         # analysis
-        tree = Semantics(statements, self._builtins)
+        tree = Semantics(definitions, self._builtins)
         tree.check()
         # building
-        self._scope = Scope(statements, self._builtins, tree.parents)
+        self._scope = Scope(definitions, self._builtins, tree.parents)
 
     @staticmethod
     def _standardize_path(path: PathLike) -> str:
@@ -181,19 +181,19 @@ class Config:
         self._imported_configs[path] = result
         return result
 
-    def _make_scope(self, parents: Sequence[ImportConfig], scope: Sequence[GlobalStatement]) -> OrderedDict:
+    def _make_scope(self, parents: Sequence[ImportConfig], definitions: Definitions) -> OrderedDict:
         parent_scope = OrderedDict()
         for parent in parents:
             parent_scope.update(self._import(parent.get_path(self._shortcuts)))
 
-        duplicates = [name for name, count in Counter(x.name for x in scope).items() if count > 1]
+        duplicates = [name for name, count in Counter(x.name for x in definitions).items() if count > 1]
         if duplicates:
-            source_path = scope[0].source_path
+            source_path = definitions[0].statement.source_path
             duplicates = ', '.join(duplicates)
             raise SemanticError(f'Duplicate definitions found in {source_path}:\n    {duplicates}')
 
         final_scope = OrderedDict(parent_scope.items())
-        final_scope.update((x.name, x) for x in scope)
+        final_scope.update((x.name, x) for x in definitions)
         return final_scope
 
     def __dir__(self):

@@ -159,11 +159,51 @@ def test_unpacking():
         rm.unpack([1])
     with pytest.raises(ValueError):
         rm.unpack([1, 2, 3])
+    assert loads('def f(x): a, *b = x; return a').f((1, 2, 3)) == 1
 
     with pytest.raises(SyntaxError):
-        loads('a, b = 1, 2')
+        loads('_ = 1, 2')
+    with pytest.raises(SyntaxError):
+        loads('_, _ = 1, 2')
+    with pytest.raises(SyntaxError):
+        loads('a, a = 1, 2')
 
-    assert loads('def f(x): a, *b = x; return a').f((1, 2, 3)) == 1
+
+def test_wildcard_overwrite():
+    cf = loads('a, b = 1, 2')
+    assert cf.dumps(entry_points=['b']) == '_, b = 1, 2\n'
+
+    cf = cf.string_input('a = 5')
+    assert cf.dumps() == 'a = 5\n_, b = 1, 2\n'
+
+    cf = cf.string_input('b = 6')
+    assert cf.dumps() == 'a = 5\nb = 6\n'
+
+    assert loads('a, _ = b = 1, 2').dumps(entry_points=['b']) == 'b = 1, 2\n'
+
+
+def test_wildcards():
+    cf = loads('x, y, z = range(3)\nt = x + y + z')
+    assert (cf.x, cf.y, cf.z) == (0, 1, 2)
+    assert cf.t == 3
+    cf = loads('x, y, z = range(3)\nt = x + y + z').string_input('y = 5')
+    assert (cf.x, cf.y, cf.z) == (0, 5, 2)
+    assert cf.t == 7
+    assert cf.dumps() == 'x, _, z = range(3)\ny = 5\nt = x + y + z\n'
+    cf = loads('x, *y, z = range(4)')
+    assert (cf.x, cf.y, cf.z) == (0, [1, 2], 3)
+    cf = loads('x, *y, z = range(4)').string_input('y = 2')
+    assert (cf.x, cf.y, cf.z) == (0, 2, 3)
+    assert cf.dumps() == 'x, *_, z = range(4)\ny = 2\n'
+
+    # iterables
+    cf = loads('x, y, z = map(int, range(3))\nt = x + y + z')
+    assert (cf.x, cf.y, cf.z) == (0, 1, 2)
+    assert cf.t == 3
+    with pytest.raises(ValueError):
+        loads('x, y, z = a, b, c = map(int, range(3))\nt = x').t
+    with pytest.raises(ValueError):
+        loads('x, y, z = a, b, c = map(int, range(3))\nt = a + x').t
 
 
 def test_decorators():
@@ -244,13 +284,13 @@ def test_comprehensions():
     assert rm.even == list(range(0, 10, 2))
 
     with pytest.raises(SemanticError):
-        loads('_ = [x for i in range(1)]')
+        loads('v = [x for i in range(1)]')
 
     with pytest.raises(SemanticError):
-        loads('_ = [[x, i] for i in range(1)]')
+        loads('v = [[x, i] for i in range(1)]')
 
     with pytest.raises(SemanticError):
-        loads('_ = [i for i in [[2]] if x != 2 for x in i]')
+        loads('v = [i for i in [[2]] if x != 2 for x in i]')
 
 
 def test_if():
@@ -335,6 +375,12 @@ def test_exception_type():
         loads('''
 a = {'0': 1}[0]
 b = a
+''').b
+    with pytest.raises(KeyError):
+        loads('''
+a = {'0': 1}[0]
+def b(x=a):
+    return x
 ''').b
 
 
