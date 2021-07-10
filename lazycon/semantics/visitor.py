@@ -103,6 +103,14 @@ class SemanticVisitor(Visitor):
         self.visit(node.test)
         self._visit_valid(node.msg)
 
+    def visit_if(self, node: ast.If):
+        self.visit(node.test)
+        self._iterate_nodes(node.body)
+        self._iterate_nodes(node.orelse)
+
+    def visit_expr(self, node: ast.Expr):
+        self.visit(node.value)
+
     # helpers
 
     def visit_arguments(self, node: ast.arguments):

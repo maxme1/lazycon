@@ -139,7 +139,7 @@ class Semantics(SemanticVisitor):
                 self.parents[current].append(name)
             return
 
-            # builtins
+        # builtins
         if name not in self._builtins:
             self.add_message('Undefined names found', name)
 

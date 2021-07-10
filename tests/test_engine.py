@@ -337,6 +337,16 @@ def test_injections():
     assert loads('a = 1 + b', injections={'b': 14}).a == 15
 
 
+def test_statements():
+    cf = load('statements/func_statements.config')
+    assert cf.f(1) == 1
+    assert cf.clip(5, 0, 10) == 5
+    assert cf.clip(-10, 0, 10) == 0
+    assert cf.clip(100, 0, 10) == 10
+    assert cf.define_in_if(-10) == 10
+    assert cf.define_in_if(10) == 10
+
+
 def test_cycles():
     with pytest.raises(SemanticError):
         loads('''
