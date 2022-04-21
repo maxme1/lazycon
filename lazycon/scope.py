@@ -5,7 +5,7 @@ from typing import Dict, Any, Sequence, List
 
 from .semantics.analyzer import NodeParents
 from .thunk import ValueThunk, NodeThunk, Thunk
-from .statements import GlobalStatement, GlobalImport, GlobalImportFrom, Definitions
+from .statements import GlobalStatement, GlobalImport, GlobalImportFrom, Definitions, LiveObject, Definition
 from .exceptions import EntryError, SemanticError
 
 ScopeDict = Dict[str, GlobalStatement]
@@ -39,7 +39,7 @@ class Scope:
 
     def __init__(self, definitions: Definitions, parent, parents: NodeParents):
         super().__init__()
-        self.definitions = definitions
+        self.definitions = OrderedDict((statement.name, statement) for statement in definitions)
         self._parent = parent
 
         self._name_to_thunk: OrderedDict[str, Thunk] = OrderedDict()
@@ -47,7 +47,6 @@ class Scope:
         self._parents = parents
 
         self._populated = False
-        self._updated = False
 
         locks = {}
         for definition in definitions:
@@ -97,18 +96,19 @@ class Scope:
 
     def update_values(self, values: Dict[str, Any]):
         self.check_populated()
-        self._updated = True
 
         for name, value in values.items():
-            self._name_to_thunk[name] = ValueThunk(value)
+            statement = LiveObject(name, value)
+            self._name_to_thunk[name] = ValueThunk(statement)
+            self._parents[name] = []
+            self.definitions[name] = Definition(name, statement)
 
         self._update_names()
 
     def _update_names(self):
         result = defaultdict(list)
         for name, thunk in self._name_to_thunk.items():
-            if isinstance(thunk, NodeThunk):
-                result[thunk.statement].append(name)
+            result[thunk.statement].append(name)
         self._statement_to_names = dict(result)
 
     def _get_leave_time(self, entry_points: Sequence[str]):
@@ -130,11 +130,10 @@ class Scope:
             visit_parents(name)
             mark_name(name)
 
-        names = {d.name: d for d in self.definitions}
         if entry_points is None:
-            entry_points = list(names)
+            entry_points = list(self.definitions)
         else:
-            delta = set(entry_points) - set(names)
+            delta = set(entry_points) - set(self.definitions)
             if delta:
                 raise ValueError('The names %s are not defined, and cannot be used as entry points.' % delta)
 
@@ -147,12 +146,9 @@ class Scope:
             visit_parents(n)
             mark_name(n)
 
-        return [names[n] for n in leave_time], {names[n]: t for n, t in leave_time.items()}
+        return [self.definitions[n] for n in leave_time], {self.definitions[n]: t for n, t in leave_time.items()}
 
     def render(self, entry_points: Sequence[str] = None):
-        if self._updated:
-            raise RuntimeError('The scope has already been updated by live objects that cannot be rendered properly.')
-
         definitions, order = self._get_leave_time(entry_points)
         return render_scope(definitions, order)
 

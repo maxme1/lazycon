@@ -45,9 +45,6 @@ def test_update():
     assert rm.a == 3
 
     with pytest.raises(RuntimeError):
-        loads('a = 1').update(a=2).dumps()
-
-    with pytest.raises(RuntimeError):
         rm = loads('a = 1')
         rm.a
         rm.update(a=2)
@@ -345,6 +342,20 @@ def test_statements():
     assert cf.clip(100, 0, 10) == 10
     assert cf.define_in_if(-10) == 10
     assert cf.define_in_if(10) == 10
+
+
+def test_update_render():
+    values = (
+        (1, '1'),
+        ('1', "'1'"),
+        ([1, '2', b'3'], "[1, '2', b'3']"),
+        ({1: 2, '3': [4]}, "{1: 2, '3': [4]}"),
+    )
+
+    for raw, s in values:
+        cf = Config()
+        cf.update(x=raw)
+        assert cf.dumps().strip() == 'x = ' + s
 
 
 def test_cycles():
