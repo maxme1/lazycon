@@ -89,7 +89,7 @@ class Scope:
     def check_populated(self):
         if self._populated:
             raise RuntimeError('The scope has already been populated with live objects. Overwriting them might cause '
-                               'undefined behaviour. Please, create another instance of Config.')
+                               'undefined behaviour. Please, create another instance of Config')
 
     def keys(self):
         return self._name_to_thunk.keys()

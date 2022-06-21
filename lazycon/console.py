@@ -31,7 +31,7 @@ def main():
     new.set_defaults(callback=build)
     new.add_argument('input', help='path to the input config file.')
     new.add_argument('output', help='path to the output config file.')
-    new.add_argument('-ep', '--entry_points', nargs='+', default=None,
+    new.add_argument('-ep', '--entry_points', '--entrypoints', '--entrypoint', nargs='+', default=None,
                      help='names that should be kept during rendering.')
 
     args = vars(parser.parse_args())
