@@ -25,7 +25,7 @@ def test_dumps(subtests, tests_path):
                 assert loads(source).dumps() == source, path
 
 
-def test_import():
+def test_import(inside_tests):
     rm = load('imports/imports.config')
     assert rm.numpy == np
     rm.r
@@ -50,7 +50,7 @@ def test_update():
         rm.update(a=2)
 
 
-def test_multiple_definitions():
+def test_multiple_definitions(inside_tests):
     rm = load('statements/multiple_definitions.config')
     assert '''a = b = c = 1\nd = a\n''' == rm.dumps()
     rm = load('statements/import_from_multiple.config')
@@ -64,26 +64,26 @@ def test_same_line():
     assert cf.dumps() == 'a = 1\nb = 2\nc = a + b'
 
 
-def test_cycle_import():
+def test_cycle_import(inside_tests):
     try:
         load('imports/cycle_import.config')
     except RecursionError:
         pytest.fail()
 
 
-def test_inheritance_order():
+def test_inheritance_order(inside_tests):
     rm = load('imports/order1.config')
     assert rm.literals is not None
     rm = load('imports/order2.config')
     assert rm.literals is None
 
 
-def test_import_in_string():
+def test_import_in_string(inside_tests):
     rm = loads('from .expressions.literals import *')
     assert rm.literals[0]
 
 
-def test_upper_import():
+def test_upper_import(inside_tests):
     rm = load('imports/folder/upper_import.config')
     assert 'just override os' == rm.os
     assert np == rm.numpy
@@ -99,14 +99,14 @@ def test_attr_error():
         rm.get('undefined_value')
 
 
-def test_items():
+def test_items(inside_tests):
     rm = load('expressions/tail.config')
     assert rm.part == 6
     assert rm.value == (1, 2)
     np.testing.assert_array_equal(rm.another_part, [1, 2, 3])
 
 
-def test_tail():
+def test_tail(inside_tests):
     rm = load('expressions/tail.config')
     np.testing.assert_array_equal(rm.mean, [2, 5])
     np.testing.assert_array_equal(rm.mean2, [2, 5])
@@ -127,7 +127,7 @@ def g(x):
     ''').f() == 2
 
 
-def test_func_def():
+def test_func_def(inside_tests):
     rm = load('statements/funcdef.config')
     assert rm.f() == 1
     assert rm.inc_first(['a', 'b', 'c']) == (2, 1, 1)
@@ -137,14 +137,14 @@ def test_func_def():
     assert rm.doc.__doc__ == 'docstring'
 
 
-def test_assertions():
+def test_assertions(inside_tests):
     rm = load('statements/funcdef.config')
     assert rm.assertion(True)
     with pytest.raises(AssertionError):
         rm.assertion(False)
 
 
-def test_unpacking():
+def test_unpacking(inside_tests):
     rm = load('statements/funcdef.config')
     assert rm.unpack([1, 2]) == 3
     assert rm.nested_unpack([1, [2, 3]]) == (1, 2, 3)
@@ -203,7 +203,7 @@ def test_wildcards():
         loads('x, y, z = a, b, c = map(int, range(3))\nt = a + x').t
 
 
-def test_decorators():
+def test_decorators(inside_tests):
     rm = load('statements/funcdef.config')
     assert rm.one(0) == 1
     assert rm.two(0) == 2
@@ -211,13 +211,13 @@ def test_decorators():
     assert rm.order() == tuple(range(5))
 
 
-def test_render_decorators():
+def test_render_decorators(inside_tests):
     rm = load('statements/decorated.config')
     with open('statements/decorated.config') as file:
         assert rm.dumps() == file.read()
 
 
-def test_lambda():
+def test_lambda(inside_tests):
     rm = load('expressions/lambda_.config')
     assert rm.b(2) == 8
     assert rm.c(2, rm.a) == 8
@@ -228,7 +228,7 @@ def test_lambda():
     assert rm.only_vararg(1) == (1,)
 
 
-def test_lambda_args():
+def test_lambda_args(inside_tests):
     rm = load('expressions/lambda_.config')
     assert rm.with_default() == (1, 2)
     assert rm.keyword(y=1) == ((), 1)
@@ -237,7 +237,7 @@ def test_lambda_args():
     rm.vararg(x=1)
 
 
-def test_eval():
+def test_eval(inside_tests):
     rm = load('statements/funcdef.config')
     assert rm.eval('f') == rm.f
     assert rm.eval('f()') == 1
@@ -245,7 +245,7 @@ def test_eval():
     assert rm.eval('returner(10)')() == 10
 
 
-def test_literals():
+def test_literals(inside_tests):
     rm = load('expressions/literals.config')
     assert rm.literals == [
         True, False, None, ...,
@@ -259,7 +259,7 @@ def test_literals():
     ]
 
 
-def test_operators():
+def test_operators(inside_tests):
     rm = load('expressions/operators.config')
     assert rm.arithmetic == [
         5, 6, 0.75, 0, 2, 6, -3, -5, 5, True, 63, 36, 27, 5, 3,
@@ -269,7 +269,7 @@ def test_operators():
     assert rm.priority == 1 + 2 * 3 ** 4 + 1
 
 
-def test_comprehensions():
+def test_comprehensions(inside_tests):
     rm = load('expressions/comprehensions.config')
     assert rm.everything == [
         list(range(10)), [0, 6],
@@ -290,17 +290,17 @@ def test_comprehensions():
         loads('v = [i for i in [[2]] if x != 2 for x in i]')
 
 
-def test_if():
+def test_if(inside_tests):
     rm = load('expressions/if_.config')
     assert rm.results == [1, 1, 1]
 
 
-def test_slice():
+def test_slice(inside_tests):
     rm = load('expressions/slices.config')
     assert rm.correct_slices == rm.slices
 
 
-def test_build_config():
+def test_build_config(inside_tests):
     rm = load('imports/config_import.config', shortcuts={'expressions': 'expressions'})
     with open('imports/built.config') as built:
         assert rm.dumps() == built.read()
@@ -311,12 +311,12 @@ def test_bad_shortcut():
         loads('from a.b import *')
 
 
-def test_cached():
+def test_cached(inside_tests):
     rm = load('imports/cached/main.config')
     assert rm.x == 1
 
 
-def test_overwrite():
+def test_overwrite(inside_tests):
     rm = load('expressions/literals.config').string_input('literals = 1')
     rm.literals
     with pytest.raises(RuntimeError):
@@ -334,7 +334,7 @@ def test_injections():
     assert loads('a = 1 + b', injections={'b': 14}).a == 15
 
 
-def test_statements():
+def test_statements(inside_tests):
     cf = load('statements/func_statements.config')
     assert cf.f(1) == 1
     assert cf.clip(5, 0, 10) == 5
@@ -424,4 +424,8 @@ def test_read_only():
     with pytest.raises(SemanticError):
         loads('''
 __file__ = 1
+''')
+    with pytest.raises(SemanticError):
+        loads('''
+__abc__ = 1
 ''')
