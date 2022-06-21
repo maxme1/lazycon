@@ -182,3 +182,33 @@ class ImportConfig(Wrapper):
 
         root = '.'.join(self.root)
         raise ConfigImportError(f'Parent config "{root}" not found while parsing "{self.source_path}".')
+
+
+class LiveObject(Wrapper):
+    def __init__(self, name: str, value: Any):
+        super().__init__((1, 1, '<code>'))
+        self._name = name
+        self.value = value
+
+    @staticmethod
+    def group_to_str(definitions: Definitions):
+        assert len(definitions) == 1, definitions
+        name, value = definitions[0].statement._name, definitions[0].statement.value
+        return f'{name} = {LiveObject._stringify(value)}'
+
+    @staticmethod
+    def _stringify(value):
+        if isinstance(value, (bool, int, float, complex, str, bytes)) or value is None:
+            return repr(value)
+        if isinstance(value, list):
+            return '[' + ', '.join(map(LiveObject._stringify, value)) + ']'
+        if isinstance(value, tuple):
+            return '(' + ', '.join(map(LiveObject._stringify, value)) + ')'
+        if isinstance(value, set):
+            return '{' + ', '.join(map(LiveObject._stringify, value)) + '}'
+        if isinstance(value, dict):
+            return '{' + ', '.join(
+                f'{LiveObject._stringify(k)}: {LiveObject._stringify(v)}' for k, v in value.items()
+            ) + '}'
+
+        raise ValueError(f"Don't know how to stringify '{value}'")

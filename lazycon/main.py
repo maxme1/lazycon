@@ -152,8 +152,7 @@ class Config:
     def _update_scope(self, scope: OrderedDict):
         self._scope.check_populated()
         # update
-        definitions = self._scope.definitions
-        new_scope = OrderedDict((statement.name, statement) for statement in definitions)
+        new_scope = self._scope.definitions.copy()
         new_scope.update(scope)
         definitions = list(new_scope.values())
         # analysis

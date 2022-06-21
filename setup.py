@@ -16,7 +16,7 @@ setup(
     packages=find_packages(include=('lazycon',)),
     include_package_data=True,
     version=__version__,
-    description='An interpreter for lazy configs in Python',
+    description='Easy config files in pure Python',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='maxme1',

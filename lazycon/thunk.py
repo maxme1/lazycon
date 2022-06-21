@@ -1,7 +1,7 @@
 from threading import Lock
 from typing import Any
 
-from .statements import GlobalStatement
+from .statements import GlobalStatement, LiveObject
 
 
 class Thunk:
@@ -10,9 +10,9 @@ class Thunk:
 
 
 class ValueThunk(Thunk):
-    def __init__(self, value: Any):
-        assert not isinstance(value, Thunk)
-        self.value = value
+    def __init__(self, statement: LiveObject):
+        self.statement = statement
+        self.value = statement.value
         self.ready = True
 
 

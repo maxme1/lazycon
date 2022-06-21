@@ -14,8 +14,6 @@ def position(node: ast.AST):
     return node.lineno, node.col_offset
 
 
-# TODO: __folder__
-READ_ONLY = {'__file__'}
 NodeParents = Dict[str, List[str]]
 
 
@@ -37,8 +35,8 @@ class Semantics(SemanticVisitor):
 
             *pos, source = definition.statement.position
 
-            if definition.name in READ_ONLY:
-                self.add_message('The value is read-only', f'"{definition.name}" at %d:%d' % tuple(pos), source)
+            if definition.name.startswith('__'):
+                self.add_message('Dunder names are read-only', f'"{definition.name}" at %d:%d' % tuple(pos), source)
 
         self._statement_names = dict(self._statement_names)
 
