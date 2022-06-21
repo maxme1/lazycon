@@ -31,6 +31,14 @@ jobs:
         run: |
           pip install dist/*
           pip install -r tests/requirements.txt
+
+          cd tests
+          export MODULE_PARENT=$(python -c "import $MODULE_NAME, os; print(os.path.dirname($MODULE_NAME.__path__[0]))")
+          export MODULE_PARENT=${MODULE_PARENT%"/"}
+          cd ..
+          echo $MODULE_PARENT
+          echo "MODULE_PARENT=$(echo $MODULE_PARENT)" >> $GITHUB_ENV
+
       - name: Test with pytest
         run: |
           pytest tests --junitxml=reports/junit-${{ matrix.python-version }}.xml --cov="$MODULE_PARENT/$MODULE_NAME" --cov-report=xml --cov-branch
