@@ -27,13 +27,6 @@ jobs:
           if [ "$GITHUB_BASE_REF" = "master" ] && [ "$MATCH" != "" ]; then exit 1; fi
           python setup.py sdist
 
-      - name: Create ssh key
-        run: |
-          mkdir ~/.ssh && chmod 770 ~/.ssh
-          cp tests/assets/ssh_config ~/.ssh/config
-          # make sure we can connect now
-          sshpass -p password ssh -o "StrictHostKeyChecking no" remote echo Ok
-
       - name: Install
         run: |
           pip install dist/*
