@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/gh/maxme1/lazycon/branch/master/graph/badge.svg?token=IGXPN6ZT0D)](https://codecov.io/gh/maxme1/lazycon)
+[![codecov](https://codecov.io/gh/maxme1/lazycon/branch/master/graph/badge.svg)](https://codecov.io/gh/maxme1/lazycon)
 [![pypi](https://img.shields.io/pypi/v/lazycon?logo=pypi&label=PyPi)](https://pypi.org/project/lazycon/)
 ![License](https://img.shields.io/github/license/maxme1/lazycon)
 [![PyPI - Downloads](https://img.shields.io/pypi/dd/lazycon)](https://pypi.org/project/lazycon/)
