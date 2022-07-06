@@ -26,12 +26,6 @@ class ScopeWrapper(Dict[str, Any]):
     def keys(self):
         return list(set(super().keys()) | set(self.scope.keys()))
 
-    def values(self):
-        raise NotImplementedError
-
-    def items(self):
-        raise NotImplementedError
-
     def get(self, key, default=None):
         if key in self:
             return self[key]
@@ -42,6 +36,12 @@ class ScopeWrapper(Dict[str, Any]):
 
     def __len__(self):
         return len(self.keys())
+
+    def values(self):
+        raise NotImplementedError
+
+    def items(self):
+        raise NotImplementedError
 
     def popitem(self):
         raise NotImplementedError
