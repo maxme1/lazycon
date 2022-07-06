@@ -24,6 +24,9 @@ def test_dumps(subtests, tests_path):
                 assert config.dumps(name) == source, path
                 assert loads(source).dumps() == source, path
 
+            with pytest.raises(ValueError):
+                config.dumps('~definitely-missing~')
+
 
 def test_import(inside_tests):
     rm = load('imports/imports.config')
@@ -48,6 +51,12 @@ def test_update():
         rm = loads('a = 1')
         rm.a
         rm.update(a=2)
+
+    rm = loads('a = 1')
+    assert rm.a == 1
+    cp = rm.copy().update(a=2)
+    assert rm.a == 1
+    assert cp.a == 2
 
 
 def test_multiple_definitions(inside_tests):
@@ -350,12 +359,17 @@ def test_update_render():
         ('1', "'1'"),
         ([1, '2', b'3'], "[1, '2', b'3']"),
         ({1: 2, '3': [4]}, "{1: 2, '3': [4]}"),
+        ((1, 2), '(1, 2)'),
+        ({1, 2}, '{1, 2}'),
     )
 
     for raw, s in values:
         cf = Config()
         cf.update(x=raw)
         assert cf.dumps().strip() == 'x = ' + s
+
+    with pytest.raises(ValueError):
+        Config().update(x=object()).dumps()
 
 
 def test_cycles():

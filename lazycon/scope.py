@@ -152,7 +152,11 @@ class Scope:
         definitions, order = self._get_leave_time(entry_points)
         return render_scope(definitions, order)
 
-    def __setitem__(self, key, value):
+    @classmethod
+    def copy(cls, scope: 'Scope'):
+        return cls(tuple(scope.definitions.values()), scope._parent, scope._parents)
+
+    def __setitem__(self, key, value):  # pragma: no cover
         raise NotImplementedError
 
 

@@ -25,11 +25,12 @@ class Config:
         a dict with default values that will be used in case the config doesn't define them.
     """
     # restricting setattr to these names
-    __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope', '_extension'
+    __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope', '_extension', '_injections'
 
     def __init__(self, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
+        self._injections = injections
         self._builtins = Builtins(injections or {})
         self._scope: Scope = Scope([], self._builtins, {})
         self._extension = '.config'
@@ -112,8 +113,20 @@ class Config:
 
     def update(self, **values: Any) -> 'Config':
         """Update the scope by `values`."""
-        self._scope.update_values(values)
-        return self
+        try:
+            self._scope.update_values(values)
+            return self
+        except RuntimeError:
+            raise RuntimeError(
+                'The scope has already been populated with live objects. Overwriting them might cause '
+                'undefined behaviour. Please, create another instance or copy of Config: config.copy().update(...)'
+            ) from None
+
+    def copy(self) -> 'Config':
+        """Create a copy of the config with an unpopulated scope."""
+        config = type(self)(self._shortcuts, self._injections)
+        config._scope = Scope.copy(self._scope)
+        return config
 
     def __contains__(self, name: str):
         return name in self._scope
