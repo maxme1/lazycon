@@ -33,9 +33,8 @@ class Semantics(SemanticVisitor):
                 definition.statement, MarkedValue(definition.statement))
             self._statement_names[definition.statement].append(definition.name)
 
-            *pos, source = definition.statement.position
-
             if definition.name.startswith('__'):
+                *pos, source = definition.statement.position
                 self.add_message('Dunder names are read-only', f'"{definition.name}" at %d:%d' % tuple(pos), source)
 
         self._statement_names = dict(self._statement_names)
@@ -67,8 +66,12 @@ class Semantics(SemanticVisitor):
 
     def add_message(self, message, content, source=None):
         # TODO: move line info here?
-        source = source or self._global_statement.source_path
+        source = source or self.source_path
         self.messages[message][source].add(content)
+
+    @property
+    def source_path(self):
+        return self._global_statement.source_path
 
     # scope management
 
@@ -171,7 +174,7 @@ class Semantics(SemanticVisitor):
     # local definitions
 
     def visit_assign(self, node: ast.Assign):
-        names = extract_assign_targets(node.targets)
+        names = extract_assign_targets(node.targets, self.source_path)
         for name in names:
             self.enter(name)
 
@@ -192,7 +195,7 @@ class Semantics(SemanticVisitor):
         if isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Str):
             body = body[1:]
 
-        self.enter_scope(LocalsGatherer.gather(body), self._gather_arg_names(node.args))
+        self.enter_scope(LocalsGatherer.gather(body, self.source_path), self._gather_arg_names(node.args))
         self._iterate_nodes(body)
         self.leave_scope()
 

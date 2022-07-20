@@ -51,7 +51,11 @@ def tokenize_string(source):
     return tokenize(BytesIO(source.encode()).readline)
 
 
-def extract_assign_targets(targets):
+def get_position(node, source):
+    return node.lineno, node.col_offset, source
+
+
+def extract_assign_targets(targets, source):
     def _extract(target):
         assert isinstance(target.ctx, ast.Store)
 
@@ -64,7 +68,7 @@ def extract_assign_targets(targets):
                 yield from _extract(elt)
 
         else:
-            assert False, 'unreachable code'
+            throw('This assignment syntax is not supported', get_position(target, source))
 
     result = []
     for t in targets:
@@ -81,7 +85,7 @@ class Normalizer(Visitor):
         self.extension = extension
 
     def get_position(self, node: ast.AST):
-        return node.lineno, node.col_offset, self.source_path
+        return get_position(node, self.source_path)
 
     def generic_visit(self, node, *args, **kwargs):
         throw('This syntactic structure is not supported.', self.get_position(node))
@@ -100,7 +104,7 @@ class Normalizer(Visitor):
 
         statement = GlobalAssign(node, body, position)
         for target in node.targets:
-            names = list(extract_assign_targets([target]))
+            names = list(extract_assign_targets([target], self.source_path))
             if set(names) == {IGNORE_NAME}:
                 throw('The assignment target cannot completely consist of the `_` wildcard', self.get_position(target))
 
