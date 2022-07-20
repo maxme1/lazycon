@@ -50,3 +50,8 @@ def test_unrecognized_token():
 def test_unsupported_assignment():
     with pytest.raises(SyntaxError):
         parse_string('x = 0; x[1] = 2')
+
+
+def test_unsupported_syntax():
+    with pytest.raises(SyntaxError, match='This syntactic structure is not supported'):
+        parse_string('for i in range(100): pass')
