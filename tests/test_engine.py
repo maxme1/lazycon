@@ -252,6 +252,14 @@ def test_eval(inside_tests):
     assert rm.eval('f()') == 1
     assert rm.eval('qsort([4,2,1,3])') == [1, 2, 3, 4]
     assert rm.eval('returner(10)')() == 10
+    with pytest.raises(KeyError):
+        loads('a = {1: 2}[3]; b = lambda: a').eval('b()')
+
+
+def test_contains():
+    cf = loads('a = 1; b = 2')
+    assert 'a' in cf and 'b' in cf
+    assert 'c' not in cf
 
 
 def test_literals(inside_tests):

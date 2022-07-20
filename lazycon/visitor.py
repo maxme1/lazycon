@@ -2,8 +2,9 @@ import ast
 import re
 from typing import Iterable
 
-first_cap = re.compile('(.)([A-Z][a-z]+)')
-all_cap = re.compile('([a-z0-9])([A-Z])')
+# credit: https://stackoverflow.com/a/1176023
+first_cap = re.compile(r'(.)([A-Z][a-z]+)')
+all_cap = re.compile(r'([a-z\d])([A-Z])')
 
 
 def snake_case(name):
@@ -23,9 +24,3 @@ class Visitor:
     def _iterate_nodes(self, nodes: Iterable, *args, **kwargs):
         for item in nodes:
             self.visit(item, *args, **kwargs)
-
-    def _visit_nodes(self, nodes: Iterable, *args, **kwargs):
-        result = []
-        for item in nodes:
-            result.append(self.visit(item, *args, **kwargs))
-        return result

@@ -1,4 +1,5 @@
 import builtins
+from functools import partial
 
 import pytest
 
@@ -6,18 +7,20 @@ from lazycon.exceptions import SemanticError
 from lazycon.parser import parse_string
 from lazycon.semantics import Semantics
 
+parse_string = partial(parse_string, extension='.config')
+
 
 def test_correctness(subtests, tests_path):
     for path in tests_path.glob('**/*.config'):
         with subtests.test(path=path):
             with open(path, 'r') as file:
-                parents, scope = parse_string(file.read(), '.config')
+                parents, scope = parse_string(file.read())
                 if not parents:
                     Semantics(scope, set(vars(builtins))).check()
 
 
 def validate_config(source: str):
-    parents, scope = parse_string(source, '.config')
+    parents, scope = parse_string(source)
     assert not parents
     Semantics(scope, set(vars(builtins))).check()
 
@@ -63,3 +66,8 @@ def f(x):
 def test_wildcard():
     with pytest.raises(SemanticError):
         validate_config('x, _ = 1, 1; a = _, 2')
+
+
+def test_unsupported_assignment():
+    with pytest.raises(SyntaxError):
+        validate_config('def f(x): x[1] = 2')
