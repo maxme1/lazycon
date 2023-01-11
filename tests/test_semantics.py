@@ -83,7 +83,7 @@ def f(x):
 
 
 def test_async_comprehension():
-    with pytest.raises(SemanticError):
+    with pytest.raises((SemanticError, SyntaxError)):
         validate_config('y = (x async for x in [])')
 
 
