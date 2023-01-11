@@ -382,7 +382,7 @@ def test_update_render():
         Config().update(x=object()).dumps()
 
 
-def test_context_manager():
+def test_context_manager(inside_tests):
     @contextlib.contextmanager
     def returner(x):
         yield x
