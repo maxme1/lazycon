@@ -26,5 +26,7 @@ class LocalsGatherer(SemanticVisitor):
             if item.optional_vars is not None:
                 self.names.extend(extract_assign_targets([item.optional_vars], self.source_path))
 
+        self._iterate_nodes(node.body)
+
     def generic_visit(self, node: ast.AST, *args, **kwargs):
         pass
