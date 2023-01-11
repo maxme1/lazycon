@@ -208,6 +208,17 @@ class Semantics(SemanticVisitor):
         self.visit(node.body)
         self.leave_scope()
 
+    def visit_with(self, node: ast.With):
+        for item in node.items:
+            self.visit(item.context_expr)
+            if item.optional_vars is not None:
+                names = extract_assign_targets([item.optional_vars], self.source_path)
+                for name in names:
+                    self.enter(name)
+                    self.leave(name)
+
+        self._iterate_nodes(node.body)
+
     def visit_list_comp(self, node):
         for comp in node.generators:
             self.visit(comp)
@@ -230,24 +241,11 @@ class Semantics(SemanticVisitor):
     visit_set_comp = visit_generator_exp = visit_list_comp
 
     def visit_comprehension(self, node: ast.comprehension):
-        assert not getattr(node, 'is_async', False)
-
-        def get_names(target):
-            assert isinstance(target.ctx, ast.Store)
-            if isinstance(target, (ast.Tuple, ast.List)):
-                names = []
-                for elt in target.elts:
-                    names.extend(get_names(elt))
-                return names
-
-            if isinstance(target, ast.Starred):
-                return [target.value]
-
-            assert isinstance(target, ast.Name), target
-            return [target.id]
+        if getattr(node, 'is_async', False):
+            self.add_message('Async comprehensions are not supported', '')
 
         self.visit(node.iter)
-        self.enter_scope({}, get_names(node.target))
+        self.enter_scope({}, extract_assign_targets([node.target], self.source_path))
 
         for test in node.ifs:
             self.visit(test)
