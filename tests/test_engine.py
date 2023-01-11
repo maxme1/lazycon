@@ -392,6 +392,7 @@ def test_context_manager(inside_tests):
     assert cf.inverse(0) == 0
     assert cf.invoke_with(returner(1)) == 1
     assert cf.invoke_with_unpack(returner((1, 2, 3))) == 6
+    assert cf.context_result(returner((1, 2))) == 4
 
 
 def test_cycles():
