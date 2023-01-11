@@ -1,3 +1,5 @@
+import contextlib
+
 import numpy as np
 import pytest
 
@@ -378,6 +380,18 @@ def test_update_render():
 
     with pytest.raises(ValueError):
         Config().update(x=object()).dumps()
+
+
+def test_context_manager():
+    @contextlib.contextmanager
+    def returner(x):
+        yield x
+
+    cf = load('statements/context.config')
+    assert cf.inverse(2) == 1 / 2
+    assert cf.inverse(0) == 0
+    assert cf.invoke_with(returner(1)) == 1
+    assert cf.invoke_with_unpack(returner((1, 2, 3))) == 6
 
 
 def test_cycles():

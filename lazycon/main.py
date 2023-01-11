@@ -39,7 +39,7 @@ class Config:
     def load(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
         """
         Import the config located at `path` and return a Config instance.
-        Also this method adds a `__file__ = pathlib.Path(path)` value to the global scope.
+        Also this method adds a `__file__` value to the global scope which points to the config's path.
 
         Parameters
         ----------

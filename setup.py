@@ -2,11 +2,18 @@ from distutils.core import setup
 from setuptools import find_packages
 from lazycon import __version__
 
-classifiers = '''Development Status :: 5 - Production/Stable
-Programming Language :: Python :: 3.6
-Programming Language :: Python :: 3.7
-Programming Language :: Python :: 3.8
-Programming Language :: Python :: 3.9'''
+classifiers = [
+    'Development Status :: 5 - Production/Stable',
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    "Programming Language :: Python :: 3 :: Only",
+]
 
 with open('README.md', encoding='utf-8') as file:
     long_description = file.read()
@@ -27,7 +34,7 @@ setup(
     keywords=[
         'config', 'lazy', 'interpreter'
     ],
-    classifiers=classifiers.splitlines(),
+    classifiers=classifiers,
     install_requires=[],
     python_requires='>=3.6',
     entry_points={
