@@ -242,7 +242,7 @@ class Semantics(SemanticVisitor):
 
     def visit_comprehension(self, node: ast.comprehension):
         if getattr(node, 'is_async', False):
-            self.add_message('Async comprehensions are not supported', 'at %d:%d' % position(node))
+            self.add_message('Async comprehensions are not supported', '')
 
         self.visit(node.iter)
         self.enter_scope({}, extract_assign_targets([node.target], self.source_path))
