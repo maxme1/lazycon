@@ -1,7 +1,7 @@
 import builtins
 from collections import defaultdict, OrderedDict
 from threading import Lock
-from typing import Dict, Any, Sequence, List
+from typing import Dict, Any, Sequence, List, Optional
 
 from .semantics.analyzer import NodeParents
 from .thunk import ValueThunk, NodeThunk, Thunk
@@ -111,7 +111,7 @@ class Scope:
             result[thunk.statement].append(name)
         self._statement_to_names = dict(result)
 
-    def _get_leave_time(self, entry_points: Sequence[str]):
+    def _get_leave_time(self, entry_points: Optional[Sequence[str]]):
         def mark_name(name):
             nonlocal current
             if name not in leave_time:
@@ -148,7 +148,7 @@ class Scope:
 
         return [self.definitions[n] for n in leave_time], {self.definitions[n]: t for n, t in leave_time.items()}
 
-    def render(self, entry_points: Sequence[str] = None):
+    def render(self, entry_points: Optional[Sequence[str]] = None):
         definitions, order = self._get_leave_time(entry_points)
         return render_scope(definitions, order)
 
