@@ -3,11 +3,12 @@ import ast
 import bisect
 from io import BytesIO
 from tokenize import tokenize
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, Optional
 
 from .visitor import Visitor
-from .statements import GlobalFunction, GlobalAssign, ImportConfig, GlobalImportFrom, GlobalImport, Definition, \
-    IGNORE_NAME, Definitions
+from .statements import (
+    GlobalFunction, GlobalAssign, ImportConfig, GlobalImportFrom, GlobalImport, Definition, IGNORE_NAME, Definitions
+)
 
 NO_DECORATORS = sys.version_info[:2] > (3, 7)
 
@@ -16,8 +17,9 @@ def throw(message, position):
     raise SyntaxError(message + '\n  at %d:%d in %s' % position)
 
 
-def get_substring(lines: Sequence[str], start_line: int, start_col: int, stop_line: int = None,
-                  stop_col: int = None, lstrip: bool = True, rstrip: bool = True, keep_line: bool = True) -> str:
+def get_substring(lines: Sequence[str], start_line: int, start_col: int,
+                  stop_line: Optional[int] = None, stop_col: Optional[int] = None, lstrip: bool = True,
+                  rstrip: bool = True, keep_line: bool = True) -> str:
     lines = list(lines[start_line - 1:stop_line])
 
     lines[-1] = lines[-1][:stop_col]

@@ -1,7 +1,7 @@
 import os
 from collections import OrderedDict, Counter
 from pathlib import Path
-from typing import Union, Dict, Any, Sequence
+from typing import Union, Dict, Any, Sequence, Optional
 
 from .semantics import Semantics
 from .exceptions import EntryError, ExceptionWrapper, SemanticError
@@ -10,7 +10,7 @@ from .parser import parse_file, parse_string
 from .render import ScopeEval
 from .statements import ImportConfig, Definitions
 
-PathLike = Union[Path, str]
+PathOrStr = Union[os.PathLike, str]
 
 
 class Config:
@@ -27,7 +27,7 @@ class Config:
     # restricting setattr to these names
     __slots__ = '_shortcuts', '_imported_configs', '_builtins', '_scope', '_extension', '_injections'
 
-    def __init__(self, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
+    def __init__(self, shortcuts: Optional[Dict[str, PathOrStr]] = None, injections: Optional[Dict[str, Any]] = None):
         self._shortcuts = shortcuts or {}
         self._imported_configs = {}
         self._injections = injections
@@ -36,7 +36,8 @@ class Config:
         self._extension = '.config'
 
     @classmethod
-    def load(cls, path: PathLike, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
+    def load(cls, path: PathOrStr, shortcuts: Optional[Dict[str, PathOrStr]] = None,
+             injections: Optional[Dict[str, Any]] = None):
         """
         Import the config located at `path` and return a Config instance.
         Also this method adds a `__file__` value to the global scope which points to the config's path.
@@ -64,7 +65,8 @@ class Config:
         return cls(shortcuts, injections).file_input(path)
 
     @classmethod
-    def loads(cls, source: str, shortcuts: Dict[str, PathLike] = None, injections: Dict[str, Any] = None):
+    def loads(cls, source: str, shortcuts: Optional[Dict[str, PathOrStr]] = None,
+              injections: Optional[Dict[str, Any]] = None):
         """
         Interpret the `source` and return a `Config` instance.
 
@@ -82,7 +84,7 @@ class Config:
         """
         return cls(shortcuts, injections).string_input(source)
 
-    def dumps(self, entry_points: Union[Sequence[str], str] = None) -> str:
+    def dumps(self, entry_points: Union[Sequence[str], str, None] = None) -> str:
         """
         Generate a string containing the names from the current scope.
 
@@ -96,12 +98,12 @@ class Config:
             entry_points = [entry_points]
         return '\n'.join(self._scope.render(entry_points)).strip() + '\n'
 
-    def dump(self, path: PathLike, entry_points: Union[Sequence[str], str] = None):
+    def dump(self, path: PathOrStr, entry_points: Union[Sequence[str], str, None] = None):
         """ Render the config and save it to `path`. See `dumps` for details. """
         with open(path, 'w') as file:
             file.write(self.dumps(entry_points))
 
-    def file_input(self, path: PathLike) -> 'Config':
+    def file_input(self, path: PathOrStr) -> 'Config':
         """Import the config located at `path`."""
         self._update_scope(self._import(path))
         return self
@@ -175,13 +177,13 @@ class Config:
         self._scope = Scope(definitions, self._builtins, tree.parents)
 
     @staticmethod
-    def _standardize_path(path: PathLike) -> str:
-        path = str(path)
+    def _standardize_path(path: PathOrStr) -> str:
+        path = os.fspath(path)
         path = os.path.expanduser(path)
         path = os.path.realpath(path)
         return path
 
-    def _import(self, path: str) -> OrderedDict:
+    def _import(self, path: PathOrStr) -> OrderedDict:
         path = self._standardize_path(path)
 
         if path in self._imported_configs:
@@ -223,3 +225,5 @@ class Config:
 
 load = Config.load
 loads = Config.loads
+# TODO: deprecate
+PathLike = Union[Path, str]
