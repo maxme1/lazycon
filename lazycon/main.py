@@ -11,6 +11,7 @@ from .render import ScopeEval
 from .statements import ImportConfig, Definitions
 
 PathOrStr = Union[os.PathLike, str]
+_NO_ARG = object()
 
 
 class Config:
@@ -151,9 +152,13 @@ class Config:
         except EntryError:
             raise KeyError(f'"{name}" is not defined.') from None
 
-    def get(self, name: str):
+    def get(self, name: str, default: Any = _NO_ARG):
         try:
             return self._scope[name]
+        except EntryError:
+            if default is not _NO_ARG:
+                return default
+            raise
         except ExceptionWrapper as e:
             raise e.exception from None
 
