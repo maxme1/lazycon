@@ -448,6 +448,13 @@ def test_setattr():
         rm.a = 1
 
 
+def test_get():
+    cf = Config()
+    assert cf.get('a', 1) == 1
+    with pytest.raises(EntryError):
+        cf.get('a')
+
+
 def test_unused():
     # unused names are ok now
     loads('''
