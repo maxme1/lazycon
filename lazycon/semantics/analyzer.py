@@ -87,6 +87,9 @@ class Semantics(SemanticVisitor):
         self._local_scopes.pop()
 
     def enter(self, name: str):
+        if name == IGNORE_NAME:
+            return
+
         if self._local_scopes:
             value = self._local_scopes[-1][name]
             # allow multiple definitions
@@ -97,6 +100,9 @@ class Semantics(SemanticVisitor):
             self._global_scope[name].enter()
 
     def leave(self, name: str):
+        if name == IGNORE_NAME:
+            return
+
         if self._local_scopes:
             value = self._local_scopes[-1][name]
             # allow multiple definitions
@@ -192,9 +198,6 @@ class Semantics(SemanticVisitor):
 
         # ignore docstring
         body = node.body
-        if isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Str):
-            body = body[1:]
-
         self.enter_scope(LocalsGatherer.gather(body, self.source_path), self._gather_arg_names(node.args))
         self._iterate_nodes(body)
         self.leave_scope()
